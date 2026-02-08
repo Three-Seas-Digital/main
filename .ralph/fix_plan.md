@@ -20,7 +20,14 @@
 
 ## Phase 3: Code Quality & Architecture (High)
 
-- [ ] Split `Admin.jsx` (494 KB) into separate component files under `src/components/admin/` — start with extracting: AdminLogin, DashboardHomeTab, AppointmentsTab, ClientsTab, ProspectsTab, ExpensesTab, AnalyticsTab, UserManagementTab, and shared components like StatusBadge, RoleBadge
+- [~] Split `Admin.jsx` (494 KB) into separate component files under `src/components/admin/` — IN PROGRESS
+  - [x] Batch 1: Extracted AdminSetup, AdminLogin, DashboardHomeTab, NotificationsDropdown, TimeTracker, and shared utilities (StatusBadge, RoleBadge, FollowUpBadge, TierBadge, formatDisplayDate, exportToICal) → 6 new files, ~720 lines removed from Admin.jsx (10,400 → 9,682)
+  - [ ] Batch 2: Extract FollowUpsTab, PipelineTab, ClientRequestsTab
+  - [ ] Batch 3: Extract ClientsTab (largest ~1200 lines), ProjectBoard, KanbanCard, KanbanColumn
+  - [ ] Batch 4: Extract UserManagement, ExpensesTab
+  - [ ] Batch 5: Extract RevenueTab, InvoicesTab, ProfitTab, TaxesTab
+  - [ ] Batch 6: Extract AnalyticsTab, LeadsTab, ResearchTab
+  - [ ] Batch 7: Extract ArchivedTab, TiersTab, ClientsDatabaseTab, KanbanView
 - [ ] Split `index.css` (332 KB) into per-feature CSS files — at minimum: `base.css`, `home.css`, `portfolio.css`, `demos.css`, `admin.css`, `client-portal.css`
 - [ ] Split `AppContext.jsx` into domain-specific contexts: `AuthContext`, `ClientContext`, `AppointmentContext`, `FinanceContext` (invoices/payments/expenses), `ProspectContext`, `LeadContext`
 - [ ] Add React.lazy() code splitting for heavy routes: Admin, ClientSignup, PortfolioLanding
