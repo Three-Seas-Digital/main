@@ -22,7 +22,7 @@
 
 - [~] Split `Admin.jsx` (494 KB) into separate component files under `src/components/admin/` — IN PROGRESS
   - [x] Batch 1: Extracted AdminSetup, AdminLogin, DashboardHomeTab, NotificationsDropdown, TimeTracker, and shared utilities (StatusBadge, RoleBadge, FollowUpBadge, TierBadge, formatDisplayDate, exportToICal) → 6 new files, ~720 lines removed from Admin.jsx (10,400 → 9,682)
-  - [ ] Batch 2: Extract FollowUpsTab, PipelineTab, ClientRequestsTab
+  - [x] Batch 2: Extracted FollowUpsTab (~482 lines), PipelineTab (~543 lines), ClientRequestsTab (~145 lines) → 3 new files, ~1,172 lines removed from Admin.jsx (9,682 → 8,510)
   - [ ] Batch 3: Extract ClientsTab (largest ~1200 lines), ProjectBoard, KanbanCard, KanbanColumn
   - [ ] Batch 4: Extract UserManagement, ExpensesTab
   - [ ] Batch 5: Extract RevenueTab, InvoicesTab, ProfitTab, TaxesTab
