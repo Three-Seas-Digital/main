@@ -22,28 +22,87 @@ import { Link } from 'react-router-dom';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
 
+/* ===== FIRST-RUN SETUP ===== */
+function AdminSetup() {
+  const [form, setForm] = useState({ name: '', email: '', username: '', password: '', confirmPassword: '' });
+  const [error, setError] = useState('');
+  const { setupAdmin } = useAppContext();
+  const handleChange = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); setError(''); };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }
+    const result = setupAdmin({ name: form.name, email: form.email, username: form.username, password: form.password });
+    if (!result.success) setError(result.error);
+  };
+  return (
+    <div className="admin-login-page">
+      <div className="admin-login-card">
+        <div className="admin-login-icon"><Shield size={32} /></div>
+        <h2>Welcome to Three Seas Digital</h2>
+        <p>Create your admin account to get started</p>
+        {error && <div className="login-error">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group"><label>Full Name</label><input type="text" name="name" value={form.name} onChange={handleChange} placeholder="Your name" required /></div>
+          <div className="form-group"><label>Email</label><input type="email" name="email" value={form.email} onChange={handleChange} placeholder="admin@example.com" required /></div>
+          <div className="form-group"><label>Username</label><input type="text" name="username" value={form.username} onChange={handleChange} placeholder="Choose a username" required /></div>
+          <div className="form-group"><label>Password</label><input type="password" name="password" value={form.password} onChange={handleChange} placeholder="At least 6 characters" required /></div>
+          <div className="form-group"><label>Confirm Password</label><input type="password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm password" required /></div>
+          <button type="submit" className="btn btn-primary btn-full"><Shield size={18} /> Create Admin Account</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ===== LOGIN ===== */
 function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [failCount, setFailCount] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(null);
   const { login } = useAppContext();
+  const isLocked = lockedUntil && Date.now() < lockedUntil;
+  const [, forceUpdate] = useState(0);
+
+  // Tick the countdown while locked
+  useEffect(() => {
+    if (!lockedUntil) return;
+    const timer = setInterval(() => {
+      if (Date.now() >= lockedUntil) { setLockedUntil(null); setFailCount(0); clearInterval(timer); }
+      forceUpdate((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockedUntil]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isLocked) return;
     const result = login(username, password);
-    if (!result.success) setError(result.error);
+    if (!result.success) {
+      const newCount = failCount + 1;
+      setFailCount(newCount);
+      if (newCount >= 3) {
+        setLockedUntil(Date.now() + 30000); // 30 second lockout
+        setError('Too many failed attempts. Please wait 30 seconds.');
+      } else {
+        setError(result.error);
+      }
+    }
   };
+  const lockSeconds = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000)) : 0;
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">
         <div className="admin-login-icon"><Lock size={32} /></div>
         <h2>Admin Panel</h2>
         <p>Sign in to manage your dashboard</p>
-        {error && <div className="login-error">{error}</div>}
+        {error && <div className="login-error">{error}{isLocked ? ` (${lockSeconds}s)` : ''}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group"><label>Username</label><input type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(''); }} placeholder="Username" required /></div>
           <div className="form-group"><label>Password</label><input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} placeholder="Password" required /></div>
-          <button type="submit" className="btn btn-primary btn-full">Sign In</button>
+          <button type="submit" className="btn btn-primary btn-full" disabled={isLocked}>{isLocked ? `Locked (${lockSeconds}s)` : 'Sign In'}</button>
         </form>
         <p className="login-hint">Enter your credentials to sign in</p>
         <div className="login-register-link">
@@ -9899,7 +9958,7 @@ export default function Admin() {
   useEffect(() => { document.title = 'Admin Dashboard — Three Seas Digital'; }, []);
   const {
     appointments, updateAppointmentStatus, deleteAppointment, assignAppointment,
-    currentUser, logout, hasPermission, clients, users, STAFF_COLORS, prospects, leads, marketResearch,
+    currentUser, needsSetup, logout, hasPermission, clients, users, STAFF_COLORS, prospects, leads, marketResearch,
   } = useAppContext();
   const [selectedDate, setSelectedDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -9918,6 +9977,7 @@ export default function Admin() {
     setBulkMode(false);
   }, [view, filterStatus, selectedDate]);
 
+  if (needsSetup) return <AdminSetup />;
   if (!currentUser) return <AdminLogin />;
 
   // Bulk Operations

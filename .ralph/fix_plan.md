@@ -11,12 +11,12 @@
 - [x] Add a favicon — created `public/favicon.svg` with "3S" branding, updated index.html reference
 - [x] Persist admin auth to localStorage — added ADMIN_AUTH_KEY, init from localStorage, useEffect sync, logout clears storage
 
-## Phase 2: Security Hardening (High)
+## Phase 2: Security Hardening (High) ✅ COMPLETE
 
-- [ ] Remove hardcoded default admin credentials from `AppContext.jsx` `defaultUsers` array — replace with a first-run setup flow or environment-based config
-- [ ] Add basic password hashing (use a simple hash function client-side as a stopgap until backend exists — NOT production-grade, but better than plaintext)
+- [x] Remove hardcoded default admin credentials from `AppContext.jsx` `defaultUsers` array — replaced with first-run setup flow (AdminSetup component, setupAdmin function, needsSetup flag)
+- [x] Add basic password hashing (client-side salted hash via hashPassword function — NOT production-grade, but prevents plaintext storage). Auto-migrates legacy plaintext passwords on login.
 - [x] Add HTTPS redirect in `.htaccess` for production deployment — included in Phase 1 .htaccess
-- [ ] Add rate limiting UX — disable login button briefly after 3 failed attempts
+- [x] Add rate limiting UX — login button disabled for 30s after 3 failed attempts, with countdown timer
 
 ## Phase 3: Code Quality & Architecture (High)
 

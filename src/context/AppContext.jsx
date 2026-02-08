@@ -2,6 +2,25 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
+// Client-side password hashing (stopgap until backend with bcrypt).
+// Uses a simple salted hash — NOT cryptographically strong, but prevents plaintext storage.
+function hashPassword(password) {
+  const salt = 'tsd_2026';
+  const str = salt + password;
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+
 const STORAGE_KEY = 'threeseas_appointments';
 const USERS_KEY = 'threeseas_users';
 const CLIENTS_KEY = 'threeseas_clients';
@@ -145,19 +164,7 @@ const STAFF_COLORS = [
   '#84cc16', // lime
 ];
 
-const defaultUsers = [
-  {
-    id: '1',
-    username: 'admin',
-    password: 'admin123',
-    name: 'Super Admin',
-    email: 'admin@threeseasdigital.com',
-    role: 'admin',
-    status: 'approved',
-    color: STAFF_COLORS[0],
-    createdAt: new Date().toISOString(),
-  },
-];
+// No default users — first-run setup creates the initial admin account
 
 
 
@@ -187,7 +194,7 @@ export function AppProvider({ children }) {
 
   const [users, setUsers] = useState(() => {
     const saved = localStorage.getItem(USERS_KEY);
-    return saved ? JSON.parse(saved) : defaultUsers;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [clients, setClients] = useState(() => {
@@ -438,11 +445,47 @@ export function AppProvider({ children }) {
     setEmailTemplates(DEFAULT_EMAIL_TEMPLATES);
   };
 
+  // First-run check — no admin users exist yet
+  const needsSetup = users.length === 0 || !users.some((u) => u.role === 'admin' && u.status === 'approved');
+
+  const setupAdmin = (userData) => {
+    if (!needsSetup) return { success: false, error: 'Admin already configured' };
+    if (!userData.username || !userData.password || !userData.name || !userData.email) {
+      return { success: false, error: 'All fields are required' };
+    }
+    if (userData.password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters' };
+    }
+    const newAdmin = {
+      id: Date.now().toString(),
+      username: userData.username,
+      password: hashPassword(userData.password),
+      name: userData.name,
+      email: userData.email,
+      role: 'admin',
+      status: 'approved',
+      color: STAFF_COLORS[0],
+      createdAt: new Date().toISOString(),
+    };
+    setUsers([newAdmin]);
+    setCurrentUser(newAdmin);
+    return { success: true, user: newAdmin };
+  };
+
   // Auth
   const login = (username, password) => {
-    const user = users.find(
-      (u) => u.username === username && u.password === password
-    );
+    const hashed = hashPassword(password);
+    const user = users.find((u) => {
+      if (u.username !== username) return false;
+      // Support both hashed and legacy plaintext passwords (auto-migrate on match)
+      if (u.password === hashed) return true;
+      if (u.password === password) {
+        // Migrate plaintext password to hashed
+        setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, password: hashed } : x));
+        return true;
+      }
+      return false;
+    });
     if (!user) return { success: false, error: 'Invalid credentials' };
     if (user.status === 'pending') return { success: false, error: 'Your account is pending approval. Please wait for an admin to approve your registration.' };
     if (user.status === 'rejected') return { success: false, error: 'Your account has been rejected. Contact an administrator.' };
@@ -458,6 +501,7 @@ export function AppProvider({ children }) {
     if (existsEmail) return { success: false, error: 'Email already registered' };
     const newUser = {
       ...userData,
+      password: hashPassword(userData.password),
       id: Date.now().toString(),
       role: 'pending',
       status: 'pending',
@@ -499,6 +543,7 @@ export function AppProvider({ children }) {
     const colorIndex = users.length % STAFF_COLORS.length;
     const newUser = {
       ...userData,
+      password: hashPassword(userData.password),
       id: Date.now().toString(),
       status: 'approved',
       color: userData.color || STAFF_COLORS[colorIndex],
@@ -513,8 +558,9 @@ export function AppProvider({ children }) {
       const exists = users.some((u) => u.username === updates.username && u.id !== id);
       if (exists) return { success: false, error: 'Username already taken' };
     }
+    const processed = updates.password ? { ...updates, password: hashPassword(updates.password) } : updates;
     setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...updates } : u))
+      prev.map((u) => (u.id === id ? { ...u, ...processed } : u))
     );
     if (currentUser?.id === id) {
       setCurrentUser((prev) => ({ ...prev, ...updates }));
@@ -1633,7 +1679,7 @@ export function AppProvider({ children }) {
       id: Date.now().toString(),
       name: data.name,
       email: data.email,
-      password: data.password || '',
+      password: data.password ? hashPassword(data.password) : '',
       businessName: data.businessName || '',
       phone: data.phone || '',
       street: data.street || '',
@@ -1659,9 +1705,17 @@ export function AppProvider({ children }) {
   };
 
   const clientLogin = (email, password) => {
-    const client = clients.find(
-      (c) => c.email.toLowerCase() === email.toLowerCase() && c.password === password
-    );
+    const hashed = hashPassword(password);
+    const client = clients.find((c) => {
+      if (c.email.toLowerCase() !== email.toLowerCase()) return false;
+      if (c.password === hashed) return true;
+      if (c.password === password) {
+        // Migrate plaintext password to hashed
+        setClients((prev) => prev.map((x) => x.id === c.id ? { ...x, password: hashed } : x));
+        return true;
+      }
+      return false;
+    });
     if (!client) return { success: false, error: 'Invalid email or password' };
     if (client.status === 'pending') {
       return { success: false, error: 'Your account is pending approval. Please wait for an administrator to approve your registration.' };
@@ -1737,6 +1791,8 @@ export function AppProvider({ children }) {
         getAppointmentsForDate,
         currentUser,
         users,
+        needsSetup,
+        setupAdmin,
         login,
         logout,
         hasPermission,
