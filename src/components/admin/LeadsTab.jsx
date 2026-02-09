@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { fetchWithTimeout } from '../../constants';
 import {
   Search, Building2, MapPin, Phone, Globe, Mail,
   Eye, X, Plus, CheckCircle, Trash2, ExternalLink,
@@ -300,7 +301,7 @@ export default function LeadsTab() {
     setSearchResults([]);
     setSearchCenter(null);
     try {
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchAddress)}&format=json&limit=1`, {
+      const geoRes = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchAddress)}&format=json&limit=1`, {
         headers: { 'User-Agent': 'ThreeSeasDigital/1.0' },
       });
       const geoData = await geoRes.json();
@@ -317,11 +318,11 @@ export default function LeadsTab() {
   way["shop"](around:${searchRadius},${lat},${lon});
   way["office"](around:${searchRadius},${lat},${lon});
 );out center;`;
-      const overRes = await fetch('https://overpass-api.de/api/interpreter', {
+      const overRes = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
         method: 'POST',
         body: `data=${encodeURIComponent(query)}`,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      }, 30000);
       const overData = await overRes.json();
 
       const results = (overData.elements || [])
@@ -345,8 +346,10 @@ export default function LeadsTab() {
       const filtered = searchCategory === 'all' ? results : results.filter((r) => r.category === searchCategory);
       setSearchResults(filtered);
       if (!filtered.length) setSearchError('No businesses found in this area. Try a larger radius or different address.');
-    } catch {
-      setSearchError('Search failed. Please check your connection and try again.');
+    } catch (err) {
+      setSearchError(err.name === 'AbortError'
+        ? 'Search timed out. Try a smaller radius or try again later.'
+        : 'Search failed. Please check your connection and try again.');
     }
     setSearching(false);
   };

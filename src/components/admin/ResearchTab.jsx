@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fetchWithTimeout } from '../../constants';
 import {
   Users, GraduationCap, Building2, Activity,
   Trees, Landmark, Globe, Search, FolderKanban,
@@ -93,7 +94,7 @@ export default function ResearchTab() {
     setCategoryData({});
 
     try {
-      const geoRes = await fetch(
+      const geoRes = await fetchWithTimeout(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchLocation)}&format=json&limit=1&addressdetails=1`,
         { headers: { 'User-Agent': 'ThreeSeasDigital/1.0' } }
       );
@@ -116,14 +117,14 @@ export default function ResearchTab() {
       let censusData = null;
       if (address.country_code === 'us' && state) {
         try {
-          const stateRes = await fetch('https://api.census.gov/data/2021/acs/acs5?get=NAME&for=state:*');
+          const stateRes = await fetchWithTimeout('https://api.census.gov/data/2021/acs/acs5?get=NAME&for=state:*');
           const stateList = await stateRes.json();
           const stateRow = stateList.find((row) => row[0]?.toLowerCase().includes(state.toLowerCase()));
           const stateFips = stateRow ? stateRow[1] : null;
 
           if (stateFips) {
             const censusUrl = `https://api.census.gov/data/2021/acs/acs5?get=NAME,B01003_001E,B01002_001E,B19013_001E,B25077_001E,B15003_022E,B15003_023E,B15003_024E,B15003_025E,B02001_002E,B02001_003E,B02001_004E,B02001_005E,B02001_006E,B02001_007E,B02001_008E,B03003_003E,B01001_003E,B01001_004E,B01001_005E,B01001_006E,B01001_007E,B01001_020E,B01001_021E,B01001_022E,B01001_023E,B01001_024E,B01001_025E,B25003_002E,B25003_003E&for=state:${stateFips}`;
-            const dataRes = await fetch(censusUrl);
+            const dataRes = await fetchWithTimeout(censusUrl);
             if (dataRes.ok) {
               const data = await dataRes.json();
               if (data.length > 1) {
@@ -202,8 +203,10 @@ export default function ResearchTab() {
       loadCategoryData('services', lat, lon);
       loadCategoryData('recreation', lat, lon);
       loadCategoryData('government', lat, lon);
-    } catch {
-      setSearchError('Search failed. Please try again.');
+    } catch (err) {
+      setSearchError(err.name === 'AbortError'
+        ? 'Search timed out. Try again later.'
+        : 'Search failed. Please check your connection and try again.');
     }
     setSearching(false);
   };
@@ -372,10 +375,10 @@ export default function ResearchTab() {
       }
 
       if (query) {
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
+        const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
           method: 'POST',
           body: `data=${encodeURIComponent(query)}`,
-        });
+        }, 30000);
         const data = await res.json();
 
         const items = (data.elements || []).map((el) => {

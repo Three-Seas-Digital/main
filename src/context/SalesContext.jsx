@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { generateId } from '../constants';
+import { generateId, safeSetItem, safeGetItem } from '../constants';
 
 const SalesContext = createContext();
 
@@ -29,40 +29,25 @@ const LOSS_REASONS = [
 export function SalesProvider({ children }) {
   const { currentUser } = useAuth();
 
-  const [leads, setLeads] = useState(() => {
-    const saved = localStorage.getItem(LEADS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [prospects, setProspects] = useState(() => {
-    const saved = localStorage.getItem(PROSPECTS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [businessDatabase, setBusinessDatabase] = useState(() => {
-    const saved = localStorage.getItem(BUSINESS_DB_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [marketResearch, setMarketResearch] = useState(() => {
-    const saved = localStorage.getItem(RESEARCH_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [leads, setLeads] = useState(() => safeGetItem(LEADS_KEY, []));
+  const [prospects, setProspects] = useState(() => safeGetItem(PROSPECTS_KEY, []));
+  const [businessDatabase, setBusinessDatabase] = useState(() => safeGetItem(BUSINESS_DB_KEY, []));
+  const [marketResearch, setMarketResearch] = useState(() => safeGetItem(RESEARCH_KEY, []));
 
   useEffect(() => {
-    localStorage.setItem(LEADS_KEY, JSON.stringify(leads));
+    safeSetItem(LEADS_KEY, JSON.stringify(leads));
   }, [leads]);
 
   useEffect(() => {
-    localStorage.setItem(PROSPECTS_KEY, JSON.stringify(prospects));
+    safeSetItem(PROSPECTS_KEY, JSON.stringify(prospects));
   }, [prospects]);
 
   useEffect(() => {
-    localStorage.setItem(BUSINESS_DB_KEY, JSON.stringify(businessDatabase));
+    safeSetItem(BUSINESS_DB_KEY, JSON.stringify(businessDatabase));
   }, [businessDatabase]);
 
   useEffect(() => {
-    localStorage.setItem(RESEARCH_KEY, JSON.stringify(marketResearch));
+    safeSetItem(RESEARCH_KEY, JSON.stringify(marketResearch));
   }, [marketResearch]);
 
   // Leads

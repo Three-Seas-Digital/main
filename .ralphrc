@@ -12,10 +12,10 @@ CLAUDE_TIMEOUT_MINUTES=15
 CLAUDE_OUTPUT_FORMAT="json"
 
 # Tool permissions
-ALLOWED_TOOLS="Write,Read,Edit,Bash(git *),Bash(npm *),Bash(npx *)"
+ALLOWED_TOOLS="Write,Read,Edit,Bash(*),ExitPlanMode"
 
 # Session management
-SESSION_CONTINUITY=true
+SESSION_CONTINUITY=false
 SESSION_EXPIRY_HOURS=24
 
 # Task sources

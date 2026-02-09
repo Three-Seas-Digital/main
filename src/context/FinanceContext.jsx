@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { generateId } from '../constants';
+import { generateId, safeSetItem, safeGetItem } from '../constants';
 
 const FinanceContext = createContext();
 
@@ -34,22 +34,15 @@ const RECURRING_FREQUENCIES = [
 export function FinanceProvider({ children }) {
   const { currentUser } = useAuth();
 
-  const [payments, setPayments] = useState(() => {
-    const saved = localStorage.getItem(PAYMENTS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [expenses, setExpenses] = useState(() => {
-    const saved = localStorage.getItem(EXPENSES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [payments, setPayments] = useState(() => safeGetItem(PAYMENTS_KEY, []));
+  const [expenses, setExpenses] = useState(() => safeGetItem(EXPENSES_KEY, []));
 
   useEffect(() => {
-    localStorage.setItem(PAYMENTS_KEY, JSON.stringify(payments));
+    safeSetItem(PAYMENTS_KEY, JSON.stringify(payments));
   }, [payments]);
 
   useEffect(() => {
-    localStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
+    safeSetItem(EXPENSES_KEY, JSON.stringify(expenses));
   }, [expenses]);
 
   // Expenses

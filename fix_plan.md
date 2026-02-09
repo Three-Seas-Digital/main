@@ -42,6 +42,11 @@
 - [x] **Remove console.error from ResearchTab** — Removed 2 console.error statements from search and category loading error handlers. Errors already handled via user-facing state.
 - [x] **Fix AdminLogin.jsx ESLint purity error** — `useState(Date.now())` flagged as impure by React compiler plugin. Changed to `useState(() => Date.now())` (lazy initializer).
 
+## Priority 7 — Data Resilience (Feb 2026)
+- [x] **localStorage quota handling** — Added `safeSetItem`/`safeGetItem`/`getStorageUsage` utilities in constants.js. All 16 `localStorage.setItem` calls across 4 contexts wrapped with try-catch for `QuotaExceededError`. All 14 `localStorage.getItem` calls wrapped with JSON.parse error recovery. Quota exceeded triggers notification via `onStorageWarning` → `addNotification` bridge in AppContext.
+- [x] **API fetch timeout** — Added `fetchWithTimeout` utility (AbortController-based, 15s default). Applied to all 6 external API calls: Nominatim geocoding (LeadsTab, ResearchTab), Overpass POI search (LeadsTab 30s, ResearchTab 30s), Census API (ResearchTab 2 calls). Timeout errors show specific "timed out" message vs generic "connection failed".
+- [ ] **Dependency updates** — Vite 5→7, eslint 9→10, @vitejs/plugin-react 4→5 (test thoroughly after).
+
 ## Priority 6 — SEO & Deployment Hardening (Feb 2026)
 - [x] **robots.txt** — Added with Allow /, Disallow /admin and /register, Sitemap reference.
 - [x] **sitemap.xml** — All 9 public routes with priorities and change frequencies.

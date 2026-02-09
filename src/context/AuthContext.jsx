@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { generateId } from '../constants';
+import { generateId, safeSetItem, safeGetItem } from '../constants';
 
 const AuthContext = createContext();
 
@@ -48,28 +48,17 @@ const STAFF_COLORS = [
 ];
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem(USERS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem(ADMIN_AUTH_KEY);
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [currentClient, setCurrentClient] = useState(() => {
-    const saved = localStorage.getItem(CLIENT_AUTH_KEY);
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [users, setUsers] = useState(() => safeGetItem(USERS_KEY, []));
+  const [currentUser, setCurrentUser] = useState(() => safeGetItem(ADMIN_AUTH_KEY, null));
+  const [currentClient, setCurrentClient] = useState(() => safeGetItem(CLIENT_AUTH_KEY, null));
 
   useEffect(() => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    safeSetItem(USERS_KEY, JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(currentUser));
+      safeSetItem(ADMIN_AUTH_KEY, JSON.stringify(currentUser));
     } else {
       localStorage.removeItem(ADMIN_AUTH_KEY);
     }
@@ -77,7 +66,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (currentClient) {
-      localStorage.setItem(CLIENT_AUTH_KEY, JSON.stringify(currentClient));
+      safeSetItem(CLIENT_AUTH_KEY, JSON.stringify(currentClient));
     } else {
       localStorage.removeItem(CLIENT_AUTH_KEY);
     }

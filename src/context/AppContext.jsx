@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useFinance } from './FinanceContext';
 import { useSales } from './SalesContext';
-import { generateId } from '../constants';
+import { generateId, safeSetItem, safeGetItem, onStorageWarning } from '../constants';
 
 const AppContext = createContext();
 
@@ -98,59 +98,35 @@ export function AppProvider({ children }) {
   const { addPaymentRecord, removePaymentByInvoice, RECURRING_FREQUENCIES } = finance;
   const { prospects, closeProspect } = sales;
 
-  const [appointments, setAppointments] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [clients, setClients] = useState(() => {
-    const saved = localStorage.getItem(CLIENTS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [activityLog, setActivityLog] = useState(() => {
-    const saved = localStorage.getItem(ACTIVITY_LOG_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [timeEntries, setTimeEntries] = useState(() => {
-    const saved = localStorage.getItem(TIME_ENTRIES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [emailTemplates, setEmailTemplates] = useState(() => {
-    const saved = localStorage.getItem(EMAIL_TEMPLATES_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_EMAIL_TEMPLATES;
-  });
-
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem(NOTIFICATIONS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [appointments, setAppointments] = useState(() => safeGetItem(STORAGE_KEY, []));
+  const [clients, setClients] = useState(() => safeGetItem(CLIENTS_KEY, []));
+  const [activityLog, setActivityLog] = useState(() => safeGetItem(ACTIVITY_LOG_KEY, []));
+  const [timeEntries, setTimeEntries] = useState(() => safeGetItem(TIME_ENTRIES_KEY, []));
+  const [emailTemplates, setEmailTemplates] = useState(() => safeGetItem(EMAIL_TEMPLATES_KEY, DEFAULT_EMAIL_TEMPLATES));
+  const [notifications, setNotifications] = useState(() => safeGetItem(NOTIFICATIONS_KEY, []));
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
+    safeSetItem(STORAGE_KEY, JSON.stringify(appointments));
   }, [appointments]);
 
   useEffect(() => {
-    localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
+    safeSetItem(CLIENTS_KEY, JSON.stringify(clients));
   }, [clients]);
 
-
   useEffect(() => {
-    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
+    safeSetItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
   }, [activityLog]);
 
   useEffect(() => {
-    localStorage.setItem(TIME_ENTRIES_KEY, JSON.stringify(timeEntries));
+    safeSetItem(TIME_ENTRIES_KEY, JSON.stringify(timeEntries));
   }, [timeEntries]);
 
   useEffect(() => {
-    localStorage.setItem(EMAIL_TEMPLATES_KEY, JSON.stringify(emailTemplates));
+    safeSetItem(EMAIL_TEMPLATES_KEY, JSON.stringify(emailTemplates));
   }, [emailTemplates]);
 
   useEffect(() => {
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+    safeSetItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
   }, [notifications]);
 
   // Activity Log - tracks all significant actions
@@ -197,6 +173,18 @@ export function AppProvider({ children }) {
   };
 
   const clearAllNotifications = () => setNotifications([]);
+
+  // Wire up storage quota warnings → notification system
+  useEffect(() => {
+    onStorageWarning((key) => {
+      addNotification({
+        type: 'warning',
+        title: 'Storage Full',
+        message: `Could not save data (${key}). Browser storage is full. Consider exporting and clearing old records.`,
+      });
+    });
+    return () => onStorageWarning(null);
+  }, []);
 
   // Time Tracking
   const addTimeEntry = (entry) => {
