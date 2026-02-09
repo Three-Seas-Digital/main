@@ -25,7 +25,7 @@
   - [x] Batch 2: Extracted FollowUpsTab (~482 lines), PipelineTab (~543 lines), ClientRequestsTab (~145 lines) → 3 new files, ~1,172 lines removed from Admin.jsx (9,682 → 8,510)
   - [x] Batch 3: Extracted ClientsTab (~1221 lines), ProjectBoard + KanbanCard + KanbanColumn (~635 lines) → 2 new files, ~1836 lines removed from Admin.jsx (8,510 → 6,674)
   - [x] Batch 4: Extracted UserManagement (~205 lines), ExpensesTab (~688 lines) → 2 new files, ~881 lines removed from Admin.jsx (6,674 → 5,794)
-  - [ ] Batch 5: Extract RevenueTab, InvoicesTab, ProfitTab, TaxesTab
+  - [x] Batch 5: Extracted RevenueTab (~317 lines), InvoicesTab (~353 lines), ProfitTab (~294 lines), TaxesTab (~462 lines) → 4 new files, ~1,421 lines removed from Admin.jsx (5,794 → 4,374)
   - [ ] Batch 6: Extract AnalyticsTab, LeadsTab, ResearchTab
   - [ ] Batch 7: Extract ArchivedTab, TiersTab, ClientsDatabaseTab, KanbanView
 - [ ] Split `index.css` (332 KB) into per-feature CSS files — at minimum: `base.css`, `home.css`, `portfolio.css`, `demos.css`, `admin.css`, `client-portal.css`
