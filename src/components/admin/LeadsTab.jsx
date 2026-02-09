@@ -41,7 +41,7 @@ function getBusinessType(tags) {
 }
 
 export default function LeadsTab() {
-  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, currentUser, addAppointment, markFollowUp, addProspect, businessDatabase, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb } = useAppContext();
+  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, businessDatabase, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb } = useAppContext();
 
   const [searchAddress, setSearchAddress] = useState('');
   const [searchRadius, setSearchRadius] = useState(1000);
@@ -345,7 +345,7 @@ export default function LeadsTab() {
       const filtered = searchCategory === 'all' ? results : results.filter((r) => r.category === searchCategory);
       setSearchResults(filtered);
       if (!filtered.length) setSearchError('No businesses found in this area. Try a larger radius or different address.');
-    } catch (err) {
+    } catch {
       setSearchError('Search failed. Please check your connection and try again.');
     }
     setSearching(false);

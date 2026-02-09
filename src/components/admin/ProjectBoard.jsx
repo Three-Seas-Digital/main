@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   CalendarDays, User, Trash2, CheckCircle, Plus, X,
   ChevronLeft, Edit3, ArrowRight, Flag,
@@ -150,7 +150,6 @@ function KanbanColumn({ colKey, label, color, items, client, project, canManage 
 export default function ProjectBoard({ client: clientProp }) {
   const {
     addProject, updateProject, deleteProject,
-    addProjectTask, updateProjectTask, deleteProjectTask,
     addMilestone, toggleMilestone, deleteMilestone,
     assignDeveloperToProject, removeDeveloperFromProject, completeProject,
     hasPermission, users, clients,
@@ -181,14 +180,9 @@ export default function ProjectBoard({ client: clientProp }) {
   const staffMembers = users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role));
 
   const projects = client?.projects || [];
-  const project = activeProject ? projects.find((p) => p.id === activeProject) : null;
-
-  // Reset activeProject if the project no longer exists in this client
-  useEffect(() => {
-    if (activeProject && projects.length > 0 && !projects.find((p) => p.id === activeProject)) {
-      setActiveProject(null);
-    }
-  }, [activeProject, projects]);
+  // If activeProject no longer exists in this client, treat as null
+  const effectiveActiveProject = activeProject && projects.find((p) => p.id === activeProject) ? activeProject : null;
+  const project = effectiveActiveProject ? projects.find((p) => p.id === effectiveActiveProject) : null;
 
   const handleAddProject = (e) => {
     e.preventDefault();

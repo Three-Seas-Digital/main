@@ -20,7 +20,7 @@ export default function NotificationsDropdown() {
 
   return (
     <div className="notifications-dropdown-wrapper">
-      <button className="notifications-trigger" onClick={() => setIsOpen(!isOpen)}>
+      <button className="notifications-trigger" onClick={() => setIsOpen(!isOpen)} aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}>
         {unreadCount > 0 ? <BellRing size={20} /> : <Bell size={20} />}
         {unreadCount > 0 && <span className="notifications-badge">{unreadCount}</span>}
       </button>
@@ -59,6 +59,7 @@ export default function NotificationsDropdown() {
                     <button
                       className="notification-delete"
                       onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
+                      aria-label="Delete notification"
                     >
                       <X size={14} />
                     </button>

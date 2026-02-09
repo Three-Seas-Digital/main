@@ -5,7 +5,7 @@ import {
 import { useAppContext } from '../../context/AppContext';
 
 export default function ExpensesTab() {
-  const { expenses, addExpense, deleteExpense, EXPENSE_CATEGORIES, currentUser } = useAppContext();
+  const { expenses, addExpense, deleteExpense, EXPENSE_CATEGORIES } = useAppContext();
 
   const [form, setForm] = useState({ category: '', amount: '', date: new Date().toISOString().split('T')[0], vendor: '', description: '' });
   const [receipt, setReceipt] = useState(null);

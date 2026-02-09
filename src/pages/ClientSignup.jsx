@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { SITE_INFO } from '../App';
+import { SITE_INFO } from '../constants';
 
 /* ===== TIER BADGE ===== */
 function TierBadge({ tier }) {

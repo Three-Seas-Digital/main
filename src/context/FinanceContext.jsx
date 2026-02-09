@@ -131,4 +131,5 @@ export function FinanceProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useFinance = () => useContext(FinanceContext);

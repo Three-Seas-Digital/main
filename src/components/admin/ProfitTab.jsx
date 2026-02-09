@@ -5,13 +5,13 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
+const getPaymentDate = (p) => new Date(p.createdAt);
+const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
+const getPaymentMonth = (p) => getPaymentDate(p).getMonth();
+
 export default function ProfitTab() {
   const { payments, expenses, EXPENSE_CATEGORIES } = useAppContext();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
-  const getPaymentDate = (p) => new Date(p.createdAt);
-  const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
-  const getPaymentMonth = (p) => getPaymentDate(p).getMonth();
 
   const availableYears = useMemo(() => {
     const years = new Set();

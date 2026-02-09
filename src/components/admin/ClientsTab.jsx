@@ -17,9 +17,8 @@ export default function ClientsTab() {
     addClientTag, removeClientTag, archiveClient, restoreClient, permanentlyDeleteClient, addClientManually,
     hasPermission, appointments, updateAppointment, updateFollowUp, markFollowUp,
     currentUser, users, STAFF_COLORS,
-    addInvoice, updateInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
+    addInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
     updateClientTier, payments, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES,
-    assignDeveloperToProject, removeDeveloperFromProject, completeProject,
     addClientDocument, deleteClientDocument, DOCUMENT_TYPES,
   } = useAppContext();
   const canManage = hasPermission('manage_clients');
@@ -217,7 +216,7 @@ export default function ClientsTab() {
         setUploadingDocument(false);
       };
       reader.readAsDataURL(documentFile);
-    } catch (err) {
+    } catch {
       setDocumentError('Failed to upload document');
       setUploadingDocument(false);
     }

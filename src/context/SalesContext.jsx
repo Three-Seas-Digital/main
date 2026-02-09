@@ -386,4 +386,5 @@ export function SalesProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSales = () => useContext(SalesContext);

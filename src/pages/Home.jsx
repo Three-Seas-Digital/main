@@ -52,7 +52,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-bg">
           <FallbackImg
-            src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&h=1080&fit=crop"
+            src="/images/home-hero.jpg"
             alt="Digital ocean"
           />
           <div className="hero-overlay" />
@@ -116,7 +116,7 @@ export default function Home() {
           <div className="about-grid">
             <div className="about-image">
               <FallbackImg
-                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop"
+                src="/images/home-approach.jpg"
                 alt="Team collaboration"
               />
             </div>

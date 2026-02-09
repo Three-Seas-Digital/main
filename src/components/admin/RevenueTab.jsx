@@ -5,15 +5,15 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
+const getPaymentDate = (p) => new Date(p.createdAt);
+const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
+const getPaymentMonth = (p) => getPaymentDate(p).getMonth();
+const getPaymentQuarter = (p) => Math.floor(getPaymentDate(p).getMonth() / 3);
+
 export default function RevenueTab() {
-  const { payments, clients, SUBSCRIPTION_TIERS } = useAppContext();
+  const { payments, SUBSCRIPTION_TIERS } = useAppContext();
   const [viewMode, setViewMode] = useState('monthly'); // monthly, quarterly, yearly
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
-  const getPaymentDate = (p) => new Date(p.createdAt);
-  const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
-  const getPaymentMonth = (p) => getPaymentDate(p).getMonth();
-  const getPaymentQuarter = (p) => Math.floor(getPaymentDate(p).getMonth() / 3);
 
   const availableYears = useMemo(() => {
     const years = new Set();

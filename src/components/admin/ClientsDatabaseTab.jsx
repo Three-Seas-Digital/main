@@ -64,10 +64,11 @@ export default function ClientsDatabaseTab() {
           case 'email':
             cmp = (a.email || '').localeCompare(b.email || '');
             break;
-          case 'tier':
+          case 'tier': {
             const tierOrder = { enterprise: 4, premium: 3, basic: 2, free: 1 };
             cmp = (tierOrder[b.tier] || 0) - (tierOrder[a.tier] || 0);
             break;
+          }
           case 'status':
             cmp = (a.status || '').localeCompare(b.status || '');
             break;
@@ -86,14 +87,16 @@ export default function ClientsDatabaseTab() {
       });
   }, [clients, search, filterStatus, filterTier, filterSource, filterHasProjects, filterHasInvoices, sortBy, sortDir]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredClients.length / pageSize);
-  const paginatedClients = filteredClients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   // Reset page when filters change
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setCurrentPage(1);
   }, [search, filterStatus, filterTier, filterSource, filterHasProjects, filterHasInvoices, sortBy, sortDir, pageSize]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Pagination
+  const totalPages = Math.ceil(filteredClients.length / pageSize);
+  const paginatedClients = filteredClients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Stats
   const stats = useMemo(() => {

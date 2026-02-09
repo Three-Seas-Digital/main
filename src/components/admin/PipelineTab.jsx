@@ -10,7 +10,7 @@ export default function PipelineTab() {
   const {
     prospects, addProspect, updateProspect, deleteProspect,
     addProspectNote, deleteProspectNote, closeProspect, reopenProspect,
-    convertProspectToClient, PROSPECT_STAGES, LOSS_REASONS, currentUser,
+    convertProspectToClient, PROSPECT_STAGES, LOSS_REASONS,
     addProspectDocument, deleteProspectDocument, DOCUMENT_TYPES,
   } = useAppContext();
 
@@ -48,42 +48,44 @@ export default function PipelineTab() {
 
   // Pipeline stats
   const stats = useMemo(() => {
+    const active_ = prospects.filter((p) => p.stage !== 'closed');
+    const closed_ = prospects.filter((p) => p.stage === 'closed');
     const total = prospects.length;
-    const active = activeProspects.length;
-    const won = closedProspects.filter((p) => p.outcome === 'won').length;
-    const lost = closedProspects.filter((p) => p.outcome === 'lost').length;
-    const deferred = closedProspects.filter((p) => p.outcome === 'deferred').length;
+    const active = active_.length;
+    const won = closed_.filter((p) => p.outcome === 'won').length;
+    const lost = closed_.filter((p) => p.outcome === 'lost').length;
+    const deferred = closed_.filter((p) => p.outcome === 'deferred').length;
     const conversionRate = (won + lost) > 0 ? ((won / (won + lost)) * 100).toFixed(1) : 0;
-    const pipelineValue = activeProspects.reduce((sum, p) => sum + (parseFloat(p.dealValue) || 0), 0);
-    const weightedValue = activeProspects.reduce((sum, p) => sum + ((parseFloat(p.dealValue) || 0) * (p.probability / 100)), 0);
+    const pipelineValue = active_.reduce((sum, p) => sum + (parseFloat(p.dealValue) || 0), 0);
+    const weightedValue = active_.reduce((sum, p) => sum + ((parseFloat(p.dealValue) || 0) * (p.probability / 100)), 0);
 
     // Average deal time (for won deals)
-    const wonDeals = closedProspects.filter((p) => p.outcome === 'won' && p.closedAt);
+    const wonDeals = closed_.filter((p) => p.outcome === 'won' && p.closedAt);
     const avgDealTime = wonDeals.length > 0
       ? Math.round(wonDeals.reduce((sum, p) => sum + ((new Date(p.closedAt) - new Date(p.createdAt)) / (1000 * 60 * 60 * 24)), 0) / wonDeals.length)
       : 0;
 
     // Loss reasons breakdown
     const lossReasons = {};
-    closedProspects.filter((p) => p.outcome === 'lost').forEach((p) => {
+    closed_.filter((p) => p.outcome === 'lost').forEach((p) => {
       const reason = p.lossReason || 'other';
       lossReasons[reason] = (lossReasons[reason] || 0) + 1;
     });
 
     // Upcoming revisits
     const today = new Date().toISOString().split('T')[0];
-    const upcomingRevisits = closedProspects
+    const upcomingRevisits = closed_
       .filter((p) => p.outcome === 'deferred' && p.revisitDate && p.revisitDate <= today)
       .sort((a, b) => a.revisitDate.localeCompare(b.revisitDate));
 
     // Stage counts
     const stageCounts = {};
     PROSPECT_STAGES.forEach((s) => {
-      stageCounts[s.value] = activeProspects.filter((p) => p.stage === s.value).length;
+      stageCounts[s.value] = active_.filter((p) => p.stage === s.value).length;
     });
 
     return { total, active, won, lost, deferred, conversionRate, pipelineValue, weightedValue, avgDealTime, lossReasons, upcomingRevisits, stageCounts };
-  }, [prospects, activeProspects, closedProspects, PROSPECT_STAGES]);
+  }, [prospects, PROSPECT_STAGES]);
 
   const handleAddProspect = (e) => {
     e.preventDefault();

@@ -3,7 +3,7 @@ import { Timer, PlayCircle, StopCircle, Plus } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export default function TimeTracker({ clientId, projectId, taskId }) {
-  const { addTimeEntry, timeEntries, currentUser } = useAppContext();
+  const { addTimeEntry, timeEntries } = useAppContext();
   const [isTracking, setIsTracking] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);

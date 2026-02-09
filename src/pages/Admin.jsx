@@ -3,7 +3,7 @@ import {
   LogOut, CalendarDays, Clock, User, Mail, Phone, Trash2,
   CheckCircle, XCircle, AlertCircle, BarChart3, Users,
   Calendar as CalendarIcon, UserPlus, Shield, UserCheck,
-  PhoneForwarded, MessageSquare, X,
+  PhoneForwarded, MessageSquare,
   ChevronLeft, ChevronDown, Briefcase, FolderKanban,
   DollarSign, Receipt, MapPin, TrendingUp,
   BarChart2, Download, CheckSquare, Square,
@@ -53,10 +53,12 @@ export default function Admin() {
   const [bulkMode, setBulkMode] = useState(false);
 
   // Clear bulk selections when view or filter changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setSelectedAppointments(new Set());
     setBulkMode(false);
   }, [view, filterStatus, selectedDate]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (needsSetup) return <AdminSetup />;
   if (!currentUser) return <AdminLogin />;

@@ -620,9 +620,10 @@ export function AppProvider({ children }) {
     const nextDate = new Date(invoice.nextDueDate || invoice.dueDate);
     nextDate.setDate(nextDate.getDate() + freq.days);
 
+    const newId = Date.now().toString(); // eslint-disable-line react-hooks/purity
     const newInvoice = {
       ...invoice,
-      id: Date.now().toString(),
+      id: newId,
       status: 'unpaid',
       dueDate: nextDate.toISOString().split('T')[0],
       nextDueDate: nextDate.toISOString().split('T')[0],
@@ -1228,6 +1229,7 @@ export function AppProvider({ children }) {
 
 // useAppContext merges Auth, Finance, Sales, and App contexts for backward compatibility.
 // Components can also use useAuth(), useFinance(), or useSales() directly for domain-specific needs.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppContext = () => {
   const appCtx = useContext(AppContext);
   const authCtx = useAuth();

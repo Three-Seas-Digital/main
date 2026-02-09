@@ -10,15 +10,16 @@ export default function AdminLogin() {
   const [failCount, setFailCount] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(null);
   const { login } = useAppContext();
-  const isLocked = lockedUntil && Date.now() < lockedUntil;
-  const [, forceUpdate] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  const isLocked = lockedUntil && now < lockedUntil;
 
   // Tick the countdown while locked
   useEffect(() => {
     if (!lockedUntil) return;
     const timer = setInterval(() => {
-      if (Date.now() >= lockedUntil) { setLockedUntil(null); setFailCount(0); clearInterval(timer); }
-      forceUpdate((n) => n + 1);
+      const t = Date.now();
+      setNow(t);
+      if (t >= lockedUntil) { setLockedUntil(null); setFailCount(0); clearInterval(timer); }
     }, 1000);
     return () => clearInterval(timer);
   }, [lockedUntil]);
@@ -38,7 +39,7 @@ export default function AdminLogin() {
       }
     }
   };
-  const lockSeconds = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - Date.now()) / 1000)) : 0;
+  const lockSeconds = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0;
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">

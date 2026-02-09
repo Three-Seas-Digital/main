@@ -1,6 +1,6 @@
 import { Anchor, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { SITE_INFO } from '../App';
+import { SITE_INFO } from '../constants';
 
 export default function Footer() {
   return (

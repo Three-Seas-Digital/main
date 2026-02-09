@@ -12,7 +12,7 @@ const tiers = [
     demo: 'Coastal Coffee',
     demoDesc: 'A charming single-page site for a local coffee shop',
     features: ['Landing Page', 'Mobile Responsive', 'Contact Form', 'Basic SEO', 'Social Links', 'Analytics'],
-    img: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&h=400&fit=crop',
+    img: '/images/portfolio-coffee.jpg',
   },
   {
     id: 'business',
@@ -22,7 +22,7 @@ const tiers = [
     demo: 'Summit Law Group',
     demoDesc: 'A professional multi-page site for a law firm',
     features: ['Multi-Page (5-10)', 'Custom Branding', 'Blog/News', 'Advanced SEO', 'Social Integration', 'Maps'],
-    img: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=400&fit=crop',
+    img: '/images/portfolio-law.jpg',
   },
   {
     id: 'premium',
@@ -32,7 +32,7 @@ const tiers = [
     demo: 'Bella Spa & Wellness',
     demoDesc: 'A spa with booking system and client portal',
     features: ['CMS', 'User Auth', 'Client Portal', 'Booking System', 'Payments', 'Email Marketing'],
-    img: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&h=400&fit=crop',
+    img: '/images/portfolio-spa.jpg',
   },
   {
     id: 'enterprise',
@@ -42,7 +42,7 @@ const tiers = [
     demo: 'Apex Logistics CRM',
     demoDesc: 'A complete business management system',
     features: ['Custom Web App', 'Database', 'API', 'Admin Dashboard', 'Multi-User Roles', 'Real-Time'],
-    img: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
+    img: '/images/portfolio-logistics.jpg',
   },
 ];
 
@@ -53,7 +53,7 @@ export default function Portfolio() {
       <section className="page-hero">
         <div className="page-hero-bg">
           <FallbackImg
-            src="https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=1920&h=600&fit=crop"
+            src="/images/portfolio-hero.jpg"
             alt="Portfolio"
           />
           <div className="hero-overlay" />

@@ -31,6 +31,7 @@ export function TierBadge({ tier }) {
   return <span className="tier-badge" style={{ background: info.color }}>{info.label}</span>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function formatDisplayDate(dateStr) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
@@ -38,6 +39,7 @@ export function formatDisplayDate(dateStr) {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function generateICalEvent(appointment) {
   const startDate = new Date(`${appointment.date}T${appointment.time}`);
   const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -57,6 +59,7 @@ UID:${appointment.id}@threeseasdigital.com
 END:VEVENT`;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function exportToICal(appointments, filename = 'appointments.ics') {
   const events = appointments.map(generateICalEvent).join('\n');
   const icalContent = `BEGIN:VCALENDAR

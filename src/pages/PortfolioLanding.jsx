@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Phone, Mail, MapPin, Clock, Star, Check,
   Facebook, Instagram, Twitter, Coffee, Heart, Menu, X, Send,
-  ChevronRight, ChevronDown, Users, FileText, Calendar, Shield,
-  Award, Briefcase, Scale, BookOpen, MessageSquare, Play,
-  Sparkles, Leaf, Droplet, Sun, Moon, CalendarDays, User, Lock,
+  ChevronRight, ChevronDown, Users, Shield,
+  Award, Briefcase, Scale,
+  Sparkles, Leaf, Droplet, CalendarDays, User, Lock,
   CreditCard, CheckCircle, Bell, Settings, Home, Package, Truck,
-  BarChart3, TrendingUp, DollarSign, Activity, Database, Globe,
-  Layers, Zap, PieChart, Target, Search, Filter, Plus, Edit3, Trash2,
-  Eye, Download, Upload, RefreshCw, AlertCircle, UserCheck, PhoneCall
+  BarChart3, TrendingUp, DollarSign, Activity, Globe,
+  PieChart, Search, Plus, Edit3,
+  Eye, RefreshCw, PhoneCall
 } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
 
@@ -59,7 +59,7 @@ export function StarterShowcase() {
       {/* HERO */}
       <section className="starter-hero">
         <div className="starter-hero-bg">
-          <FallbackImg src="https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=1920&h=800&fit=crop" alt="Coffee" />
+          <FallbackImg src="/images/demo-coffee-hero.jpg" alt="Coffee" />
           <div className="starter-hero-overlay" />
         </div>
         <div className="starter-hero-content">
@@ -74,7 +74,7 @@ export function StarterShowcase() {
         <div className="starter-container">
           <div className="starter-about-grid">
             <div className="starter-about-image">
-              <FallbackImg src="https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=600&h=400&fit=crop" alt="Barista" />
+              <FallbackImg src="/images/demo-coffee-barista.jpg" alt="Barista" />
             </div>
             <div className="starter-about-content">
               <h2>Our Story</h2>
@@ -96,10 +96,10 @@ export function StarterShowcase() {
           <h2>Menu Highlights</h2>
           <div className="starter-menu-grid">
             {[
-              { name: 'Sunrise Latte', price: '$5.50', desc: 'Espresso, oat milk, vanilla, turmeric', img: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=300&h=300&fit=crop' },
-              { name: 'Cold Brew', price: '$4.50', desc: '24-hour steeped, smooth & bold', img: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=300&h=300&fit=crop' },
-              { name: 'Avocado Toast', price: '$9.00', desc: 'Sourdough, avocado, poached egg, everything seasoning', img: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=300&h=300&fit=crop' },
-              { name: 'Blueberry Muffin', price: '$3.50', desc: 'Baked fresh every morning', img: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=300&h=300&fit=crop' },
+              { name: 'Sunrise Latte', price: '$5.50', desc: 'Espresso, oat milk, vanilla, turmeric', img: '/images/demo-coffee-latte.jpg' },
+              { name: 'Cold Brew', price: '$4.50', desc: '24-hour steeped, smooth & bold', img: '/images/demo-coffee-coldbrew.jpg' },
+              { name: 'Avocado Toast', price: '$9.00', desc: 'Sourdough, avocado, poached egg, everything seasoning', img: '/images/demo-coffee-toast.jpg' },
+              { name: 'Blueberry Muffin', price: '$3.50', desc: 'Baked fresh every morning', img: '/images/demo-coffee-muffin.jpg' },
             ].map((item) => (
               <div key={item.name} className="starter-menu-item">
                 <FallbackImg src={item.img} alt={item.name} />
@@ -195,7 +195,6 @@ export function StarterShowcase() {
    ========================================================== */
 export function BusinessShowcase() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
-  const [activeTab, setActiveTab] = useState('overview');
   const [expandedFaq, setExpandedFaq] = useState(null);
 
   const practiceAreas = [
@@ -206,9 +205,9 @@ export function BusinessShowcase() {
   ];
 
   const attorneys = [
-    { name: 'Sarah Mitchell', title: 'Managing Partner', specialty: 'Business Law', img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&h=300&fit=crop' },
-    { name: 'James Chen', title: 'Senior Partner', specialty: 'Litigation', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop' },
-    { name: 'Emily Rodriguez', title: 'Partner', specialty: 'Employment Law', img: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=300&fit=crop' },
+    { name: 'Sarah Mitchell', title: 'Managing Partner', specialty: 'Business Law', img: '/images/demo-law-sarah.jpg' },
+    { name: 'James Chen', title: 'Senior Partner', specialty: 'Litigation', img: '/images/demo-law-james.jpg' },
+    { name: 'Emily Rodriguez', title: 'Partner', specialty: 'Employment Law', img: '/images/demo-law-emily.jpg' },
   ];
 
   const blogPosts = [
@@ -262,7 +261,7 @@ export function BusinessShowcase() {
       {/* HERO */}
       <section className="business-hero">
         <div className="business-hero-bg">
-          <FallbackImg src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&h=700&fit=crop" alt="Law Office" />
+          <FallbackImg src="/images/demo-law-hero.jpg" alt="Law Office" />
           <div className="business-hero-overlay" />
         </div>
         <div className="business-hero-content">
@@ -473,7 +472,6 @@ export function PremiumShowcase() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const services = [
     { id: 1, name: 'Swedish Massage', duration: '60 min', price: 95, category: 'Massage' },
@@ -510,7 +508,7 @@ export function PremiumShowcase() {
         <button className={view === 'booking' ? 'active' : ''} onClick={() => setView('booking')}>
           <CalendarDays size={16} /> Book Appointment
         </button>
-        <button className={view === 'portal' ? 'active' : ''} onClick={() => { setView('portal'); setIsLoggedIn(true); }}>
+        <button className={view === 'portal' ? 'active' : ''} onClick={() => setView('portal')}>
           <User size={16} /> Client Portal
         </button>
       </div>
@@ -529,14 +527,14 @@ export function PremiumShowcase() {
                 <a href="#about">About</a>
                 <a href="#gallery">Gallery</a>
                 <button onClick={() => setView('booking')} className="premium-btn-book">Book Now</button>
-                <button onClick={() => { setView('portal'); setIsLoggedIn(true); }} className="premium-btn-login"><User size={16} /></button>
+                <button onClick={() => setView('portal')} className="premium-btn-login"><User size={16} /></button>
               </nav>
             </div>
           </header>
 
           <section className="premium-hero">
             <div className="premium-hero-bg">
-              <FallbackImg src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1920&h=700&fit=crop" alt="Spa" />
+              <FallbackImg src="/images/demo-spa-hero.jpg" alt="Spa" />
               <div className="premium-hero-overlay" />
             </div>
             <div className="premium-hero-content">

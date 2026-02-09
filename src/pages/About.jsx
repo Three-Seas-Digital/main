@@ -30,7 +30,7 @@ export default function About() {
       <section className="page-hero">
         <div className="page-hero-bg">
           <FallbackImg
-            src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1920&h=600&fit=crop"
+            src="/images/about-hero.jpg"
             alt="About Us"
           />
           <div className="hero-overlay" />
@@ -67,7 +67,7 @@ export default function About() {
             </div>
             <div className="about-story-image">
               <FallbackImg
-                src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&h=500&fit=crop"
+                src="/images/about-team.jpg"
                 alt="Our office"
               />
             </div>

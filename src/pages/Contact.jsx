@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Send, Clock, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
-import { SITE_INFO } from '../App';
+import { SITE_INFO } from '../constants';
 import FallbackImg from '../components/FallbackImg';
 
 const timeSlots = [
@@ -69,7 +69,7 @@ export default function Contact() {
       <section className="page-hero">
         <div className="page-hero-bg">
           <FallbackImg
-            src="https://images.unsplash.com/photo-1423666639041-f56000c27a9a?w=1920&h=600&fit=crop"
+            src="/images/contact-hero.jpg"
             alt="Contact"
           />
           <div className="hero-overlay" />
@@ -197,10 +197,16 @@ export default function Contact() {
                       />
                     </div>
 
-                    {selectedDate && selectedTime && (
+                    {selectedDate && selectedTime ? (
                       <div className="booking-summary">
                         <strong>Booking Summary:</strong>{' '}
                         {formatDisplayDate(selectedDate)} at {selectedTime}
+                      </div>
+                    ) : (
+                      <div className="booking-hint">
+                        {!selectedDate
+                          ? 'Please select a date from the calendar'
+                          : 'Please select a time slot'}
                       </div>
                     )}
 

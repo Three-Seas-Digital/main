@@ -6,7 +6,7 @@ import {
 import { useAppContext } from '../../context/AppContext';
 
 export default function InvoicesTab() {
-  const { clients, markInvoicePaid, unmarkInvoicePaid, deleteInvoice, hasPermission, currentUser } = useAppContext();
+  const { clients, markInvoicePaid, unmarkInvoicePaid, deleteInvoice, hasPermission } = useAppContext();
   const canManage = hasPermission('manage_clients');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');

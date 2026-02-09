@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Users, GraduationCap, Building2, Activity,
   Trees, Landmark, Globe, Search, FolderKanban,
@@ -67,7 +67,7 @@ const HEALTHCARE_TYPES = {
 };
 
 export default function ResearchTab() {
-  const { marketResearch, saveResearch, updateResearch, deleteResearch, currentUser } = useAppContext();
+  const { marketResearch, saveResearch, deleteResearch } = useAppContext();
 
   const [searchLocation, setSearchLocation] = useState('');
   const [searchRadius, setSearchRadius] = useState(5000);
@@ -176,7 +176,7 @@ export default function ResearchTab() {
               }
             }
           }
-        } catch (censusErr) {
+        } catch {
           console.log('Census API unavailable');
         }
       }
@@ -536,7 +536,7 @@ export default function ResearchTab() {
     return tags.shop || tags.office || 'business';
   };
 
-  const getTypeCounts = (items, category) => {
+  const getTypeCounts = (items) => {
     const counts = {};
     items.forEach((item) => {
       const type = item.type;
