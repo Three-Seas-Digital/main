@@ -177,7 +177,7 @@ export default function ResearchTab() {
             }
           }
         } catch {
-          console.log('Census API unavailable');
+          // Census API unavailable — continue without demographics
         }
       }
 

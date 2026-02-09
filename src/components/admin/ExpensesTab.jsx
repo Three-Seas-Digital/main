@@ -532,7 +532,7 @@ export default function ExpensesTab() {
       {receiptModal && (
         <div className="receipt-modal" onClick={() => setReceiptModal(null)}>
           <div className="receipt-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="receipt-modal-close" onClick={() => setReceiptModal(null)}><X size={20} /></button>
+            <button className="receipt-modal-close" onClick={() => setReceiptModal(null)} aria-label="Close"><X size={20} /></button>
             <h3>Receipt — {getCatLabel(receiptModal.category)}</h3>
             {receiptModal.vendor && <p>{receiptModal.vendor} — ${receiptModal.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>}
             {receiptModal.receipt && receiptModal.receipt.startsWith('data:image') ? (
@@ -554,7 +554,7 @@ export default function ExpensesTab() {
           <div className="print-modal" onClick={(e) => e.stopPropagation()}>
             <div className="print-modal-header">
               <h3><Printer size={20} /> Print Expense Report</h3>
-              <button className="print-modal-close" onClick={() => setShowPrintModal(false)}><X size={20} /></button>
+              <button className="print-modal-close" onClick={() => setShowPrintModal(false)} aria-label="Close"><X size={20} /></button>
             </div>
 
             <div className="print-modal-body">

@@ -253,7 +253,7 @@ export default function ProjectBoard({ client: clientProp }) {
         {showCompletionModal && (
           <div className="completion-modal-overlay" onClick={() => setShowCompletionModal(false)}>
             <div className="completion-modal" onClick={(e) => e.stopPropagation()}>
-              <button className="completion-modal-close" onClick={() => setShowCompletionModal(false)}><X size={20} /></button>
+              <button className="completion-modal-close" onClick={() => setShowCompletionModal(false)} aria-label="Close"><X size={20} /></button>
               <h3><CheckCircle size={20} /> Complete Project</h3>
               <p className="completion-modal-desc">Choose what happens when this project is completed:</p>
 

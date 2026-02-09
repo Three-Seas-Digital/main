@@ -27,5 +27,6 @@ dist-ssr
 .env
 .env.*
 
-# Claude
+# Claude / Ralph
 .claude/
+.ralph/

@@ -89,13 +89,13 @@ export default function Calendar({ onDateSelect, selectedDate, showDots = false 
   return (
     <div className="calendar">
       <div className="calendar-header">
-        <button onClick={prevMonth} className="calendar-nav">
+        <button onClick={prevMonth} className="calendar-nav" aria-label="Previous month">
           <ChevronLeft size={20} />
         </button>
         <h3>
           {MONTHS[currentMonth]} {currentYear}
         </h3>
-        <button onClick={nextMonth} className="calendar-nav">
+        <button onClick={nextMonth} className="calendar-nav" aria-label="Next month">
           <ChevronRight size={20} />
         </button>
       </div>

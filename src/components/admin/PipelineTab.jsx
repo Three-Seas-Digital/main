@@ -197,7 +197,7 @@ export default function PipelineTab() {
           <div className="pipeline-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Add New Prospect</h3>
-              <button className="modal-close" onClick={() => setShowAddForm(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowAddForm(false)} aria-label="Close"><X size={20} /></button>
             </div>
             <form onSubmit={handleAddProspect}>
               <div className="form-row">
@@ -269,7 +269,7 @@ export default function PipelineTab() {
           <div className="pipeline-detail">
             <div className="detail-header">
               <h3>{prospect.name}</h3>
-              <button className="detail-close" onClick={() => setSelectedProspect(null)}><X size={20} /></button>
+              <button className="detail-close" onClick={() => setSelectedProspect(null)} aria-label="Close"><X size={20} /></button>
             </div>
 
             <div className="detail-section">
@@ -423,7 +423,7 @@ export default function PipelineTab() {
             {viewingDoc && (
               <div className="modal-overlay" onClick={() => setViewingDoc(null)}>
                 <div className="modal-content document-preview-modal" onClick={(e) => e.stopPropagation()}>
-                  <button className="modal-close" onClick={() => setViewingDoc(null)}><X size={20} /></button>
+                  <button className="modal-close" onClick={() => setViewingDoc(null)} aria-label="Close"><X size={20} /></button>
                   <h3>{viewingDoc.name}</h3>
                   <div className="document-preview-content">
                     {viewingDoc.fileType?.startsWith('image/') ? (

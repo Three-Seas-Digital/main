@@ -24,7 +24,7 @@ export default function Navbar() {
           <span>Three Seas Digital</span>
         </Link>
 
-        <button className="nav-toggle" onClick={() => setIsOpen(!isOpen)}>
+        <button className="nav-toggle" onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? 'Close menu' : 'Open menu'}>
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 

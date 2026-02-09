@@ -28,9 +28,9 @@ export default function Footer() {
         <div className="footer-section">
           <h4>Contact Info</h4>
           <ul className="footer-contact">
-            <li><Mail size={16} /> {SITE_INFO.email}</li>
-            <li><Phone size={16} /> {SITE_INFO.phone}</li>
-            <li><MapPin size={16} /> {SITE_INFO.address}</li>
+            {SITE_INFO.email && <li><Mail size={16} /> {SITE_INFO.email}</li>}
+            {SITE_INFO.phone && <li><Phone size={16} /> {SITE_INFO.phone}</li>}
+            {SITE_INFO.address && <li><MapPin size={16} /> {SITE_INFO.address}</li>}
           </ul>
         </div>
       </div>

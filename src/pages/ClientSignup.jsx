@@ -401,7 +401,7 @@ function PaymentModal({ invoice, clientId, onClose }) {
         <div className="pay-modal" onClick={(e) => e.stopPropagation()}>
           <div className="pay-modal-header">
             <h3>Payment Complete</h3>
-            <button className="pay-modal-close" onClick={onClose}><X size={18} /></button>
+            <button className="pay-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
           </div>
           <div className="pay-modal-success">
             <div className="pay-success-icon"><Check size={32} /></div>
@@ -418,7 +418,7 @@ function PaymentModal({ invoice, clientId, onClose }) {
       <div className="pay-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pay-modal-header">
           <h3>Pay Invoice</h3>
-          <button className="pay-modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="pay-modal-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
         <div className="pay-modal-invoice">
           <span>{invoice.title}</span>
@@ -463,7 +463,7 @@ function PaymentModal({ invoice, clientId, onClose }) {
 
 /* ===== PROFILE SETTINGS ===== */
 function ProfileSettings({ client, onClose }) {
-  const { updateClient } = useAppContext();
+  const { updateClient, hashPassword } = useAppContext();
   const [formData, setFormData] = useState({
     name: client.name || '',
     businessName: client.businessName || '',
@@ -505,7 +505,7 @@ function ProfileSettings({ client, onClose }) {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (passwords.current !== client.password) {
+    if (hashPassword(passwords.current) !== client.password) {
       setError('Current password is incorrect');
       return;
     }
@@ -517,7 +517,7 @@ function ProfileSettings({ client, onClose }) {
       setError('New passwords do not match');
       return;
     }
-    updateClient(client.id, { password: passwords.newPass });
+    updateClient(client.id, { password: hashPassword(passwords.newPass) });
     setPasswords({ current: '', newPass: '', confirm: '' });
     setSuccess('Password changed successfully');
     setTimeout(() => setSuccess(''), 3000);

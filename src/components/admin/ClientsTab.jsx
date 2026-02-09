@@ -666,7 +666,7 @@ export default function ClientsTab() {
           {viewingDocument && (
             <div className="modal-overlay" onClick={() => setViewingDocument(null)}>
               <div className="modal-content document-preview-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="modal-close" onClick={() => setViewingDocument(null)}><X size={20} /></button>
+                <button className="modal-close" onClick={() => setViewingDocument(null)} aria-label="Close"><X size={20} /></button>
                 <div className="document-preview-header">
                   <h3>{viewingDocument.name}</h3>
                   <span className="document-type-badge" style={{ background: `${DOCUMENT_TYPES[viewingDocument.type]?.color}20`, color: DOCUMENT_TYPES[viewingDocument.type]?.color }}>
@@ -1191,7 +1191,7 @@ export default function ClientsTab() {
       {confirmArchive && (
         <div className="modal-overlay" onClick={() => setConfirmArchive(null)}>
           <div className="modal-content archive-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setConfirmArchive(null)}><X size={20} /></button>
+            <button className="modal-close" onClick={() => setConfirmArchive(null)} aria-label="Close"><X size={20} /></button>
             <div className="archive-modal-icon"><AlertCircle size={48} /></div>
             <h3>Archive Client?</h3>
             <p>This client will be moved to the archive. You can restore them at any time from the Archived Clients section.</p>

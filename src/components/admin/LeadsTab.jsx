@@ -432,7 +432,7 @@ export default function LeadsTab() {
       {selectedResult && (
         <div className="business-modal-overlay" onClick={() => setSelectedResult(null)}>
           <div className="business-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="business-modal-close" onClick={() => setSelectedResult(null)}><X size={20} /></button>
+            <button className="business-modal-close" onClick={() => setSelectedResult(null)} aria-label="Close"><X size={20} /></button>
 
             <div className="business-modal-header">
               <div className="business-modal-icon">
@@ -650,7 +650,7 @@ export default function LeadsTab() {
           {selectedDbEntry && (
             <div className="business-modal-overlay" onClick={() => setSelectedDbEntry(null)}>
               <div className="business-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="business-modal-close" onClick={() => setSelectedDbEntry(null)}><X size={20} /></button>
+                <button className="business-modal-close" onClick={() => setSelectedDbEntry(null)} aria-label="Close"><X size={20} /></button>
 
                 <div className="business-modal-header">
                   <div className="business-modal-icon"><Building2 size={28} /></div>

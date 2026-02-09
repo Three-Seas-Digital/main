@@ -223,27 +223,33 @@ export default function Contact() {
               )}
 
               <div className="contact-info-cards">
-                <div className="info-card">
-                  <Mail size={20} />
-                  <div>
-                    <strong>Email</strong>
-                    <span>{SITE_INFO.email}</span>
+                {SITE_INFO.email && (
+                  <div className="info-card">
+                    <Mail size={20} />
+                    <div>
+                      <strong>Email</strong>
+                      <span>{SITE_INFO.email}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="info-card">
-                  <Phone size={20} />
-                  <div>
-                    <strong>Phone</strong>
-                    <span>{SITE_INFO.phone}</span>
+                )}
+                {SITE_INFO.phone && (
+                  <div className="info-card">
+                    <Phone size={20} />
+                    <div>
+                      <strong>Phone</strong>
+                      <span>{SITE_INFO.phone}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="info-card">
-                  <MapPin size={20} />
-                  <div>
-                    <strong>Office</strong>
-                    <span>{SITE_INFO.address}</span>
+                )}
+                {SITE_INFO.address && (
+                  <div className="info-card">
+                    <MapPin size={20} />
+                    <div>
+                      <strong>Office</strong>
+                      <span>{SITE_INFO.address}</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
