@@ -267,6 +267,16 @@
   font-size: 0.9rem;
 }
 
+.booking-hint {
+  padding: 10px 16px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: var(--radius-sm);
+  color: #f57f17;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 .success-message {
   text-align: center;
   padding: 48px 24px;
@@ -317,12 +327,26 @@
 @media (max-width: 768px) {
   .contact-grid {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
   .form-row {
     grid-template-columns: 1fr;
   }
   .time-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-grid {
+    gap: 24px;
+  }
+  .calendar {
+    padding: 14px;
+  }
+  .contact-calendar-side h2,
+  .contact-form-side h2 {
+    font-size: 1.25rem;
   }
 }
 

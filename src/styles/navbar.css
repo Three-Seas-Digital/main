@@ -83,3 +83,12 @@
   }
 }
 
+@media (max-width: 480px) {
+  .nav-container {
+    padding: 0 16px;
+  }
+  .nav-logo {
+    font-size: 1rem;
+  }
+}
+

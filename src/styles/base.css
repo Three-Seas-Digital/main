@@ -164,6 +164,25 @@ input, select, textarea, button {
   transform: none;
 }
 
+@media (max-width: 480px) {
+  .container {
+    padding: 0 16px;
+  }
+  .section {
+    padding: 48px 0;
+  }
+  .section-header {
+    margin-bottom: 32px;
+  }
+  .section-header h2 {
+    font-size: 1.6rem;
+  }
+  .btn-lg {
+    padding: 12px 24px;
+    font-size: 1rem;
+  }
+}
+
 /* Page loading spinner for Suspense fallback */
 .page-spinner {
   width: 40px;

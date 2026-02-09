@@ -78,11 +78,5 @@
     grid-template-columns: 1fr;
     gap: 32px;
   }
-  .hero-content h1 {
-    font-size: 2.4rem;
-  }
-  .page-hero-content h1 {
-    font-size: 2rem;
-  }
 }
 

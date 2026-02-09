@@ -29,18 +29,31 @@
   - [x] Batch 6: Extracted AnalyticsTab (~1126 lines), LeadsTab (~1025 lines), ResearchTab (~914 lines) → 3 new files, ~3,027 lines removed from Admin.jsx (4,374 → 1,347), cleaned 28 unused Lucide imports + entire recharts import
   - [x] Batch 7: Extracted ArchivedTab (~68 lines), TiersTab (~265 lines), ClientsDatabaseTab (~382 lines), KanbanView (~131 lines) → 4 new files, ~859 lines removed from Admin.jsx (1,339 → 480), cleaned 5 unused imports (useCallback, Link, TierBadge, TimeTracker, ProjectBoard) + unused sidebarTabs variable. **Admin.jsx split COMPLETE: 10,400 → 480 lines (95% reduction), 22 component files extracted.**
 - [x] Split `index.css` (332 KB, 19,738 lines) into 10 per-feature CSS files under `src/styles/`: base.css (166), navbar.css (85), home.css (298), portfolio.css (414), about.css (204), contact.css (328), footer.css (88), admin.css (11,317), client-portal.css (1,964), demos.css (4,874). Removed duplicate import from App.jsx. Original index.css deleted.
-- [ ] Split `AppContext.jsx` into domain-specific contexts: `AuthContext`, `ClientContext`, `AppointmentContext`, `FinanceContext` (invoices/payments/expenses), `ProspectContext`, `LeadContext`
-- [ ] Add React.lazy() code splitting for heavy routes: Admin, ClientSignup, PortfolioLanding
-- [ ] Add an ErrorBoundary component wrapping major sections
-- [ ] Add loading skeletons/spinners for data-dependent views
+- [x] Fix all lint errors — reduced from 22 errors+warnings to 0. Fixed: unused vars (LeadsTab, PipelineTab, ProjectBoard, ResearchTab), react-refresh exports (adminUtils, 4 contexts), PipelineTab useMemo deps, ProjectBoard setState-in-effect replaced with derived value
+- [x] Add React.lazy() code splitting for heavy routes: Admin, ClientSignup, PortfolioLanding — wrapped in Suspense with PageLoader spinner, named exports for portfolio showcases
+- [x] Add an ErrorBoundary component in `src/components/ErrorBoundary.jsx` — wraps around main routes in App.jsx, shows reload button on error
+- [x] Add loading skeletons/spinners for data-dependent views — PageLoader spinner for lazy routes (Suspense), ResearchTab has RefreshCw spinner for API calls, LeadsTab has search spinner, ClientsTab/PipelineTab have upload spinners. All data from localStorage loads synchronously, no additional skeletons needed.
+- [x] Split `AppContext.jsx` into domain-specific contexts — AuthContext (268 lines), FinanceContext (135 lines), SalesContext (390 lines), AppContext (1239 lines) with useAppContext() backward-compat merger
 
 ## Phase 4: UX & Polish (Medium)
 
-- [ ] Self-host all Unsplash images — download to `/public/images/` and update all `src` references
-- [ ] Fix the Premium demo's non-functional tab switcher (Public Site / Book Appointment / Client Portal) — either make it work or remove the tabs
-- [ ] Add proper form validation messages on the Contact page when date/time not selected
-- [ ] Fix mobile responsive issues — test all demos on small screens
-- [ ] Remove unused imports across all files (e.g., check for unused Lucide icons)
+- [x] Self-host all Unsplash images — downloaded 21 images to `/public/images/` (~2MB total), updated all `src` references in About.jsx, Home.jsx, Contact.jsx, Portfolio.jsx, PortfolioLanding.jsx. Zero remaining Unsplash dependencies.
+- [x] Fix the Premium demo's non-functional tab switcher — Already functional: 3 views (public/booking/portal) with state-based conditional rendering, proper CSS styling, cross-tab navigation, and booking flow
+- [x] Add proper form validation messages on the Contact page — added booking-hint with amber styling that shows "Please select a date" or "Please select a time slot" when booking summary slot is empty
+- [x] Fix mobile responsive issues — comprehensive mobile audit + fixes across all 10 CSS files
+  - Added 480px breakpoint to base.css (container padding, section spacing, button sizing)
+  - Added 480px + 768px breakpoints to home.css (hero fonts, stats grid, CTA sizing)
+  - Fixed minmax() overflow: used min(Xpx, 100%) pattern for services, testimonials, portfolio, about grids
+  - Moved misplaced hero font-size rules from footer.css to home.css
+  - Added 480px breakpoint to about.css (reduced gaps, card padding)
+  - Added 480px breakpoint to contact.css (calendar padding, heading size)
+  - Added 480px breakpoint to portfolio.css (intro heading, CTA padding)
+  - Added 480px breakpoints to demos.css (starter hero, business topbar hide, premium nav)
+  - Fixed notifications dropdown: width: min(360px, calc(100vw - 24px)) instead of fixed 360px
+  - Added 480px + 768px breakpoints to admin.css (stats grids, sidebar, pipeline stats)
+  - Added 480px + 768px breakpoints to client-portal.css (portal stats, tabs scroll, quick actions, signup card)
+  - Added 480px breakpoint to navbar.css (container padding, logo size)
+- [x] Remove unused imports across all files — removed 1 unused icon from Admin.jsx (X), 17 unused icons from PortfolioLanding.jsx (FileText, Calendar, BookOpen, MessageSquare, Play, Sun, Moon, Database, Layers, Zap, Target, Filter, Trash2, Download, Upload, AlertCircle, UserCheck)
 
 ## Phase 5: Backend Preparation (Future — Do NOT start yet)
 

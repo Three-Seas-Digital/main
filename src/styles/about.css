@@ -33,7 +33,7 @@
 
 .values-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: 24px;
 }
 
@@ -74,7 +74,7 @@
 /* Team */
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr));
   gap: 28px;
 }
 
@@ -199,6 +199,24 @@
   }
   .team-grid {
     grid-template-columns: 1fr;
+  }
+  .about-story-text h2 {
+    font-size: 1.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .about-story-grid {
+    gap: 24px;
+  }
+  .value-card {
+    padding: 24px;
+  }
+  .team-growing {
+    padding: 32px 16px;
+  }
+  .team-growing h3 {
+    font-size: 1.25rem;
   }
 }
 

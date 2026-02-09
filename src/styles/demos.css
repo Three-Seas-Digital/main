@@ -2692,6 +2692,11 @@
   .starter-footer-grid { flex-direction: column; gap: 1.5rem; text-align: center; }
 }
 
+@media (max-width: 480px) {
+  .starter-hero-content h1 { font-size: 2rem; }
+  .starter-hero { min-height: 400px; }
+}
+
 /* ===== BUSINESS SHOWCASE - SUMMIT LAW ===== */
 .demo-business {
   font-family: 'Playfair Display', Georgia, serif;
@@ -3334,6 +3339,13 @@
   .business-practice-grid, .business-team-grid, .business-blog-grid { grid-template-columns: 1fr; }
   .business-contact-grid { grid-template-columns: 1fr; }
   .business-footer-grid { grid-template-columns: 1fr; }
+  .business-topbar { font-size: 0.75rem; padding: 0.5rem 1rem; }
+  .business-topbar span { gap: 0.5rem; }
+}
+
+@media (max-width: 480px) {
+  .business-hero-content h1 { font-size: 2rem; }
+  .business-topbar { display: none; }
 }
 
 /* ===== PREMIUM SHOWCASE - BELLA SPA ===== */
@@ -4149,6 +4161,10 @@
   .premium-portal-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; padding: 1rem; }
   .premium-portal-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .premium-portal-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .premium-portal-nav button { font-size: 0.75rem; padding: 0.5rem 0.75rem; }
 }
 
 /* ===== ENTERPRISE SHOWCASE - APEX LOGISTICS ===== */
