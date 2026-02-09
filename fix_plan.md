@@ -24,5 +24,6 @@
 
 ## Priority 4 — Architecture
 - [x] **AppContext domain splitting (Phase 1)** — Extracted AuthContext (users, auth, permissions, RBAC) from AppContext. useAppContext() merges both for backward compat. Components can use useAuth() directly for auth-only needs.
-- [ ] **AppContext domain splitting (Phase 2)** — Further splits: FinanceContext (payments, expenses, invoices), SalesContext (leads, prospects, research), etc.
+- [x] **AppContext domain splitting (Phase 2a)** — Extracted FinanceContext (payments, expenses, EXPENSE_CATEGORIES, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES, recordPayment). AppContext delegates to FinanceContext for payment/expense mutations. useAppContext() merges all three contexts. Components can use useFinance() directly.
+- [ ] **AppContext domain splitting (Phase 2b)** — Further splits: SalesContext (leads, prospects, research, businessDatabase), etc.
 - [ ] **Backend API** — Replace localStorage with real database/API layer.

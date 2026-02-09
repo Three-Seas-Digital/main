@@ -1,12 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { useFinance } from './FinanceContext';
 
 const AppContext = createContext();
 
 const STORAGE_KEY = 'threeseas_appointments';
 const CLIENTS_KEY = 'threeseas_clients';
-const PAYMENTS_KEY = 'threeseas_payments';
-const EXPENSES_KEY = 'threeseas_expenses';
 const LEADS_KEY = 'threeseas_leads';
 const PROSPECTS_KEY = 'threeseas_prospects';
 const BUSINESS_DB_KEY = 'threeseas_business_database';
@@ -33,21 +32,6 @@ const LOSS_REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
-const EXPENSE_CATEGORIES = [
-  { value: 'wages', label: 'Wages', color: '#3b82f6' },
-  { value: 'fuel', label: 'Fuel', color: '#f59e0b' },
-  { value: 'food', label: 'Food', color: '#10b981' },
-  { value: 'meetings', label: 'Meetings', color: '#8b5cf6' },
-  { value: 'trips', label: 'Trips', color: '#ec4899' },
-  { value: 'receipts', label: 'Receipts / Other', color: '#6b7280' },
-];
-
-const SUBSCRIPTION_TIERS = {
-  free: { label: 'Free', color: '#9ca3af', description: 'Basic access with limited features' },
-  basic: { label: 'Basic', color: '#3b82f6', description: 'Essential tools for small businesses' },
-  premium: { label: 'Premium', color: '#8b5cf6', description: 'Advanced features for growing teams' },
-  enterprise: { label: 'Enterprise', color: '#f59e0b', description: 'Full suite with priority support' },
-};
 
 const DEFAULT_EMAIL_TEMPLATES = [
   {
@@ -124,17 +108,12 @@ Three Seas Digital`,
   },
 ];
 
-const RECURRING_FREQUENCIES = [
-  { value: 'weekly', label: 'Weekly', days: 7 },
-  { value: 'biweekly', label: 'Bi-Weekly', days: 14 },
-  { value: 'monthly', label: 'Monthly', days: 30 },
-  { value: 'quarterly', label: 'Quarterly', days: 90 },
-  { value: 'yearly', label: 'Yearly', days: 365 },
-];
 
 export function AppProvider({ children }) {
   const auth = useAuth();
+  const finance = useFinance();
   const { currentUser, currentClient, setCurrentClient, hashPassword } = auth;
+  const { addPaymentRecord, removePaymentByInvoice, RECURRING_FREQUENCIES } = finance;
 
   const [appointments, setAppointments] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -143,16 +122,6 @@ export function AppProvider({ children }) {
 
   const [clients, setClients] = useState(() => {
     const saved = localStorage.getItem(CLIENTS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [payments, setPayments] = useState(() => {
-    const saved = localStorage.getItem(PAYMENTS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [expenses, setExpenses] = useState(() => {
-    const saved = localStorage.getItem(EXPENSES_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -204,13 +173,6 @@ export function AppProvider({ children }) {
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
   }, [clients]);
 
-  useEffect(() => {
-    localStorage.setItem(PAYMENTS_KEY, JSON.stringify(payments));
-  }, [payments]);
-
-  useEffect(() => {
-    localStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
-  }, [expenses]);
 
   useEffect(() => {
     localStorage.setItem(LEADS_KEY, JSON.stringify(leads));
@@ -771,7 +733,7 @@ export function AppProvider({ children }) {
         invoiceId: invoiceId,
         createdAt: new Date().toISOString(),
       };
-      setPayments((prev) => [...prev, payment]);
+      addPaymentRecord(payment);
 
       // Update invoice status
       setClients((prev) =>
@@ -801,7 +763,7 @@ export function AppProvider({ children }) {
 
   const unmarkInvoicePaid = (clientId, invoiceId) => {
     // Remove the associated payment record
-    setPayments((prev) => prev.filter((p) => p.invoiceId !== invoiceId));
+    removePaymentByInvoice(invoiceId);
 
     // Set invoice status back to unpaid
     setClients((prev) =>
@@ -1102,38 +1064,6 @@ export function AppProvider({ children }) {
     return { success: true };
   };
 
-  // Expenses
-  const addExpense = (data) => {
-    if (!data.category || !data.amount || !data.date) {
-      return { success: false, error: 'Category, amount, and date are required' };
-    }
-    const expense = {
-      id: Date.now().toString(),
-      category: data.category,
-      amount: parseFloat(data.amount),
-      description: data.description || '',
-      date: data.date,
-      receipt: data.receipt || null,
-      receiptName: data.receiptName || '',
-      vendor: data.vendor || '',
-      createdBy: currentUser?.name || 'Unknown',
-      createdAt: new Date().toISOString(),
-    };
-    setExpenses((prev) => [...prev, expense]);
-    return { success: true, expense };
-  };
-
-  const updateExpense = (id, updates) => {
-    const exists = expenses.find((e) => e.id === id);
-    if (!exists) return { success: false, error: 'Expense not found' };
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
-    return { success: true };
-  };
-
-  const deleteExpense = (id) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
-    return { success: true };
-  };
 
   // Leads
   const addLead = (data) => {
@@ -1504,17 +1434,7 @@ export function AppProvider({ children }) {
   const clientLogout = () => auth.clientLogout();
 
   const recordPayment = (clientId, paymentData) => {
-    const payment = {
-      id: Date.now().toString(),
-      clientId,
-      service: paymentData.service,
-      serviceTier: paymentData.serviceTier,
-      amount: paymentData.amount,
-      method: paymentData.method,
-      status: 'completed',
-      createdAt: new Date().toISOString(),
-    };
-    setPayments((prev) => [...prev, payment]);
+    const payment = finance.recordPayment(clientId, paymentData);
 
     // Auto-create a paid invoice on the client
     const invoice = {
@@ -1600,16 +1520,9 @@ export function AppProvider({ children }) {
         assignDeveloperToProject,
         removeDeveloperFromProject,
         completeProject,
-        // Finance
-        payments,
-        expenses,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        EXPENSE_CATEGORIES,
+        // Finance (cross-context: invoices mutate clients)
         recordPayment,
         updateClientTier,
-        SUBSCRIPTION_TIERS,
         // Leads
         leads,
         addLead,
@@ -1672,7 +1585,6 @@ export function AppProvider({ children }) {
         DEFAULT_EMAIL_TEMPLATES,
         // Recurring Invoices
         generateRecurringInvoice,
-        RECURRING_FREQUENCIES,
       }}
     >
       {children}
@@ -1680,10 +1592,11 @@ export function AppProvider({ children }) {
   );
 }
 
-// useAppContext merges both AuthContext and AppContext for backward compatibility.
-// Components can also use useAuth() directly for auth-only needs (better performance).
+// useAppContext merges Auth, Finance, and App contexts for backward compatibility.
+// Components can also use useAuth() or useFinance() directly for domain-specific needs.
 export const useAppContext = () => {
   const appCtx = useContext(AppContext);
   const authCtx = useAuth();
-  return { ...authCtx, ...appCtx };
+  const finCtx = useFinance();
+  return { ...authCtx, ...finCtx, ...appCtx };
 };
