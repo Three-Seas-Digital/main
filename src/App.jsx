@@ -11,7 +11,6 @@ import Register from './pages/Register';
 import ClientSignup from './pages/ClientSignup';
 import NotFound from './pages/NotFound';
 import { StarterShowcase, BusinessShowcase, PremiumShowcase, EnterpriseShowcase } from './pages/PortfolioLanding';
-import './index.css';
 
 // Site info — single source of truth for contact details
 export const SITE_INFO = {

@@ -28,7 +28,7 @@
   - [x] Batch 5: Extracted RevenueTab (~317 lines), InvoicesTab (~353 lines), ProfitTab (~294 lines), TaxesTab (~462 lines) → 4 new files, ~1,421 lines removed from Admin.jsx (5,794 → 4,374)
   - [x] Batch 6: Extracted AnalyticsTab (~1126 lines), LeadsTab (~1025 lines), ResearchTab (~914 lines) → 3 new files, ~3,027 lines removed from Admin.jsx (4,374 → 1,347), cleaned 28 unused Lucide imports + entire recharts import
   - [x] Batch 7: Extracted ArchivedTab (~68 lines), TiersTab (~265 lines), ClientsDatabaseTab (~382 lines), KanbanView (~131 lines) → 4 new files, ~859 lines removed from Admin.jsx (1,339 → 480), cleaned 5 unused imports (useCallback, Link, TierBadge, TimeTracker, ProjectBoard) + unused sidebarTabs variable. **Admin.jsx split COMPLETE: 10,400 → 480 lines (95% reduction), 22 component files extracted.**
-- [ ] Split `index.css` (332 KB) into per-feature CSS files — at minimum: `base.css`, `home.css`, `portfolio.css`, `demos.css`, `admin.css`, `client-portal.css`
+- [x] Split `index.css` (332 KB, 19,738 lines) into 10 per-feature CSS files under `src/styles/`: base.css (166), navbar.css (85), home.css (298), portfolio.css (414), about.css (204), contact.css (328), footer.css (88), admin.css (11,317), client-portal.css (1,964), demos.css (4,874). Removed duplicate import from App.jsx. Original index.css deleted.
 - [ ] Split `AppContext.jsx` into domain-specific contexts: `AuthContext`, `ClientContext`, `AppointmentContext`, `FinanceContext` (invoices/payments/expenses), `ProspectContext`, `LeadContext`
 - [ ] Add React.lazy() code splitting for heavy routes: Admin, ClientSignup, PortfolioLanding
 - [ ] Add an ErrorBoundary component wrapping major sections
