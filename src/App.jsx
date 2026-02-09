@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FinanceProvider } from './context/FinanceContext';
+import { SalesProvider } from './context/SalesContext';
 import { AppProvider } from './context/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
@@ -75,11 +76,13 @@ export default function App() {
   return (
     <AuthProvider>
       <FinanceProvider>
-        <AppProvider>
-          <BrowserRouter>
-            <AppLayout />
-          </BrowserRouter>
-        </AppProvider>
+        <SalesProvider>
+          <AppProvider>
+            <BrowserRouter>
+              <AppLayout />
+            </BrowserRouter>
+          </AppProvider>
+        </SalesProvider>
       </FinanceProvider>
     </AuthProvider>
   );
