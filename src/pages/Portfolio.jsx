@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Layers, ArrowRight, Check, Star } from 'lucide-react';
+import FallbackImg from '../components/FallbackImg';
 
 const tiers = [
   {
@@ -51,7 +52,7 @@ export default function Portfolio() {
     <div className="page">
       <section className="page-hero">
         <div className="page-hero-bg">
-          <img
+          <FallbackImg
             src="https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=1920&h=600&fit=crop"
             alt="Portfolio"
           />
@@ -83,7 +84,7 @@ export default function Portfolio() {
                   {tier.name}
                 </div>
                 <div className="portfolio-tier-image">
-                  <img src={tier.img} alt={tier.demo} />
+                  <FallbackImg src={tier.img} alt={tier.demo} />
                   <div className="portfolio-tier-overlay">
                     <ExternalLink size={24} />
                     <span>View Demo</span>

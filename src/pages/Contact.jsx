@@ -3,6 +3,7 @@ import { Send, Clock, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
 import { SITE_INFO } from '../App';
+import FallbackImg from '../components/FallbackImg';
 
 const timeSlots = [
   '9:00 AM', '10:00 AM', '11:00 AM',
@@ -67,7 +68,7 @@ export default function Contact() {
     <div className="page">
       <section className="page-hero">
         <div className="page-hero-bg">
-          <img
+          <FallbackImg
             src="https://images.unsplash.com/photo-1423666639041-f56000c27a9a?w=1920&h=600&fit=crop"
             alt="Contact"
           />

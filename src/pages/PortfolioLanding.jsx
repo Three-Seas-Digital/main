@@ -11,6 +11,7 @@ import {
   Layers, Zap, PieChart, Target, Search, Filter, Plus, Edit3, Trash2,
   Eye, Download, Upload, RefreshCw, AlertCircle, UserCheck, PhoneCall
 } from 'lucide-react';
+import FallbackImg from '../components/FallbackImg';
 
 /* ==========================================================
    STARTER TIER - COASTAL COFFEE
@@ -58,7 +59,7 @@ export function StarterShowcase() {
       {/* HERO */}
       <section className="starter-hero">
         <div className="starter-hero-bg">
-          <img src="https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=1920&h=800&fit=crop" alt="Coffee" />
+          <FallbackImg src="https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=1920&h=800&fit=crop" alt="Coffee" />
           <div className="starter-hero-overlay" />
         </div>
         <div className="starter-hero-content">
@@ -73,7 +74,7 @@ export function StarterShowcase() {
         <div className="starter-container">
           <div className="starter-about-grid">
             <div className="starter-about-image">
-              <img src="https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=600&h=400&fit=crop" alt="Barista" />
+              <FallbackImg src="https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=600&h=400&fit=crop" alt="Barista" />
             </div>
             <div className="starter-about-content">
               <h2>Our Story</h2>
@@ -101,7 +102,7 @@ export function StarterShowcase() {
               { name: 'Blueberry Muffin', price: '$3.50', desc: 'Baked fresh every morning', img: 'https://images.unsplash.com/photo-1607958996333-41aef7caefaa?w=300&h=300&fit=crop' },
             ].map((item) => (
               <div key={item.name} className="starter-menu-item">
-                <img src={item.img} alt={item.name} />
+                <FallbackImg src={item.img} alt={item.name} />
                 <div className="starter-menu-info">
                   <h3>{item.name}</h3>
                   <p>{item.desc}</p>
@@ -261,7 +262,7 @@ export function BusinessShowcase() {
       {/* HERO */}
       <section className="business-hero">
         <div className="business-hero-bg">
-          <img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&h=700&fit=crop" alt="Law Office" />
+          <FallbackImg src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&h=700&fit=crop" alt="Law Office" />
           <div className="business-hero-overlay" />
         </div>
         <div className="business-hero-content">
@@ -327,7 +328,7 @@ export function BusinessShowcase() {
           <div className="business-team-grid">
             {attorneys.map((att) => (
               <div key={att.name} className="business-team-card">
-                <img src={att.img} alt={att.name} />
+                <FallbackImg src={att.img} alt={att.name} />
                 <h3>{att.name}</h3>
                 <span className="business-team-title">{att.title}</span>
                 <span className="business-team-specialty">{att.specialty}</span>
@@ -535,7 +536,7 @@ export function PremiumShowcase() {
 
           <section className="premium-hero">
             <div className="premium-hero-bg">
-              <img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1920&h=700&fit=crop" alt="Spa" />
+              <FallbackImg src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1920&h=700&fit=crop" alt="Spa" />
               <div className="premium-hero-overlay" />
             </div>
             <div className="premium-hero-content">

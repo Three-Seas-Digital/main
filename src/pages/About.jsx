@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Users } from 'lucide-react';
+import FallbackImg from '../components/FallbackImg';
 
 const values = [
   {
@@ -28,7 +29,7 @@ export default function About() {
       {/* Hero */}
       <section className="page-hero">
         <div className="page-hero-bg">
-          <img
+          <FallbackImg
             src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1920&h=600&fit=crop"
             alt="About Us"
           />
@@ -65,7 +66,7 @@ export default function About() {
               </p>
             </div>
             <div className="about-story-image">
-              <img
+              <FallbackImg
                 src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&h=500&fit=crop"
                 alt="Our office"
               />
