@@ -20,8 +20,9 @@
 ## Priority 3 — Production Readiness
 - [ ] **SITE_INFO placeholders** — Fill in real phone number and address (needs client input).
 - [ ] **About page content** — Replace stock photo URLs with local assets or real team photos (needs client input).
-- [ ] **External image fallbacks** — Unsplash CDN images could fail; consider local copies or fallback handling.
+- [x] **External image fallbacks** — FallbackImg component wraps all 21 Unsplash images across 5 pages. Shows gradient placeholder with alt text on CDN failure.
 
-## Priority 4 — Architecture (Future)
-- [ ] **AppContext domain splitting** — Split 85+ exports into domain contexts (auth, clients, finance, etc.)
+## Priority 4 — Architecture
+- [x] **AppContext domain splitting (Phase 1)** — Extracted AuthContext (users, auth, permissions, RBAC) from AppContext. useAppContext() merges both for backward compat. Components can use useAuth() directly for auth-only needs.
+- [ ] **AppContext domain splitting (Phase 2)** — Further splits: FinanceContext (payments, expenses, invoices), SalesContext (leads, prospects, research), etc.
 - [ ] **Backend API** — Replace localStorage with real database/API layer.

@@ -1,31 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
 
-// Client-side password hashing (stopgap until backend with bcrypt).
-// Uses a simple salted hash — NOT cryptographically strong, but prevents plaintext storage.
-function hashPassword(password) {
-  const salt = 'tsd_2026';
-  const str = salt + password;
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
-}
-
-
 const STORAGE_KEY = 'threeseas_appointments';
-const USERS_KEY = 'threeseas_users';
 const CLIENTS_KEY = 'threeseas_clients';
 const PAYMENTS_KEY = 'threeseas_payments';
-const CLIENT_AUTH_KEY = 'threeseas_current_client';
 const EXPENSES_KEY = 'threeseas_expenses';
 const LEADS_KEY = 'threeseas_leads';
 const PROSPECTS_KEY = 'threeseas_prospects';
@@ -35,7 +15,6 @@ const ACTIVITY_LOG_KEY = 'threeseas_activity_log';
 const TIME_ENTRIES_KEY = 'threeseas_time_entries';
 const EMAIL_TEMPLATES_KEY = 'threeseas_email_templates';
 const NOTIFICATIONS_KEY = 'threeseas_notifications';
-const ADMIN_AUTH_KEY = 'threeseas_current_user';
 
 const PROSPECT_STAGES = [
   { value: 'inquiry', label: 'Inquiry', color: '#6b7280' },
@@ -153,47 +132,12 @@ const RECURRING_FREQUENCIES = [
   { value: 'yearly', label: 'Yearly', days: 365 },
 ];
 
-const STAFF_COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#ef4444', // red
-  '#84cc16', // lime
-];
-
-// No default users — first-run setup creates the initial admin account
-
-
-
-const ROLES = {
-  admin: {
-    label: 'Admin',
-    permissions: ['view_appointments', 'manage_appointments', 'manage_users', 'manage_clients'],
-    description: 'Full access: manage appointments, users, clients, and all settings',
-  },
-  manager: {
-    label: 'Manager',
-    permissions: ['view_appointments', 'manage_appointments', 'manage_clients', 'manage_users'],
-    description: 'Can manage appointments, clients, and approve new user registrations',
-  },
-  staff: {
-    label: 'Staff',
-    permissions: ['view_appointments', 'confirm_appointments', 'view_clients'],
-    description: 'Can view appointments, confirm pending ones, and view clients',
-  },
-};
-
 export function AppProvider({ children }) {
+  const auth = useAuth();
+  const { currentUser, currentClient, setCurrentClient, hashPassword } = auth;
+
   const [appointments, setAppointments] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem(USERS_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -232,16 +176,6 @@ export function AppProvider({ children }) {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [currentClient, setCurrentClient] = useState(() => {
-    const saved = localStorage.getItem(CLIENT_AUTH_KEY);
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem(ADMIN_AUTH_KEY);
-    return saved ? JSON.parse(saved) : null;
-  });
-
   const [activityLog, setActivityLog] = useState(() => {
     const saved = localStorage.getItem(ACTIVITY_LOG_KEY);
     return saved ? JSON.parse(saved) : [];
@@ -265,10 +199,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
   }, [appointments]);
-
-  useEffect(() => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }, [users]);
 
   useEffect(() => {
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
@@ -297,22 +227,6 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(RESEARCH_KEY, JSON.stringify(marketResearch));
   }, [marketResearch]);
-
-  useEffect(() => {
-    if (currentClient) {
-      localStorage.setItem(CLIENT_AUTH_KEY, JSON.stringify(currentClient));
-    } else {
-      localStorage.removeItem(CLIENT_AUTH_KEY);
-    }
-  }, [currentClient]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(ADMIN_AUTH_KEY);
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
@@ -443,136 +357,6 @@ export function AppProvider({ children }) {
 
   const resetEmailTemplates = () => {
     setEmailTemplates(DEFAULT_EMAIL_TEMPLATES);
-  };
-
-  // First-run check — no admin users exist yet
-  const needsSetup = users.length === 0 || !users.some((u) => u.role === 'admin' && u.status === 'approved');
-
-  const setupAdmin = (userData) => {
-    if (!needsSetup) return { success: false, error: 'Admin already configured' };
-    if (!userData.username || !userData.password || !userData.name || !userData.email) {
-      return { success: false, error: 'All fields are required' };
-    }
-    if (userData.password.length < 6) {
-      return { success: false, error: 'Password must be at least 6 characters' };
-    }
-    const newAdmin = {
-      id: Date.now().toString(),
-      username: userData.username,
-      password: hashPassword(userData.password),
-      name: userData.name,
-      email: userData.email,
-      role: 'admin',
-      status: 'approved',
-      color: STAFF_COLORS[0],
-      createdAt: new Date().toISOString(),
-    };
-    setUsers([newAdmin]);
-    setCurrentUser(newAdmin);
-    return { success: true, user: newAdmin };
-  };
-
-  // Auth
-  const login = (username, password) => {
-    const hashed = hashPassword(password);
-    const user = users.find((u) => {
-      if (u.username !== username) return false;
-      // Support both hashed and legacy plaintext passwords (auto-migrate on match)
-      if (u.password === hashed) return true;
-      if (u.password === password) {
-        // Migrate plaintext password to hashed
-        setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, password: hashed } : x));
-        return true;
-      }
-      return false;
-    });
-    if (!user) return { success: false, error: 'Invalid credentials' };
-    if (user.status === 'pending') return { success: false, error: 'Your account is pending approval. Please wait for an admin to approve your registration.' };
-    if (user.status === 'rejected') return { success: false, error: 'Your account has been rejected. Contact an administrator.' };
-    setCurrentUser(user);
-    return { success: true, user };
-  };
-
-  // Public registration
-  const register = (userData) => {
-    const existsUsername = users.some((u) => u.username === userData.username);
-    if (existsUsername) return { success: false, error: 'Username already taken' };
-    const existsEmail = users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase());
-    if (existsEmail) return { success: false, error: 'Email already registered' };
-    const newUser = {
-      ...userData,
-      password: hashPassword(userData.password),
-      id: Date.now().toString(),
-      role: 'pending',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-    setUsers((prev) => [...prev, newUser]);
-    return { success: true, user: newUser };
-  };
-
-  const approveUser = (id, role) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, role, status: 'approved' } : u))
-    );
-    return { success: true };
-  };
-
-  const rejectUser = (id) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status: 'rejected' } : u))
-    );
-    return { success: true };
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem(ADMIN_AUTH_KEY);
-  };
-
-  const hasPermission = (permission) => {
-    if (!currentUser) return false;
-    const role = ROLES[currentUser.role];
-    return role?.permissions.includes(permission) || false;
-  };
-
-  // User management
-  const addUser = (userData) => {
-    const exists = users.some((u) => u.username === userData.username);
-    if (exists) return { success: false, error: 'Username already exists' };
-    const colorIndex = users.length % STAFF_COLORS.length;
-    const newUser = {
-      ...userData,
-      password: hashPassword(userData.password),
-      id: Date.now().toString(),
-      status: 'approved',
-      color: userData.color || STAFF_COLORS[colorIndex],
-      createdAt: new Date().toISOString(),
-    };
-    setUsers((prev) => [...prev, newUser]);
-    return { success: true, user: newUser };
-  };
-
-  const updateUser = (id, updates) => {
-    if (updates.username) {
-      const exists = users.some((u) => u.username === updates.username && u.id !== id);
-      if (exists) return { success: false, error: 'Username already taken' };
-    }
-    const processed = updates.password ? { ...updates, password: hashPassword(updates.password) } : updates;
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...processed } : u))
-    );
-    if (currentUser?.id === id) {
-      setCurrentUser((prev) => ({ ...prev, ...updates }));
-    }
-    return { success: true };
-  };
-
-  const deleteUser = (id) => {
-    if (id === '1') return { success: false, error: 'Cannot delete the default admin' };
-    if (currentUser?.id === id) return { success: false, error: 'Cannot delete yourself' };
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    return { success: true };
   };
 
   // Appointments
@@ -1705,30 +1489,19 @@ export function AppProvider({ children }) {
   };
 
   const clientLogin = (email, password) => {
-    const hashed = hashPassword(password);
-    const client = clients.find((c) => {
-      if (c.email.toLowerCase() !== email.toLowerCase()) return false;
-      if (c.password === hashed) return true;
-      if (c.password === password) {
-        // Migrate plaintext password to hashed
-        setClients((prev) => prev.map((x) => x.id === c.id ? { ...x, password: hashed } : x));
-        return true;
-      }
-      return false;
-    });
-    if (!client) return { success: false, error: 'Invalid email or password' };
-    if (client.status === 'pending') {
-      return { success: false, error: 'Your account is pending approval. Please wait for an administrator to approve your registration.' };
+    const result = auth.clientLogin(email, password, clients);
+    // Handle plaintext password migration if needed
+    if (result.migrateFn) {
+      setClients((prev) => prev.map((x) => x.id === result.migrateFn.id ? { ...x, password: result.migrateFn.hashed } : x));
     }
-    setCurrentClient(client);
-    return { success: true, client };
+    return result;
   };
 
   const checkClientEmail = (email) => {
     return clients.some((c) => c.email.toLowerCase() === email.toLowerCase());
   };
 
-  const clientLogout = () => setCurrentClient(null);
+  const clientLogout = () => auth.clientLogout();
 
   const recordPayment = (clientId, paymentData) => {
     const payment = {
@@ -1777,29 +1550,19 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
+        // Appointments
         appointments,
         addAppointment,
         updateAppointmentStatus,
         updateAppointment,
         assignAppointment,
-        STAFF_COLORS,
         markFollowUp,
         updateFollowUp,
         addFollowUpNote,
         deleteFollowUpNote,
         deleteAppointment,
         getAppointmentsForDate,
-        currentUser,
-        users,
-        needsSetup,
-        setupAdmin,
-        login,
-        logout,
-        hasPermission,
-        addUser,
-        updateUser,
-        deleteUser,
-        ROLES,
+        // Clients
         clients,
         convertToClient,
         addClientManually,
@@ -1818,14 +1581,13 @@ export function AppProvider({ children }) {
         permanentlyDeleteClient,
         approveClient,
         rejectClient,
-        register,
-        approveUser,
-        rejectUser,
+        // Invoices
         addInvoice,
         updateInvoice,
         markInvoicePaid,
         unmarkInvoicePaid,
         deleteInvoice,
+        // Projects
         addProject,
         updateProject,
         deleteProject,
@@ -1838,12 +1600,17 @@ export function AppProvider({ children }) {
         assignDeveloperToProject,
         removeDeveloperFromProject,
         completeProject,
+        // Finance
         payments,
         expenses,
         addExpense,
         updateExpense,
         deleteExpense,
         EXPENSE_CATEGORIES,
+        recordPayment,
+        updateClientTier,
+        SUBSCRIPTION_TIERS,
+        // Leads
         leads,
         addLead,
         updateLead,
@@ -1855,10 +1622,12 @@ export function AppProvider({ children }) {
         getFromBusinessDb,
         updateBusinessDb,
         deleteFromBusinessDb,
+        // Research
         marketResearch,
         saveResearch,
         updateResearch,
         deleteResearch,
+        // Pipeline
         prospects,
         addProspect,
         updateProspect,
@@ -1872,14 +1641,11 @@ export function AppProvider({ children }) {
         convertProspectToClient,
         PROSPECT_STAGES,
         LOSS_REASONS,
-        currentClient,
+        // Client Portal
         registerClient,
         checkClientEmail,
         clientLogin,
         clientLogout,
-        recordPayment,
-        updateClientTier,
-        SUBSCRIPTION_TIERS,
         // Activity Log
         activityLog,
         logActivity,
@@ -1914,4 +1680,10 @@ export function AppProvider({ children }) {
   );
 }
 
-export const useAppContext = () => useContext(AppContext);
+// useAppContext merges both AuthContext and AppContext for backward compatibility.
+// Components can also use useAuth() directly for auth-only needs (better performance).
+export const useAppContext = () => {
+  const appCtx = useContext(AppContext);
+  const authCtx = useAuth();
+  return { ...authCtx, ...appCtx };
+};
