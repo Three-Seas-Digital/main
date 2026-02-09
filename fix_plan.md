@@ -12,6 +12,8 @@
 ## Priority 1 — Performance
 - [x] **Code splitting with React.lazy** — Lazy-load Admin, ClientSignup, PortfolioLanding, Contact, About, Register, Portfolio. Initial bundle 1134→314 KB. Admin (336 KB) + Charts (396 KB) load on demand.
 - [x] **Vite manual chunks** — Split vendor (react/router 47 KB), charts (recharts 396 KB), icons (lucide 42 KB) into cacheable chunks.
+- [x] **Production build optimization** — esbuild drops console/debugger in production builds (dev retains them). Mode-conditional config via defineConfig function.
+- [x] **useMemo for admin components** — Added useMemo to 5 admin components: ClientsTab (5 memoized values: filtered, archivedClients, client, clientAppointments, staffMembers), FollowUpsTab (5: confirmedAppts, needsFollowUp, withFollowUp, filteredFollowUps, staffMembers), UserManagement (3: pendingUsers, approvedUsers, rejectedUsers), KanbanView (2: staffMembers, unassigned), ClientRequestsTab (1: pendingClients). Prevents unnecessary recomputation on every render.
 
 ## Priority 2 — Reliability
 - [x] **Error boundary** — ErrorBoundary component wrapping routes with friendly fallback UI.

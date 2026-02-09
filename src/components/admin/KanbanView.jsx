@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CalendarDays, Clock, CheckCircle,
 } from 'lucide-react';
@@ -9,10 +9,10 @@ export default function KanbanView({ appointments, users, onAssign, onStatusChan
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
   // Get staff members (admin, manager, staff roles)
-  const staffMembers = users.filter((u) => ['admin', 'manager', 'staff'].includes(u.role));
+  const staffMembers = useMemo(() => users.filter((u) => ['admin', 'manager', 'staff'].includes(u.role)), [users]);
 
   // Group appointments by assignee
-  const unassigned = appointments.filter((a) => !a.assignedTo);
+  const unassigned = useMemo(() => appointments.filter((a) => !a.assignedTo), [appointments]);
   const getAssignedTo = (userId) => appointments.filter((a) => a.assignedTo === userId);
 
   const handleDragStart = (e, appt) => {

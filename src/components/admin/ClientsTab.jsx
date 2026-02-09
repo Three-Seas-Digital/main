@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CalendarDays, User, Mail, Phone, Trash2,
   CheckCircle, AlertCircle, BarChart3, Users,
@@ -59,7 +59,7 @@ export default function ClientsTab() {
   const [viewingDocument, setViewingDocument] = useState(null);
 
   // Staff members for kanban
-  const staffMembers = users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role));
+  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role)), [users]);
 
   // Drag and drop handlers
   const handleDragStart = (e, client) => {
@@ -82,7 +82,7 @@ export default function ClientsTab() {
   const handleDragEnd = () => { setDraggedClient(null); setDragOverColumn(null); };
 
   // Active clients (exclude pending and archived)
-  const filtered = clients
+  const filtered = useMemo(() => clients
     .filter((c) => c.status !== 'pending' && c.status !== 'archived')
     .filter((c) => filterStatus === 'all' || c.status === filterStatus)
     .filter((c) => filterTier === 'all' || (c.tier || 'free') === filterTier)
@@ -95,13 +95,13 @@ export default function ClientsTab() {
         case 'name-za': return b.name.localeCompare(a.name);
         default: return new Date(b.createdAt) - new Date(a.createdAt);
       }
-    });
+    }), [clients, filterStatus, filterTier, filterService, search, sortBy]);
 
   // Archived clients
-  const archivedClients = clients.filter((c) => c.status === 'archived');
+  const archivedClients = useMemo(() => clients.filter((c) => c.status === 'archived'), [clients]);
 
-  const client = selectedClient ? clients.find((c) => c.id === selectedClient) : null;
-  const clientAppointments = client ? appointments.filter((a) => a.email.toLowerCase() === client.email.toLowerCase()) : [];
+  const client = useMemo(() => selectedClient ? clients.find((c) => c.id === selectedClient) : null, [selectedClient, clients]);
+  const clientAppointments = useMemo(() => client ? appointments.filter((a) => a.email.toLowerCase() === client.email.toLowerCase()) : [], [client, appointments]);
 
   const handleAddClient = (e) => {
     e.preventDefault();

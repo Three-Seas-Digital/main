@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Clock, Mail, Phone, CheckCircle, XCircle,
   UserPlus, UserCheck, Building2,
@@ -10,8 +10,8 @@ export default function ClientRequestsTab() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [rejectConfirm, setRejectConfirm] = useState(null);
 
-  const pendingClients = clients.filter((c) => c.status === 'pending')
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const pendingClients = useMemo(() => clients.filter((c) => c.status === 'pending')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [clients]);
 
   const handleApprove = (id) => {
     approveClient(id);

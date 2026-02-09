@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Users, UserPlus, AlertCircle, CheckCircle, Ban,
   Shield, Eye, EyeOff, Edit3, Trash2,
@@ -30,9 +30,9 @@ export default function UserManagement() {
   };
   const startEdit = (user) => { setForm({ username: user.username, password: '', name: user.name, email: user.email, role: user.role }); setEditingId(user.id); setShowForm(true); setError(''); };
 
-  const pendingUsers = users.filter((u) => u.status === 'pending');
-  const approvedUsers = users.filter((u) => u.status !== 'pending' && u.status !== 'rejected');
-  const rejectedUsers = users.filter((u) => u.status === 'rejected');
+  const pendingUsers = useMemo(() => users.filter((u) => u.status === 'pending'), [users]);
+  const approvedUsers = useMemo(() => users.filter((u) => u.status !== 'pending' && u.status !== 'rejected'), [users]);
+  const rejectedUsers = useMemo(() => users.filter((u) => u.status === 'rejected'), [users]);
 
   const handleApprove = (userId) => {
     const role = approveRoles[userId] || 'staff';

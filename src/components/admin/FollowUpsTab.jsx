@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CalendarDays, Clock, AlertCircle,
   PhoneForwarded, UserCheck, MessageSquare, Plus, CheckCircle,
@@ -28,15 +28,15 @@ export default function FollowUpsTab() {
   const [selectedDate, setSelectedDate] = useState('');
 
   // Show confirmed appointments that need follow-up, plus ALL appointments that have follow-ups
-  const confirmedAppts = appointments.filter((a) => a.status === 'confirmed');
-  const needsFollowUp = confirmedAppts.filter((a) => !a.followUp && !a.sentToPipeline);
-  const withFollowUp = appointments.filter((a) => a.followUp && !a.sentToPipeline);
-  const filteredFollowUps = filterFU === 'all'
+  const confirmedAppts = useMemo(() => appointments.filter((a) => a.status === 'confirmed'), [appointments]);
+  const needsFollowUp = useMemo(() => confirmedAppts.filter((a) => !a.followUp && !a.sentToPipeline), [confirmedAppts]);
+  const withFollowUp = useMemo(() => appointments.filter((a) => a.followUp && !a.sentToPipeline), [appointments]);
+  const filteredFollowUps = useMemo(() => filterFU === 'all'
     ? withFollowUp.filter((a) => a.followUp.status !== 'archived')
-    : withFollowUp.filter((a) => a.followUp.status === filterFU);
+    : withFollowUp.filter((a) => a.followUp.status === filterFU), [withFollowUp, filterFU]);
 
   // Staff members for kanban
-  const staffMembers = users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role));
+  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role)), [users]);
 
   // Drag and drop handlers
   const handleDragStart = (e, appt) => {
