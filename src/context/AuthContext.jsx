@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { generateId } from '../constants';
 
 const AuthContext = createContext();
 
@@ -93,7 +94,7 @@ export function AuthProvider({ children }) {
       return { success: false, error: 'Password must be at least 6 characters' };
     }
     const newAdmin = {
-      id: Date.now().toString(),
+      id: generateId(),
       username: userData.username,
       password: hashPassword(userData.password),
       name: userData.name,
@@ -134,7 +135,7 @@ export function AuthProvider({ children }) {
     const newUser = {
       ...userData,
       password: hashPassword(userData.password),
-      id: Date.now().toString(),
+      id: generateId(),
       role: 'pending',
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -162,7 +163,7 @@ export function AuthProvider({ children }) {
     const newUser = {
       ...userData,
       password: hashPassword(userData.password),
-      id: Date.now().toString(),
+      id: generateId(),
       status: 'approved',
       color: userData.color || STAFF_COLORS[colorIndex],
       createdAt: new Date().toISOString(),

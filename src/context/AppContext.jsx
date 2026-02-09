@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { useFinance } from './FinanceContext';
 import { useSales } from './SalesContext';
+import { generateId } from '../constants';
 
 const AppContext = createContext();
 
@@ -155,7 +156,7 @@ export function AppProvider({ children }) {
   // Activity Log - tracks all significant actions
   const logActivity = (action, details = {}) => {
     const entry = {
-      id: Date.now().toString(),
+      id: generateId(),
       action, // e.g., 'client_created', 'invoice_paid', 'appointment_confirmed'
       details, // { clientId, clientName, amount, etc. }
       userId: currentUser?.id || null,
@@ -170,7 +171,7 @@ export function AppProvider({ children }) {
   // Notifications
   const addNotification = (notification) => {
     const newNotif = {
-      id: Date.now().toString(),
+      id: generateId(),
       type: notification.type, // 'warning', 'info', 'success', 'error'
       title: notification.title,
       message: notification.message,
@@ -200,7 +201,7 @@ export function AppProvider({ children }) {
   // Time Tracking
   const addTimeEntry = (entry) => {
     const newEntry = {
-      id: Date.now().toString(),
+      id: generateId(),
       clientId: entry.clientId,
       projectId: entry.projectId,
       taskId: entry.taskId || null,
@@ -237,7 +238,7 @@ export function AppProvider({ children }) {
   // Email Templates
   const addEmailTemplate = (template) => {
     const newTemplate = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: template.name,
       subject: template.subject,
       body: template.body,
@@ -270,7 +271,7 @@ export function AppProvider({ children }) {
   // Appointments
   const addAppointment = (appointment) => {
     const newAppt = {
-      id: Date.now().toString(),
+      id: generateId(),
       status: 'pending',
       followUp: null,
       createdAt: new Date().toISOString(),
@@ -341,7 +342,7 @@ export function AppProvider({ children }) {
             notes: [
               ...existingNotes,
               {
-                id: Date.now().toString(),
+                id: generateId(),
                 text: noteText.trim(),
                 author: currentUser?.name || 'System',
                 createdAt: new Date().toISOString(),
@@ -387,7 +388,7 @@ export function AppProvider({ children }) {
     if (existing) return { success: false, error: 'Client with this email already exists', client: existing };
 
     const newClient = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: appt.name,
       email: appt.email,
       phone: appt.phone || '',
@@ -415,7 +416,7 @@ export function AppProvider({ children }) {
 
     const newClient = {
       ...clientData,
-      id: Date.now().toString(),
+      id: generateId(),
       status: 'active',
       source: 'manual',
       notes: [],
@@ -444,7 +445,7 @@ export function AppProvider({ children }) {
               notes: [
                 ...(c.notes || []),
                 {
-                  id: Date.now().toString(),
+                  id: generateId(),
                   text: note,
                   author: currentUser?.name || 'System',
                   createdAt: new Date().toISOString(),
@@ -497,7 +498,7 @@ export function AppProvider({ children }) {
 
   const addClientDocument = (clientId, document) => {
     const newDoc = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: document.name,
       type: document.type || 'other',
       description: document.description || '',
@@ -585,7 +586,7 @@ export function AppProvider({ children }) {
   const addInvoice = (clientId, invoice) => {
     const client = clients.find((c) => c.id === clientId);
     const newInvoice = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: invoice.title,
       amount: parseFloat(invoice.amount),
       status: 'unpaid',
@@ -669,7 +670,7 @@ export function AppProvider({ children }) {
     if (invoice && invoice.status !== 'paid') {
       // Create payment record for revenue tracking
       const payment = {
-        id: Date.now().toString(),
+        id: generateId(),
         clientId,
         clientName: client.name,
         service: client.service || 'general',
@@ -740,7 +741,7 @@ export function AppProvider({ children }) {
   // Projects (all clients)
   const addProject = (clientId, project) => {
     const newProject = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: project.title,
       description: project.description || '',
       status: 'planning', // planning, in-progress, review, completed, archived
@@ -789,7 +790,7 @@ export function AppProvider({ children }) {
 
   const addProjectTask = (clientId, projectId, task) => {
     const newTask = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: task.title,
       status: task.status || 'todo',
       goal: task.goal || '',
@@ -855,7 +856,7 @@ export function AppProvider({ children }) {
 
   const addMilestone = (clientId, projectId, milestone) => {
     const newMilestone = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: milestone.title,
       dueDate: milestone.dueDate || '',
       completed: false,
@@ -989,7 +990,7 @@ export function AppProvider({ children }) {
         ...prev,
         {
           ...followUpAppt,
-          id: Date.now().toString(),
+          id: generateId(),
           createdAt: new Date().toISOString(),
         },
       ]);
@@ -1027,7 +1028,7 @@ export function AppProvider({ children }) {
     }
 
     const newClient = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: prospect.name,
       email: prospect.email || '',
       phone: prospect.phone || '',
@@ -1054,7 +1055,7 @@ export function AppProvider({ children }) {
     if (existing) return { success: false, error: 'An account with this email already exists' };
 
     const newClient = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: data.name,
       email: data.email,
       password: data.password ? hashPassword(data.password) : '',

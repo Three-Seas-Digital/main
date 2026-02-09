@@ -35,3 +35,18 @@
 - [x] **AppContext domain splitting (Phase 2a)** — Extracted FinanceContext. Components can use useFinance() directly.
 - [x] **AppContext domain splitting (Phase 2b)** — Extracted SalesContext. Components can use useSales() directly.
 - [ ] **Backend API** — Replace localStorage with real database/API layer.
+
+## Priority 5 — Bug Fixes & Code Quality (Feb 2026)
+- [x] **Fix AdminLogin.jsx Date.now bug** — `useState(Date.now)` passed function reference instead of calling it. Changed to `useState(Date.now())`. This broke the lockout countdown timer.
+- [x] **Collision-resistant ID generation** — Replaced `Date.now().toString()` with `generateId()` (`Date.now()-random7chars`) across all 4 context files (30 occurrences). Prevents duplicate IDs when creating records in rapid succession.
+- [x] **Remove console.error from ResearchTab** — Removed 2 console.error statements from search and category loading error handlers. Errors already handled via user-facing state.
+- [x] **Fix AdminLogin.jsx ESLint purity error** — `useState(Date.now())` flagged as impure by React compiler plugin. Changed to `useState(() => Date.now())` (lazy initializer).
+
+## Priority 6 — SEO & Deployment Hardening (Feb 2026)
+- [x] **robots.txt** — Added with Allow /, Disallow /admin and /register, Sitemap reference.
+- [x] **sitemap.xml** — All 9 public routes with priorities and change frequencies.
+- [x] **.htaccess hardening** — Added mod_deflate compression, mod_expires browser caching (1yr for hashed assets, no-cache for HTML), security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy), Cache-Control immutable for assets, block .git/.env/.bak/.log files.
+- [x] **Open Graph & Twitter Card meta tags** — og:title, og:description, og:image, og:url, og:type, og:site_name, twitter:card/title/description/image, theme-color, canonical URL.
+- [x] **.gitattributes** — Line ending normalization (LF for web files, binary for images/fonts).
+- [x] **Remove @types/react dev deps** — Removed @types/react and @types/react-dom (unnecessary in JS-only project).
+- [x] **Remove unused vite.svg** — Deleted default Vite favicon from public/.

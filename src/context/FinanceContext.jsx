@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { generateId } from '../constants';
 
 const FinanceContext = createContext();
 
@@ -57,7 +58,7 @@ export function FinanceProvider({ children }) {
       return { success: false, error: 'Category, amount, and date are required' };
     }
     const expense = {
-      id: Date.now().toString(),
+      id: generateId(),
       category: data.category,
       amount: parseFloat(data.amount),
       description: data.description || '',
@@ -87,7 +88,7 @@ export function FinanceProvider({ children }) {
   // Payments
   const recordPayment = (clientId, paymentData) => {
     const payment = {
-      id: Date.now().toString(),
+      id: generateId(),
       clientId,
       service: paymentData.service,
       serviceTier: paymentData.serviceTier,

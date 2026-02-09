@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { generateId } from '../constants';
 
 const SalesContext = createContext();
 
@@ -68,7 +69,7 @@ export function SalesProvider({ children }) {
   const addLead = (data) => {
     if (!data.businessName?.trim()) return { success: false, error: 'Business name is required' };
     const lead = {
-      id: Date.now().toString(),
+      id: generateId(),
       businessName: data.businessName.trim(),
       address: data.address || '',
       phone: data.phone || '',
@@ -110,7 +111,7 @@ export function SalesProvider({ children }) {
               notes: [
                 ...l.notes,
                 {
-                  id: Date.now().toString(),
+                  id: generateId(),
                   text,
                   author: currentUser?.name || 'System',
                   createdAt: new Date().toISOString(),
@@ -150,7 +151,7 @@ export function SalesProvider({ children }) {
     }
 
     const entry = {
-      id: Date.now().toString(),
+      id: generateId(),
       key,
       name: data.name || '',
       address: data.address || '',
@@ -193,7 +194,7 @@ export function SalesProvider({ children }) {
       return { success: true, updated: true };
     }
     const entry = {
-      id: Date.now().toString(),
+      id: generateId(),
       key,
       ...data,
       createdAt: new Date().toISOString(),
@@ -217,7 +218,7 @@ export function SalesProvider({ children }) {
   const addProspect = (data) => {
     if (!data.name?.trim()) return { success: false, error: 'Name is required' };
     const newProspect = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: data.name.trim(),
       email: data.email?.trim() || '',
       phone: data.phone?.trim() || '',
@@ -264,7 +265,7 @@ export function SalesProvider({ children }) {
           notes: [
             ...p.notes,
             {
-              id: Date.now().toString(),
+              id: generateId(),
               text: noteText.trim(),
               author: currentUser?.name || 'System',
               createdAt: new Date().toISOString(),
@@ -288,7 +289,7 @@ export function SalesProvider({ children }) {
 
   const addProspectDocument = (prospectId, document) => {
     const newDoc = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: document.name,
       type: document.type || 'other',
       description: document.description || '',

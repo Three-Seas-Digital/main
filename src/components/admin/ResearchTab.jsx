@@ -202,8 +202,7 @@ export default function ResearchTab() {
       loadCategoryData('services', lat, lon);
       loadCategoryData('recreation', lat, lon);
       loadCategoryData('government', lat, lon);
-    } catch (err) {
-      console.error('Search error:', err);
+    } catch {
       setSearchError('Search failed. Please try again.');
     }
     setSearching(false);
@@ -396,8 +395,7 @@ export default function ResearchTab() {
 
         setCategoryData((prev) => ({ ...prev, [category]: items }));
       }
-    } catch (err) {
-      console.error(`Error loading ${category}:`, err);
+    } catch {
       setCategoryData((prev) => ({ ...prev, [category]: [] }));
     }
     setLoadingCategory(null);

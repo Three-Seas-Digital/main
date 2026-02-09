@@ -10,7 +10,7 @@ export default function AdminLogin() {
   const [failCount, setFailCount] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(null);
   const { login } = useAppContext();
-  const [now, setNow] = useState(Date.now);
+  const [now, setNow] = useState(() => Date.now());
   const isLocked = lockedUntil && now < lockedUntil;
 
   // Tick the countdown while locked
