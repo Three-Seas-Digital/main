@@ -23,9 +23,15 @@
 - [ ] **SITE_INFO placeholders** — Fill in real phone number and address (needs client input).
 - [ ] **About page content** — Replace stock photo URLs with local assets or real team photos (needs client input).
 - [x] **External image fallbacks** — FallbackImg component wraps all 21 Unsplash images across 5 pages. Shows gradient placeholder with alt text on CDN failure.
+- [x] **Self-host all images** — All 21 Unsplash image URLs replaced with self-hosted `/public/images/` paths (~2MB).
+- [x] **Extract SITE_INFO to constants.js** — Moved from App.jsx to `src/constants.js` for cleaner imports.
+- [x] **Conditionally render empty contact fields** — Footer and Contact page hide phone/address when empty.
+- [x] **Fix client password change bug** — `handleChangePassword` compared plaintext vs hash (always failed). Now uses `hashPassword()` for both comparison and storage.
+- [x] **Accessibility: aria-labels** — Added aria-labels to 15+ icon-only buttons across 8 components.
+- [x] **Clean unused imports/variables** — Removed unused vars across 15+ components. Zero ESLint warnings.
 
 ## Priority 4 — Architecture
-- [x] **AppContext domain splitting (Phase 1)** — Extracted AuthContext (users, auth, permissions, RBAC) from AppContext. useAppContext() merges both for backward compat. Components can use useAuth() directly for auth-only needs.
-- [x] **AppContext domain splitting (Phase 2a)** — Extracted FinanceContext (payments, expenses, EXPENSE_CATEGORIES, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES, recordPayment). AppContext delegates to FinanceContext for payment/expense mutations. useAppContext() merges all three contexts. Components can use useFinance() directly.
-- [x] **AppContext domain splitting (Phase 2b)** — Extracted SalesContext (leads, prospects, businessDatabase, marketResearch, PROSPECT_STAGES, LOSS_REASONS). convertProspectToClient stays in AppContext as cross-context bridge. useAppContext() merges all four contexts. Components can use useSales() directly.
+- [x] **AppContext domain splitting (Phase 1)** — Extracted AuthContext from AppContext. useAppContext() merges both for backward compat.
+- [x] **AppContext domain splitting (Phase 2a)** — Extracted FinanceContext. Components can use useFinance() directly.
+- [x] **AppContext domain splitting (Phase 2b)** — Extracted SalesContext. Components can use useSales() directly.
 - [ ] **Backend API** — Replace localStorage with real database/API layer.
