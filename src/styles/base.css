@@ -164,3 +164,17 @@ input, select, textarea, button {
   transform: none;
 }
 
+/* Page loading spinner for Suspense fallback */
+.page-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
