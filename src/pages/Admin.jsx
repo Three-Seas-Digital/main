@@ -55,7 +55,6 @@ const ExecutionTracker = lazy(() => import('../components/admin/BusinessIntellig
 const SIDEBAR_NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, type: 'standalone' },
   { id: 'clients-group', label: 'Clients', icon: UserCheck, type: 'group', items: [
-    { id: 'onboarding', label: 'Onboarding', icon: ClipboardCheck },
     { id: 'clients', label: 'All Clients', icon: Users },
     { id: 'clientrequests', label: 'Client Requests', icon: UserPlus },
     { id: 'clientsdb', label: 'Clients Database', icon: Database },
@@ -269,10 +268,6 @@ export default function Admin() {
   // color: 'danger' = red (action needed), 'info' = blue (new/unviewed), 'warning' = amber (attention), 'neutral' = gray (informational)
   const getBadge = (tabId) => {
     switch (tabId) {
-      case 'onboarding': {
-        const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
-        return onboardingCount > 0 ? { count: onboardingCount, color: 'warning' } : null;
-      }
       case 'clientrequests': return pendingClientCount > 0 ? { count: pendingClientCount, color: 'danger' } : null;
       case 'clients': return unviewedClientCount > 0 ? { count: unviewedClientCount, color: 'info' } : null;
       case 'clientsdb': return null; // search tool, no badge needed
@@ -392,6 +387,14 @@ export default function Admin() {
                   <Briefcase size={16} /> Pipeline {pipelineCount > 0 && <span className="tab-badge">{pipelineCount}</span>}
                 </button>
               )}
+              {isAdminOrManager && (() => {
+                const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
+                return (
+                  <button className={`admin-tab ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
+                    <ClipboardCheck size={16} /> Onboarding {onboardingCount > 0 && <span className="tab-badge">{onboardingCount}</span>}
+                  </button>
+                );
+              })()}
               {canViewClients && (
                 <button className={`admin-tab ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => setActiveTab('clients')}>
                   <UserCheck size={16} /> Clients {vipCount > 0 && <span className="tab-badge vip-tab-badge">{vipCount} VIP</span>}
