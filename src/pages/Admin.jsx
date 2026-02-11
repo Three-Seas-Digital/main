@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   LogOut, CalendarDays, Clock, User, Mail, Phone, Trash2,
   CheckCircle, XCircle, AlertCircle, BarChart3, Users,
   Calendar as CalendarIcon, UserPlus, Shield, UserCheck,
   PhoneForwarded, MessageSquare,
-  ChevronLeft, ChevronDown, Briefcase, FolderKanban,
+  ChevronLeft, ChevronDown, ChevronRight, Briefcase, FolderKanban,
   DollarSign, Receipt, MapPin, TrendingUp,
   BarChart2, Download, CheckSquare, Square,
-  FileSpreadsheet, LayoutDashboard, FileText, Layers,
+  FileSpreadsheet, LayoutDashboard, FileText, Layers, Menu,
+  ClipboardList, Activity, Eye, Lightbulb, Search, Settings,
+  Database, PieChart, Crosshair, Target, ClipboardCheck,
 } from 'lucide-react';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
@@ -30,10 +32,77 @@ import AnalyticsTab from '../components/admin/AnalyticsTab';
 import LeadsTab from '../components/admin/LeadsTab';
 import ResearchTab from '../components/admin/ResearchTab';
 import ArchivedTab from '../components/admin/ArchivedTab';
+import OnboardingTab from '../components/admin/OnboardingTab';
 import TiersTab from '../components/admin/TiersTab';
 import ClientsDatabaseTab from '../components/admin/ClientsDatabaseTab';
 import KanbanView from '../components/admin/KanbanView';
+import ErrorBoundary from '../components/ErrorBoundary';
 
+/* ===== Lazy-loaded Business Intelligence tabs (Phase 6A + 6C) ===== */
+const IntakeForm = lazy(() => import('../components/admin/BusinessIntelligence/IntakeForm'));
+const AuditQueue = lazy(() => import('../components/admin/BusinessIntelligence/AuditQueue'));
+const AuditScoring = lazy(() => import('../components/admin/BusinessIntelligence/AuditScoring'));
+const HealthOverview = lazy(() => import('../components/admin/BusinessIntelligence/HealthOverview'));
+const RecommendationsBuilder = lazy(() => import('../components/admin/BusinessIntelligence/RecommendationsBuilder'));
+const ClientAnalytics = lazy(() => import('../components/admin/BusinessIntelligence/ClientAnalytics'));
+const ClientFinancials = lazy(() => import('../components/admin/BusinessIntelligence/ClientFinancials'));
+const InterventionTracker = lazy(() => import('../components/admin/BusinessIntelligence/InterventionTracker'));
+const RevenueAuditTab = lazy(() => import('../components/admin/BusinessIntelligence/RevenueAuditTab'));
+const ExecutionTracker = lazy(() => import('../components/admin/BusinessIntelligence/ExecutionTracker'));
+
+
+/* ===== Sidebar navigation structure ===== */
+const SIDEBAR_NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, type: 'standalone' },
+  { id: 'clients-group', label: 'Clients', icon: UserCheck, type: 'group', items: [
+    { id: 'onboarding', label: 'Onboarding', icon: ClipboardCheck },
+    { id: 'clients', label: 'All Clients', icon: Users },
+    { id: 'clientrequests', label: 'Client Requests', icon: UserPlus },
+    { id: 'clientsdb', label: 'Clients Database', icon: Database },
+    { id: 'archived', label: 'Archived', icon: FolderKanban },
+  ]},
+  { id: 'bi-group', label: 'Business Intelligence', icon: Search, type: 'group', items: [
+    { id: 'intake', label: 'Intake Forms', icon: ClipboardList },
+    { id: 'audit-queue', label: 'Audit Queue', icon: Eye },
+    { id: 'audit-scoring', label: 'Audit Scoring', icon: BarChart3 },
+    { id: 'health-overview', label: 'Health Overview', icon: Activity },
+    { id: 'recommendations', label: 'Recommendations', icon: Lightbulb },
+    { id: 'client-analytics', label: 'Client Analytics', icon: PieChart },
+    { id: 'client-financials', label: 'Client Financials', icon: DollarSign },
+    { id: 'interventions', label: 'Interventions', icon: Crosshair },
+    { id: 'revenue-audit', label: 'Revenue Audit', icon: BarChart3 },
+    { id: 'execution', label: '30/60/90 Plan', icon: Target },
+  ]},
+  { id: 'appointments', label: 'Appointments', icon: CalendarIcon, type: 'standalone' },
+  { id: 'sales-group', label: 'Sales', icon: Briefcase, type: 'group', items: [
+    { id: 'pipeline', label: 'Pipeline', icon: Briefcase },
+    { id: 'leads', label: 'Leads', icon: MapPin },
+    { id: 'followups', label: 'Follow-Ups', icon: PhoneForwarded },
+    { id: 'business-db', label: 'Business Database', icon: Database },
+  ]},
+  { id: 'finance-group', label: 'Finance', icon: DollarSign, type: 'group', items: [
+    { id: 'revenue', label: 'Revenue', icon: DollarSign },
+    { id: 'expenses', label: 'Expenses', icon: Receipt },
+    { id: 'invoices', label: 'Invoices', icon: FileSpreadsheet },
+    { id: 'profit', label: 'Profit', icon: TrendingUp },
+    { id: 'taxes', label: 'Taxes', icon: FileText },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  ]},
+  { id: 'projects', label: 'Projects', icon: FolderKanban, type: 'standalone' },
+  { id: 'research', label: 'Research', icon: BarChart2, type: 'standalone' },
+  { id: 'admin-group', label: 'Admin', icon: Settings, type: 'group', items: [
+    { id: 'users', label: 'Users & Roles', icon: Shield },
+    { id: 'email-templates', label: 'Email Templates', icon: Mail },
+    { id: 'tiers', label: 'Tiers', icon: Layers },
+    { id: 'activity-log', label: 'Activity Log', icon: Activity },
+  ]},
+];
+
+/* Helper: check if a group contains the active tab */
+function groupContainsTab(group, tabId) {
+  if (group.type !== 'group') return false;
+  return group.items.some((item) => item.id === tabId);
+}
 /* ===== MAIN ADMIN ===== */
 export default function Admin() {
   useEffect(() => { document.title = 'Admin Dashboard — Three Seas Digital'; }, []);
@@ -48,9 +117,62 @@ export default function Admin() {
   const [deleteApptConfirm, setDeleteApptConfirm] = useState(null);
   const [deleteApptInput, setDeleteApptInput] = useState('');
   const [cancelConfirm, setCancelConfirm] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
   const [selectedAppointments, setSelectedAppointments] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [biClientId, setBiClientId] = useState('');
+  const [viewedClients, setViewedClients] = useState(() => {
+    try {
+      const stored = localStorage.getItem('threeseas_viewed_clients');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const markClientViewed = (clientId) => {
+    setViewedClients((prev) => {
+      if (prev.has(clientId)) return prev;
+      const next = new Set(prev);
+      next.add(clientId);
+      try { localStorage.setItem('threeseas_viewed_clients', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    const initial = new Set();
+    SIDEBAR_NAV.forEach((section) => {
+      if (groupContainsTab(section, 'dashboard')) initial.add(section.id);
+    });
+    return initial;
+  });
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (window.innerWidth <= 768) setSidebarOpen(false);
+  };
+
+  const toggleGroup = (groupId) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  // Auto-expand the group containing the active tab
+  useEffect(() => {
+    SIDEBAR_NAV.forEach((section) => {
+      if (groupContainsTab(section, activeTab)) {
+        setExpandedGroups((prev) => {
+          if (prev.has(section.id)) return prev;
+          const next = new Set(prev);
+          next.add(section.id);
+          return next;
+        });
+      }
+    });
+  }, [activeTab]);
 
   // Clear bulk selections when view or filter changes
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -131,12 +253,55 @@ export default function Admin() {
 
   const pendingCount = appointments.filter((a) => a.status === 'pending').length;
   const followUpCount = appointments.filter((a) => a.followUp && a.followUp.status !== 'completed' && a.followUp.status !== 'archived' && !a.sentToPipeline).length;
-  const archivedCount = appointments.filter((a) => a.followUp && a.followUp.status === 'archived').length;
+  const archivedFollowUpCount = appointments.filter((a) => a.followUp && a.followUp.status === 'archived').length;
+  const archivedClientCount = clients.filter((c) => c.status === 'archived').length;
+  const archivedCount = archivedFollowUpCount + archivedClientCount;
   const pipelineCount = prospects.filter((p) => !p.closedAt).length;
   const pendingClientCount = clients.filter((c) => c.status === 'pending').length;
   const clientCount = clients.filter((c) => c.status !== 'pending').length;
   const vipCount = clients.filter((c) => c.status === 'vip').length;
   const pendingUserCount = users.filter((u) => u.status === 'pending').length;
+
+  // Unviewed clients: active/vip clients admin hasn't clicked on yet
+  const unviewedClientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && !viewedClients.has(c.id)).length;
+
+  // Badge counts for sidebar items — returns { count, color } or null
+  // color: 'danger' = red (action needed), 'info' = blue (new/unviewed), 'warning' = amber (attention), 'neutral' = gray (informational)
+  const getBadge = (tabId) => {
+    switch (tabId) {
+      case 'onboarding': {
+        const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
+        return onboardingCount > 0 ? { count: onboardingCount, color: 'warning' } : null;
+      }
+      case 'clientrequests': return pendingClientCount > 0 ? { count: pendingClientCount, color: 'danger' } : null;
+      case 'clients': return unviewedClientCount > 0 ? { count: unviewedClientCount, color: 'info' } : null;
+      case 'clientsdb': return null; // search tool, no badge needed
+      case 'archived': return archivedCount > 0 ? { count: archivedCount, color: 'neutral' } : null;
+      case 'appointments': return pendingCount > 0 ? { count: pendingCount, color: 'danger' } : null;
+      case 'pipeline': return pipelineCount > 0 ? { count: pipelineCount, color: 'info' } : null;
+      case 'leads': return leads.length > 0 ? { count: leads.length, color: 'info' } : null;
+      case 'followups': return followUpCount > 0 ? { count: followUpCount, color: 'warning' } : null;
+      case 'research': return marketResearch.length > 0 ? { count: marketResearch.length, color: 'neutral' } : null;
+      case 'users': return pendingUserCount > 0 ? { count: pendingUserCount, color: 'danger' } : null;
+      default: return null;
+    }
+  };
+
+  // Render a single sidebar item button
+  const renderSidebarItem = (item, indented = false) => {
+    const Icon = item.icon;
+    const badge = getBadge(item.id);
+    return (
+      <button
+        key={item.id}
+        className={`sidebar-item ${activeTab === item.id ? 'active' : ''} ${indented ? 'sidebar-item-indented' : ''}`}
+        onClick={() => handleTabChange(item.id)}
+      >
+        <Icon size={16} /> {item.label}
+        {badge != null && <span className={`sidebar-badge sidebar-badge-${badge.color}`}>{badge.count}</span>}
+      </button>
+    );
+  };
 
   return (
     <div className="page admin-page">
@@ -163,125 +328,53 @@ export default function Admin() {
 
         </div>
 
+        {isAdminOrManager && (
+          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle sidebar menu">
+            <Menu size={18} /> Menu
+          </button>
+        )}
         <div className="admin-layout">
           {/* Sidebar */}
           {isAdminOrManager && (
+            <>
+            {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
             <div className={`admin-sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
               <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
                 {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronDown size={18} />}
               </button>
               {sidebarOpen && (
-                <>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><Users size={14} /> Team</h4>
-                    {canManageUsers && (
-                      <button
-                        className={`sidebar-item ${activeTab === 'users' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('users')}
-                      >
-                        <Shield size={16} /> Users
-                        {pendingUserCount > 0 && <span className="sidebar-badge">{pendingUserCount}</span>}
-                      </button>
-                    )}
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><PhoneForwarded size={14} /> Follow-ups</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'archived' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('archived')}
-                    >
-                      <FolderKanban size={16} /> Archived
-                      {archivedCount > 0 && <span className="sidebar-badge">{archivedCount}</span>}
-                    </button>
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><UserCheck size={14} /> Clients</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'clientrequests' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('clientrequests')}
-                    >
-                      <UserPlus size={16} /> Requests
-                      {pendingClientCount > 0 && <span className="sidebar-badge">{pendingClientCount}</span>}
-                    </button>
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><Briefcase size={14} /> Sales</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'leads' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('leads')}
-                    >
-                      <MapPin size={16} /> Leads
-                      {leads.length > 0 && <span className="sidebar-badge">{leads.length}</span>}
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'research' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('research')}
-                    >
-                      <BarChart2 size={16} /> Research
-                      {marketResearch.length > 0 && <span className="sidebar-badge">{marketResearch.length}</span>}
-                    </button>
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><DollarSign size={14} /> Finance</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'revenue' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('revenue')}
-                    >
-                      <DollarSign size={16} /> Revenue
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'invoices' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('invoices')}
-                    >
-                      <FileSpreadsheet size={16} /> Invoices
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'expenses' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('expenses')}
-                    >
-                      <Receipt size={16} /> Expenses
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'profit' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('profit')}
-                    >
-                      <TrendingUp size={16} /> Profit
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'taxes' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('taxes')}
-                    >
-                      <FileText size={16} /> Taxes
-                    </button>
-                    <button
-                      className={`sidebar-item ${activeTab === 'analytics' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('analytics')}
-                    >
-                      <BarChart3 size={16} /> Analytics
-                    </button>
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><Layers size={14} /> Pricing</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'tiers' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('tiers')}
-                    >
-                      <Layers size={16} /> Tiers
-                    </button>
-                  </div>
-                  <div className="sidebar-group">
-                    <h4 className="sidebar-group-title"><FolderKanban size={14} /> Database</h4>
-                    <button
-                      className={`sidebar-item ${activeTab === 'clientsdb' ? 'active' : ''}`}
-                      onClick={() => setActiveTab('clientsdb')}
-                    >
-                      <Users size={16} /> Clients
-                      {clients.filter((c) => c.status !== 'pending').length > 0 && <span className="sidebar-badge">{clients.filter((c) => c.status !== 'pending').length}</span>}
-                    </button>
-                  </div>
-                </>
+                <nav className="sidebar-nav">
+                  {SIDEBAR_NAV.map((section) => {
+                    if (section.type === 'standalone') {
+                      return renderSidebarItem(section);
+                    }
+
+                    // Group with collapsible items
+                    const GroupIcon = section.icon;
+                    const isExpanded = expandedGroups.has(section.id);
+                    const hasActiveChild = section.items.some((item) => item.id === activeTab);
+
+                    return (
+                      <div key={section.id} className={`sidebar-section ${hasActiveChild ? 'has-active' : ''}`}>
+                        <button
+                          className={`sidebar-section-header ${isExpanded ? 'expanded' : ''}`}
+                          onClick={() => toggleGroup(section.id)}
+                          aria-expanded={isExpanded}
+                        >
+                          <GroupIcon size={14} />
+                          <span className="sidebar-section-label">{section.label}</span>
+                          <ChevronRight size={14} className={`sidebar-chevron ${isExpanded ? 'rotated' : ''}`} />
+                        </button>
+                        <div className={`sidebar-section-items ${isExpanded ? 'expanded' : ''}`}>
+                          {section.items.map((item) => renderSidebarItem(item, true))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </nav>
               )}
             </div>
+            </>
           )}
 
           {/* Main Content */}
@@ -460,7 +553,8 @@ export default function Admin() {
         )}
         {activeTab === 'followups' && canManageAppointments && <FollowUpsTab />}
         {activeTab === 'pipeline' && isAdminOrManager && <PipelineTab />}
-        {activeTab === 'clients' && canViewClients && <ClientsTab />}
+        {activeTab === 'onboarding' && isAdminOrManager && <OnboardingTab />}
+        {activeTab === 'clients' && canViewClients && <ClientsTab onClientViewed={markClientViewed} />}
         {activeTab === 'clientrequests' && isAdminOrManager && <ClientRequestsTab />}
         {activeTab === 'users' && canManageUsers && <UserManagement />}
         {activeTab === 'revenue' && isAdminOrManager && <RevenueTab />}
@@ -474,6 +568,17 @@ export default function Admin() {
         {activeTab === 'archived' && canManageAppointments && <ArchivedTab />}
         {activeTab === 'tiers' && isAdminOrManager && <TiersTab />}
         {activeTab === 'clientsdb' && isAdminOrManager && <ClientsDatabaseTab />}
+        {/* Business Intelligence tabs (Phase 6A + 6C) — wrapped in ErrorBoundary */}
+        {activeTab === 'intake' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><IntakeForm biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'audit-queue' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><AuditQueue biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'audit-scoring' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><AuditScoring biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'health-overview' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><HealthOverview biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'recommendations' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><RecommendationsBuilder biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'client-analytics' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><ClientAnalytics biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'client-financials' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><ClientFinancials biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'interventions' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><InterventionTracker biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'revenue-audit' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><RevenueAuditTab biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'execution' && isAdminOrManager && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><ExecutionTracker biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
           </div>
         </div>
       </div>

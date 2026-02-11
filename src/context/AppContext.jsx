@@ -3,6 +3,16 @@ import { useAuth } from './AuthContext';
 import { useFinance } from './FinanceContext';
 import { useSales } from './SalesContext';
 import { generateId, safeSetItem, safeGetItem, onStorageWarning } from '../constants';
+import { syncToApi } from '../api/apiSync.js';
+import { appointmentsApi } from '../api/appointments.js';
+import { clientsApi } from '../api/clients.js';
+import { invoicesApi } from '../api/invoices.js';
+import { projectsApi } from '../api/projects.js';
+import { timeEntriesApi } from '../api/timeEntries.js';
+import { emailTemplatesApi } from '../api/emailTemplates.js';
+import { notificationsApi } from '../api/notifications.js';
+import { paymentsApi } from '../api/payments.js';
+import { clientAuthApi } from '../api/clientAuth.js';
 
 const AppContext = createContext();
 
@@ -96,7 +106,7 @@ export function AppProvider({ children }) {
   const sales = useSales();
   const { currentUser, currentClient, setCurrentClient, hashPassword } = auth;
   const { addPaymentRecord, removePaymentByInvoice, RECURRING_FREQUENCIES } = finance;
-  const { prospects, closeProspect } = sales;
+  const { prospects, closeProspect, saveToBusinessDb } = sales;
 
   const [appointments, setAppointments] = useState(() => safeGetItem(STORAGE_KEY, []));
   const [clients, setClients] = useState(() => safeGetItem(CLIENTS_KEY, []));
@@ -112,6 +122,16 @@ export function AppProvider({ children }) {
   useEffect(() => {
     safeSetItem(CLIENTS_KEY, JSON.stringify(clients));
   }, [clients]);
+
+  // Keep currentClient in sync when clients array changes
+  useEffect(() => {
+    if (!currentClient) return;
+    const fresh = clients.find(c => c.id === currentClient.id);
+    if (fresh && fresh !== currentClient) {
+      const changed = JSON.stringify(fresh) !== JSON.stringify(currentClient);
+      if (changed) setCurrentClient(fresh);
+    }
+  }, [clients, currentClient, setCurrentClient]);
 
   useEffect(() => {
     safeSetItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
@@ -156,31 +176,38 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setNotifications((prev) => [newNotif, ...prev]);
+    syncToApi(() => notificationsApi.create(newNotif), 'addNotification');
   };
 
   const markNotificationRead = (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    syncToApi(() => notificationsApi.markRead(id), 'markNotificationRead');
   };
 
   const markAllNotificationsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    syncToApi(() => notificationsApi.markAllRead(), 'markAllNotificationsRead');
   };
 
   const deleteNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    syncToApi(() => notificationsApi.delete(id), 'deleteNotification');
   };
 
-  const clearAllNotifications = () => setNotifications([]);
+  const clearAllNotifications = () => {
+    setNotifications([]);
+    syncToApi(() => notificationsApi.clearAll(), 'clearAllNotifications');
+  };
 
   // Wire up storage quota warnings → notification system
   useEffect(() => {
-    onStorageWarning((key) => {
+    onStorageWarning((key, usage) => {
       addNotification({
         type: 'warning',
         title: 'Storage Full',
-        message: `Could not save data (${key}). Browser storage is full. Consider exporting and clearing old records.`,
+        message: `Could not save ${key.replace('threeseas_', '')} data. Storage is at ${usage?.mb || '?'}MB. Try removing old documents or expenses with receipts.`,
       });
     });
     return () => onStorageWarning(null);
@@ -203,6 +230,7 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setTimeEntries((prev) => [...prev, newEntry]);
+    syncToApi(() => timeEntriesApi.create(newEntry), 'addTimeEntry');
     logActivity('time_entry_added', { hours: newEntry.hours, projectId: entry.projectId });
     return newEntry;
   };
@@ -211,16 +239,19 @@ export function AppProvider({ children }) {
     setTimeEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...updates } : e))
     );
+    syncToApi(() => timeEntriesApi.update(id, updates), 'updateTimeEntry');
   };
 
   const deleteTimeEntry = (id) => {
     setTimeEntries((prev) => prev.filter((e) => e.id !== id));
+    syncToApi(() => timeEntriesApi.delete(id), 'deleteTimeEntry');
   };
 
   const markTimeEntryBilled = (id) => {
     setTimeEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, billed: true, billedAt: new Date().toISOString() } : e))
     );
+    syncToApi(() => timeEntriesApi.update(id, { billed: true, billedAt: new Date().toISOString() }), 'markTimeEntryBilled');
   };
 
   // Email Templates
@@ -234,6 +265,7 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setEmailTemplates((prev) => [...prev, newTemplate]);
+    syncToApi(() => emailTemplatesApi.create(newTemplate), 'addEmailTemplate');
     return newTemplate;
   };
 
@@ -241,6 +273,7 @@ export function AppProvider({ children }) {
     setEmailTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
     );
+    syncToApi(() => emailTemplatesApi.update(id, updates), 'updateEmailTemplate');
   };
 
   const deleteEmailTemplate = (id) => {
@@ -249,6 +282,7 @@ export function AppProvider({ children }) {
       return { success: false, error: 'Cannot delete default templates' };
     }
     setEmailTemplates((prev) => prev.filter((t) => t.id !== id));
+    syncToApi(() => emailTemplatesApi.delete(id), 'deleteEmailTemplate');
     return { success: true };
   };
 
@@ -266,6 +300,7 @@ export function AppProvider({ children }) {
       ...appointment,
     };
     setAppointments((prev) => [...prev, newAppt]);
+    syncToApi(() => appointmentsApi.create(newAppt), 'addAppointment');
     return newAppt;
   };
 
@@ -273,12 +308,14 @@ export function AppProvider({ children }) {
     setAppointments((prev) =>
       prev.map((appt) => (appt.id === id ? { ...appt, status } : appt))
     );
+    syncToApi(() => appointmentsApi.updateStatus(id, status), 'updateAppointmentStatus');
   };
 
   const updateAppointment = (id, updates) => {
     setAppointments((prev) =>
       prev.map((appt) => (appt.id === id ? { ...appt, ...updates } : appt))
     );
+    syncToApi(() => appointmentsApi.update(id, updates), 'updateAppointment');
   };
 
   const assignAppointment = (appointmentId, userId) => {
@@ -289,6 +326,7 @@ export function AppProvider({ children }) {
           : appt
       )
     );
+    syncToApi(() => appointmentsApi.update(appointmentId, { assignedTo: userId || null }), 'assignAppointment');
   };
 
   const markFollowUp = (id, followUpData) => {
@@ -305,6 +343,7 @@ export function AppProvider({ children }) {
           : appt
       )
     );
+    syncToApi(() => appointmentsApi.update(id, { followUp: { ...followUpData, createdAt: new Date().toISOString() } }), 'markFollowUp');
   };
 
   const updateFollowUp = (id, updates) => {
@@ -315,6 +354,7 @@ export function AppProvider({ children }) {
           : appt
       )
     );
+    syncToApi(() => appointmentsApi.update(id, { followUp: updates }), 'updateFollowUp');
   };
 
   const addFollowUpNote = (appointmentId, noteText) => {
@@ -340,6 +380,7 @@ export function AppProvider({ children }) {
         };
       })
     );
+    syncToApi(() => appointmentsApi.addFollowUpNote(appointmentId, { text: noteText.trim(), author: currentUser?.name || 'System' }), 'addFollowUpNote');
   };
 
   const deleteFollowUpNote = (appointmentId, noteId) => {
@@ -359,6 +400,7 @@ export function AppProvider({ children }) {
 
   const deleteAppointment = (id) => {
     setAppointments((prev) => prev.filter((appt) => appt.id !== id));
+    syncToApi(() => appointmentsApi.delete(id), 'deleteAppointment');
   };
 
   const getAppointmentsForDate = (dateStr) => {
@@ -389,6 +431,7 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [...prev, newClient]);
+    syncToApi(() => clientsApi.create(newClient), 'convertToClient');
 
     // Mark appointment as converted
     updateAppointment(appointmentId, { convertedToClient: newClient.id });
@@ -412,9 +455,11 @@ export function AppProvider({ children }) {
       invoices: [],
       projects: [],
       documents: [],
+      onboarding: { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [...prev, newClient]);
+    syncToApi(() => clientsApi.create(newClient), 'addClientManually');
     return { success: true, client: newClient };
   };
 
@@ -422,6 +467,7 @@ export function AppProvider({ children }) {
     setClients((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
     );
+    syncToApi(() => clientsApi.update(id, updates), 'updateClient');
   };
 
   const addClientNote = (id, note) => {
@@ -443,6 +489,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.addNote(id, { text: note, author: currentUser?.name || 'System' }), 'addClientNote');
   };
 
   const deleteClientNote = (clientId, noteId) => {
@@ -453,6 +500,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.deleteNote(clientId, noteId), 'deleteClientNote');
   };
 
   const addClientTag = (id, tag) => {
@@ -463,6 +511,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.addTag(id, tag), 'addClientTag');
   };
 
   const removeClientTag = (id, tag) => {
@@ -471,6 +520,7 @@ export function AppProvider({ children }) {
         c.id === id ? { ...c, tags: (c.tags || []).filter((t) => t !== tag) } : c
       )
     );
+    syncToApi(() => clientsApi.removeTag(id, tag), 'removeClientTag');
   };
 
   // Document types for categorization
@@ -503,6 +553,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.uploadDocument(clientId, document), 'addClientDocument');
     return { success: true, document: newDoc };
   };
 
@@ -529,6 +580,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.deleteDocument(clientId, docId), 'deleteClientDocument');
   };
 
   const archiveClient = (id) => {
@@ -539,6 +591,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.archive(id), 'archiveClient');
   };
 
   const restoreClient = (id) => {
@@ -549,10 +602,12 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => clientsApi.restore(id), 'restoreClient');
   };
 
   const permanentlyDeleteClient = (id) => {
     setClients((prev) => prev.filter((c) => c.id !== id));
+    syncToApi(() => clientsApi.delete(id), 'permanentlyDeleteClient');
   };
 
   // Keep deleteClient as alias for archiveClient for backward compatibility
@@ -560,14 +615,72 @@ export function AppProvider({ children }) {
 
   const approveClient = (id) => {
     setClients((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, status: 'active', approvedAt: new Date().toISOString(), approvedBy: currentUser?.name || 'Admin' } : c
-      )
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        const hasProfile = c.businessName && c.phone && c.street && c.city && c.state && c.zip;
+        return {
+          ...c,
+          status: 'active',
+          profileComplete: hasProfile ? true : c.profileComplete || false,
+          approvedAt: new Date().toISOString(),
+          approvedBy: currentUser?.name || 'Admin',
+          onboarding: c.onboarding || { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
+        };
+      })
     );
+    syncToApi(() => clientsApi.approve(id), 'approveClient');
+
+    // Auto-scaffold BI template for newly approved client
+    try {
+      // Create empty intake template
+      const intakes = safeGetItem('threeseas_bi_intakes', {});
+      if (!intakes[id]) {
+        intakes[id] = {
+          id: generateId(),
+          industry: '', sub_industry: '', years_in_operation: '', employee_count_range: '',
+          annual_revenue_range: '', target_market: '', business_model: '',
+          current_website_url: '', hosting_provider: '', tech_stack: '', domain_age_years: '',
+          has_ssl: false, is_mobile_responsive: false, last_website_update: '',
+          social_platforms: [], email_marketing_tool: '', paid_advertising: '',
+          content_marketing: '', seo_efforts: '',
+          pain_points: '', goals: '', budget_range: '', timeline_expectations: '',
+          notes: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        };
+        safeSetItem('threeseas_bi_intakes', JSON.stringify(intakes));
+      }
+
+      // Create empty financials template
+      const financials = safeGetItem('threeseas_bi_client_financials', {});
+      if (!financials[id]) {
+        financials[id] = { clientId: id, entries: [], createdAt: new Date().toISOString() };
+        safeSetItem('threeseas_bi_client_financials', JSON.stringify(financials));
+      }
+
+      // Create default growth targets template
+      const targets = safeGetItem('threeseas_bi_growth_targets', []);
+      const hasTargets = targets.some((t) => t.clientId === id);
+      if (!hasTargets) {
+        const now = new Date().toISOString();
+        const defaultMetrics = [
+          { name: 'Website Traffic', unit: 'visitors/mo', baseline: 0, current: 0, target: 500, status: 'active' },
+          { name: 'Conversion Rate', unit: '%', baseline: 0, current: 0, target: 3, status: 'active' },
+          { name: 'Monthly Revenue', unit: '$', baseline: 0, current: 0, target: 5000, status: 'active' },
+          { name: 'Social Media Followers', unit: 'followers', baseline: 0, current: 0, target: 500, status: 'active' },
+        ];
+        const newTargets = defaultMetrics.map((m) => ({
+          id: generateId(), clientId: id, ...m, createdAt: now,
+        }));
+        safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...targets, ...newTargets]));
+      }
+    } catch (e) {
+      // BI template creation is non-critical — don't block approval
+      console.warn('[BI] Template scaffold failed:', e.message);
+    }
   };
 
   const rejectClient = (id) => {
     setClients((prev) => prev.filter((c) => c.id !== id));
+    syncToApi(() => clientsApi.reject(id), 'rejectClient');
   };
 
   // Payments / Invoices
@@ -593,6 +706,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => invoicesApi.create(clientId, newInvoice), 'addInvoice');
     logActivity('invoice_created', { clientId, clientName: client?.name, amount: newInvoice.amount, title: invoice.title });
     return newInvoice;
   };
@@ -609,7 +723,7 @@ export function AppProvider({ children }) {
     const nextDate = new Date(invoice.nextDueDate || invoice.dueDate);
     nextDate.setDate(nextDate.getDate() + freq.days);
 
-    const newId = Date.now().toString(); // eslint-disable-line react-hooks/purity
+    const newId = generateId();
     const newInvoice = {
       ...invoice,
       id: newId,
@@ -628,6 +742,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => invoicesApi.generateRecurring(clientId, invoiceId), 'generateRecurringInvoice');
 
     // Update the original invoice's nextDueDate
     updateInvoice(clientId, invoiceId, { nextDueDate: nextDate.toISOString().split('T')[0] });
@@ -649,6 +764,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => invoicesApi.update(clientId, invoiceId, updates), 'updateInvoice');
   };
 
   const markInvoicePaid = (clientId, invoiceId) => {
@@ -686,6 +802,7 @@ export function AppProvider({ children }) {
             : c
         )
       );
+      syncToApi(() => invoicesApi.markPaid(clientId, invoiceId), 'markInvoicePaid');
 
       // Log activity
       logActivity('invoice_paid', { clientId, clientName: client.name, amount: invoice.amount, invoiceId });
@@ -714,9 +831,13 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => invoicesApi.unmarkPaid(clientId, invoiceId), 'unmarkInvoicePaid');
   };
 
   const deleteInvoice = (clientId, invoiceId) => {
+    // Remove associated payment record
+    removePaymentByInvoice(invoiceId);
+
     setClients((prev) =>
       prev.map((c) =>
         c.id === clientId
@@ -724,6 +845,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => invoicesApi.delete(clientId, invoiceId), 'deleteInvoice');
   };
 
   // Projects (all clients)
@@ -748,6 +870,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.create({ ...newProject, clientId }), 'addProject');
     return newProject;
   };
 
@@ -764,9 +887,13 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.update(projectId, updates), 'updateProject');
   };
 
   const deleteProject = (clientId, projectId) => {
+    // Remove associated time entries
+    setTimeEntries((prev) => prev.filter((te) => te.projectId !== projectId));
+
     setClients((prev) =>
       prev.map((c) =>
         c.id === clientId
@@ -774,6 +901,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.delete(projectId), 'deleteProject');
   };
 
   const addProjectTask = (clientId, projectId, task) => {
@@ -801,6 +929,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.addTask(projectId, newTask), 'addProjectTask');
   };
 
   const updateProjectTask = (clientId, projectId, taskId, updates) => {
@@ -823,6 +952,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.updateTask(projectId, taskId, updates), 'updateProjectTask');
   };
 
   const deleteProjectTask = (clientId, projectId, taskId) => {
@@ -840,6 +970,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.deleteTask(projectId, taskId), 'deleteProjectTask');
   };
 
   const addMilestone = (clientId, projectId, milestone) => {
@@ -864,6 +995,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.addMilestone(projectId, newMilestone), 'addMilestone');
   };
 
   const toggleMilestone = (clientId, projectId, milestoneId) => {
@@ -886,6 +1018,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.updateMilestone(projectId, milestoneId, {}), 'toggleMilestone');
   };
 
   const deleteMilestone = (clientId, projectId, milestoneId) => {
@@ -903,6 +1036,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.deleteMilestone(projectId, milestoneId), 'deleteMilestone');
   };
 
   // Developer assignment to projects
@@ -921,6 +1055,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.addDeveloper(projectId, userId), 'assignDeveloperToProject');
   };
 
   const removeDeveloperFromProject = (clientId, projectId, userId) => {
@@ -938,6 +1073,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
+    syncToApi(() => projectsApi.removeDeveloper(projectId, userId), 'removeDeveloperFromProject');
   };
 
   // Project completion workflow
@@ -1001,6 +1137,33 @@ export function AppProvider({ children }) {
   };
 
 
+  // Onboarding
+  const completeOnboarding = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? { ...c, onboarding: { ...c.onboarding, complete: true, completedAt: new Date().toISOString(), completedBy: currentUser?.name || 'Admin' } }
+          : c
+      )
+    );
+    syncToApi(() => clientsApi.update(clientId, { onboarding: { ...client.onboarding, complete: true, completedAt: new Date().toISOString(), completedBy: currentUser?.name || 'Admin' } }), 'completeOnboarding');
+    logActivity('onboarding_completed', { clientId, clientName: client.name });
+    addNotification({ type: 'success', title: 'Onboarding Complete', message: `${client.name} has been fully onboarded` });
+  };
+
+  const updateClientOnboarding = (clientId, updates) => {
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? { ...c, onboarding: { ...c.onboarding, ...updates } }
+          : c
+      )
+    );
+    syncToApi(() => clientsApi.update(clientId, { onboarding: updates }), 'updateClientOnboarding');
+  };
+
   // Convert prospect to client (cross-context: reads from SalesContext, writes to clients)
   const convertProspectToClient = (prospectId) => {
     const prospect = prospects.find((p) => p.id === prospectId);
@@ -1028,10 +1191,48 @@ export function AppProvider({ children }) {
       invoices: [],
       projects: [],
       documents: prospect.documents || [], // Pass documents from prospect
+      sourceProspectId: prospectId,
+      onboarding: { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [newClient, ...prev]);
+    syncToApi(() => clientsApi.create(newClient), 'convertProspectToClient');
     closeProspect(prospectId, 'won');
+
+    // Auto-update business database with client conversion data
+    saveToBusinessDb({
+      name: prospect.name,
+      address: '',
+      phone: prospect.phone || '',
+      type: prospect.service || '',
+      source: 'pipeline',
+      enrichment: {
+        pipelineStatus: 'client',
+        convertedToClientAt: new Date().toISOString(),
+        clientId: newClient.id,
+        pointOfContact: prospect.name,
+        contactEmail: prospect.email || '',
+        contactPhone: prospect.phone || '',
+        serviceInterest: prospect.service || '',
+        dealValue: prospect.dealValue || 0,
+        clientTier: 'free',
+        clientStatus: 'active',
+      },
+    });
+
+    logActivity('prospect_converted', {
+      clientId: newClient.id,
+      clientName: newClient.name,
+      prospectId,
+      service: prospect.service,
+    });
+
+    addNotification({
+      type: 'success',
+      title: 'New Client',
+      message: `${prospect.name} converted from prospect to client`,
+    });
+
     return { success: true, client: newClient };
   };
 
@@ -1068,6 +1269,7 @@ export function AppProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [...prev, newClient]);
+    syncToApi(() => clientAuthApi.register({ name: data.name, email: data.email, password: data.password || '', phone: data.phone || '', businessName: data.businessName || '' }), 'registerClient');
     return { success: true, client: newClient, pendingApproval: true };
   };
 
@@ -1115,6 +1317,7 @@ export function AppProvider({ children }) {
     setClients((prev) =>
       prev.map((c) => (c.id === clientId ? { ...c, tier } : c))
     );
+    syncToApi(() => clientsApi.update(clientId, { tier }), 'updateClientTier');
     if (currentClient?.id === clientId) {
       setCurrentClient((prev) => ({ ...prev, tier }));
     }
@@ -1154,6 +1357,9 @@ export function AppProvider({ children }) {
         permanentlyDeleteClient,
         approveClient,
         rejectClient,
+        // Onboarding
+        completeOnboarding,
+        updateClientOnboarding,
         // Invoices
         addInvoice,
         updateInvoice,
