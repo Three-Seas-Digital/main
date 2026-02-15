@@ -1,10 +1,21 @@
+// Escape HTML special characters to prevent XSS in print reports
+export function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Collision-resistant ID generator
 export const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 // Site info — single source of truth for contact details
 export const SITE_INFO = {
   phone: '',       // TODO: Add your real phone number
-  email: 'hello@threeseasdigital.com',
+  email: 'contactus@threeseasdigital.com',
   address: '',     // TODO: Add your real business address
   name: 'Three Seas Digital',
 };
@@ -23,7 +34,7 @@ export function safeSetItem(key, value) {
   } catch (e) {
     if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
       if (_storageWarningCallback) {
-        _storageWarningCallback(key);
+        _storageWarningCallback(key, getStorageUsage());
       }
     }
     return false;
@@ -53,4 +64,12 @@ export function getStorageUsage() {
     total += (localStorage.getItem(key) || '').length * 2; // UTF-16 = 2 bytes/char
   }
   return { bytes: total, mb: (total / (1024 * 1024)).toFixed(2) };
+}
+
+// Check if a value can fit in localStorage before attempting to write
+export function canFitInStorage(value) {
+  const valueSize = new Blob([value]).size;
+  const { bytes } = getStorageUsage();
+  const estimatedLimit = 5 * 1024 * 1024; // 5MB conservative estimate
+  return bytes + valueSize < estimatedLimit;
 }

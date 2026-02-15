@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { generateId, safeSetItem, safeGetItem } from '../constants';
+import { syncToApi } from '../api/apiSync';
+import { usersApi } from '../api/users';
+import { authApi } from '../api/auth';
 
 const AuthContext = createContext();
 
@@ -25,20 +28,72 @@ const ADMIN_AUTH_KEY = 'threeseas_current_user';
 const CLIENT_AUTH_KEY = 'threeseas_current_client';
 
 const ROLES = {
+  owner: {
+    label: 'Owner',
+    permissions: [
+      'view_dashboard', 'view_clients', 'manage_clients', 'delete_clients', 'approve_clients',
+      'view_bi', 'manage_bi', 'view_appointments', 'manage_appointments', 'confirm_appointments',
+      'view_sales', 'manage_sales', 'view_finance', 'manage_finance', 'view_projects',
+      'manage_projects', 'view_research', 'manage_research', 'manage_users', 'manage_settings',
+    ],
+    description: 'Business owner — full access to everything',
+  },
   admin: {
     label: 'Admin',
-    permissions: ['view_appointments', 'manage_appointments', 'manage_users', 'manage_clients'],
-    description: 'Full access: manage appointments, users, clients, and all settings',
+    permissions: [
+      'view_dashboard', 'view_clients', 'manage_clients', 'delete_clients', 'approve_clients',
+      'view_bi', 'manage_bi', 'view_appointments', 'manage_appointments', 'confirm_appointments',
+      'view_sales', 'manage_sales', 'view_finance', 'manage_finance', 'view_projects',
+      'manage_projects', 'view_research', 'manage_research', 'manage_users', 'manage_settings',
+    ],
+    description: 'System admin — full access to everything',
   },
   manager: {
     label: 'Manager',
-    permissions: ['view_appointments', 'manage_appointments', 'manage_clients', 'manage_users'],
-    description: 'Can manage appointments, clients, and approve new user registrations',
+    permissions: [
+      'view_dashboard', 'view_clients', 'manage_clients', 'approve_clients',
+      'view_bi', 'manage_bi', 'view_appointments', 'manage_appointments', 'confirm_appointments',
+      'view_sales', 'manage_sales', 'view_finance', 'view_projects',
+      'manage_projects', 'view_research', 'manage_research',
+    ],
+    description: 'Department lead — clients, BI, sales, appointments, projects, research; view finance',
   },
-  staff: {
-    label: 'Staff',
-    permissions: ['view_appointments', 'confirm_appointments', 'view_clients'],
-    description: 'Can view appointments, confirm pending ones, and view clients',
+  sales: {
+    label: 'Sales',
+    permissions: [
+      'view_dashboard', 'view_clients', 'view_appointments', 'manage_appointments', 'confirm_appointments',
+      'view_sales', 'manage_sales',
+    ],
+    description: 'Sales team — leads, pipeline, follow-ups, appointments; view clients',
+  },
+  accountant: {
+    label: 'Accountant',
+    permissions: [
+      'view_dashboard', 'view_clients', 'view_finance', 'manage_finance',
+    ],
+    description: 'Finance team — revenue, expenses, invoices, profit, taxes, analytics; view clients',
+  },
+  it: {
+    label: 'IT',
+    permissions: [
+      'view_dashboard', 'view_clients', 'view_bi', 'view_projects', 'manage_projects',
+      'view_research',
+    ],
+    description: 'Technical staff — projects, BI (view), research; view clients',
+  },
+  developer: {
+    label: 'Developer',
+    permissions: [
+      'view_dashboard', 'view_projects', 'manage_projects',
+    ],
+    description: 'Project worker — dashboard and projects with time tracking',
+  },
+  analyst: {
+    label: 'Analyst',
+    permissions: [
+      'view_dashboard', 'view_clients', 'view_bi', 'view_finance', 'view_research',
+    ],
+    description: 'Reporting/BI — view BI, finance, research, and clients',
   },
 };
 
@@ -72,7 +127,15 @@ export function AuthProvider({ children }) {
     }
   }, [currentClient]);
 
-  const needsSetup = users.length === 0 || !users.some((u) => u.role === 'admin' && u.status === 'approved');
+  // Auto-migrate legacy 'staff' role to 'developer'
+  useEffect(() => {
+    const hasStaff = users.some((u) => u.role === 'staff');
+    if (hasStaff) {
+      setUsers((prev) => prev.map((u) => u.role === 'staff' ? { ...u, role: 'developer' } : u));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const needsSetup = users.length === 0 || !users.some((u) => (u.role === 'admin' || u.role === 'owner') && u.status === 'approved');
 
   const setupAdmin = (userData) => {
     if (!needsSetup) return { success: false, error: 'Admin already configured' };
@@ -88,13 +151,14 @@ export function AuthProvider({ children }) {
       password: hashPassword(userData.password),
       name: userData.name,
       email: userData.email,
-      role: 'admin',
+      role: 'owner',
       status: 'approved',
       color: STAFF_COLORS[0],
       createdAt: new Date().toISOString(),
     };
     setUsers([newAdmin]);
     setCurrentUser(newAdmin);
+    syncToApi(() => authApi.setup({ username: userData.username, password: userData.password, name: userData.name, email: userData.email }), 'setupAdmin');
     return { success: true, user: newAdmin };
   };
 
@@ -113,6 +177,7 @@ export function AuthProvider({ children }) {
     if (user.status === 'pending') return { success: false, error: 'Your account is pending approval. Please wait for an admin to approve your registration.' };
     if (user.status === 'rejected') return { success: false, error: 'Your account has been rejected. Contact an administrator.' };
     setCurrentUser(user);
+    syncToApi(() => authApi.login({ username, password }), 'login');
     return { success: true, user };
   };
 
@@ -130,6 +195,7 @@ export function AuthProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setUsers((prev) => [...prev, newUser]);
+    syncToApi(() => authApi.register({ ...userData, password: userData.password }), 'register');
     return { success: true, user: newUser };
   };
 
@@ -158,6 +224,7 @@ export function AuthProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setUsers((prev) => [...prev, newUser]);
+    syncToApi(() => usersApi.create({ ...userData, password: userData.password }), 'addUser');
     return { success: true, user: newUser };
   };
 
@@ -170,6 +237,7 @@ export function AuthProvider({ children }) {
     setUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, ...processed } : u))
     );
+    syncToApi(() => usersApi.update(id, processed), 'updateUser');
     if (currentUser?.id === id) {
       setCurrentUser((prev) => ({ ...prev, ...updates }));
     }
@@ -180,6 +248,7 @@ export function AuthProvider({ children }) {
     if (id === '1') return { success: false, error: 'Cannot delete the default admin' };
     if (currentUser?.id === id) return { success: false, error: 'Cannot delete yourself' };
     setUsers((prev) => prev.filter((u) => u.id !== id));
+    syncToApi(() => usersApi.delete(id), 'deleteUser');
     return { success: true };
   };
 
@@ -187,6 +256,7 @@ export function AuthProvider({ children }) {
     setUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, role, status: 'approved' } : u))
     );
+    syncToApi(() => usersApi.approve(id, role), 'approveUser');
     return { success: true };
   };
 
@@ -194,6 +264,7 @@ export function AuthProvider({ children }) {
     setUsers((prev) =>
       prev.map((u) => (u.id === id ? { ...u, status: 'rejected' } : u))
     );
+    syncToApi(() => usersApi.reject(id), 'rejectUser');
     return { success: true };
   };
 
@@ -220,35 +291,14 @@ export function AuthProvider({ children }) {
 
   const clientLogout = () => setCurrentClient(null);
 
+  const value = useMemo(() => ({
+    currentUser, needsSetup, setupAdmin, login, logout, register, hasPermission,
+    users, addUser, updateUser, deleteUser, approveUser, rejectUser, ROLES, STAFF_COLORS,
+    currentClient, setCurrentClient, clientLogin, clientLogout, hashPassword,
+  }), [currentUser, users, currentClient, needsSetup]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <AuthContext.Provider
-      value={{
-        // Admin auth
-        currentUser,
-        needsSetup,
-        setupAdmin,
-        login,
-        logout,
-        register,
-        hasPermission,
-        // Users CRUD
-        users,
-        addUser,
-        updateUser,
-        deleteUser,
-        approveUser,
-        rejectUser,
-        ROLES,
-        STAFF_COLORS,
-        // Client auth
-        currentClient,
-        setCurrentClient,
-        clientLogin,
-        clientLogout,
-        // Utilities
-        hashPassword,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

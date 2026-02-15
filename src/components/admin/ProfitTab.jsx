@@ -4,6 +4,7 @@ import {
   BarChart3, Printer,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 const getPaymentDate = (p) => new Date(p.createdAt);
 const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
@@ -139,7 +140,7 @@ export default function ProfitTab() {
         <table>
           <thead><tr><th>Category</th><th class="amount">Amount</th><th class="amount">% of Expenses</th></tr></thead>
           <tbody>
-            ${expenseBreakdown.map((c) => `<tr><td>${c.label}</td><td class="amount">${formatCurrency(c.total)}</td><td class="amount">${totalExpenses > 0 ? ((c.total / totalExpenses) * 100).toFixed(1) : 0}%</td></tr>`).join('')}
+            ${expenseBreakdown.map((c) => `<tr><td>${escapeHtml(c.label)}</td><td class="amount">${formatCurrency(c.total)}</td><td class="amount">${totalExpenses > 0 ? ((c.total / totalExpenses) * 100).toFixed(1) : 0}%</td></tr>`).join('')}
           </tbody>
         </table>
 

@@ -1,6 +1,11 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { generateId, safeSetItem, safeGetItem } from '../constants';
+import { syncToApi } from '../api/apiSync';
+import { leadsApi } from '../api/leads';
+import { prospectsApi } from '../api/prospects';
+import { businessDbApi } from '../api/businessDb';
+import { researchApi } from '../api/research';
 
 const SalesContext = createContext();
 
@@ -69,6 +74,7 @@ export function SalesProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
     setLeads((prev) => [...prev, lead]);
+    syncToApi(() => leadsApi.create(lead), 'addLead');
     return { success: true, lead };
   };
 
@@ -78,11 +84,13 @@ export function SalesProvider({ children }) {
     setLeads((prev) =>
       prev.map((l) => (l.id === id ? { ...l, ...updates, updatedAt: new Date().toISOString() } : l))
     );
+    syncToApi(() => leadsApi.update(id, updates), 'updateLead');
     return { success: true };
   };
 
   const deleteLead = (id) => {
     setLeads((prev) => prev.filter((l) => l.id !== id));
+    syncToApi(() => leadsApi.delete(id), 'deleteLead');
     return { success: true };
   };
 
@@ -106,6 +114,7 @@ export function SalesProvider({ children }) {
           : l
       )
     );
+    syncToApi(() => leadsApi.addNote(id, { text, author: currentUser?.name || 'System' }), 'addLeadNote');
   };
 
   const deleteLeadNote = (leadId, noteId) => {
@@ -116,6 +125,7 @@ export function SalesProvider({ children }) {
           : l
       )
     );
+    syncToApi(() => leadsApi.deleteNote(leadId, noteId), 'deleteLeadNote');
   };
 
   // Business Database
@@ -132,6 +142,7 @@ export function SalesProvider({ children }) {
           updatedAt: new Date().toISOString(),
         } : b)
       );
+      syncToApi(() => businessDbApi.update(existing.id, data), 'updateBusinessDb');
       return { success: true, updated: true };
     }
 
@@ -150,6 +161,7 @@ export function SalesProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
     setBusinessDatabase((prev) => [...prev, entry]);
+    syncToApi(() => businessDbApi.create(entry), 'saveToBusinessDb');
     return { success: true, entry };
   };
 
@@ -162,10 +174,12 @@ export function SalesProvider({ children }) {
     setBusinessDatabase((prev) =>
       prev.map((b) => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b)
     );
+    syncToApi(() => businessDbApi.update(id, updates), 'updateBusinessDb');
   };
 
   const deleteFromBusinessDb = (id) => {
     setBusinessDatabase((prev) => prev.filter((b) => b.id !== id));
+    syncToApi(() => businessDbApi.delete(id), 'deleteFromBusinessDb');
   };
 
   // Market Research
@@ -176,6 +190,7 @@ export function SalesProvider({ children }) {
       setMarketResearch((prev) =>
         prev.map((r) => r.key === key ? { ...r, ...data, updatedAt: new Date().toISOString() } : r)
       );
+      syncToApi(() => researchApi.update(existing.id, data), 'updateResearch');
       return { success: true, updated: true };
     }
     const entry = {
@@ -186,6 +201,7 @@ export function SalesProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
     setMarketResearch((prev) => [...prev, entry]);
+    syncToApi(() => researchApi.create(entry), 'saveResearch');
     return { success: true, entry };
   };
 
@@ -193,10 +209,12 @@ export function SalesProvider({ children }) {
     setMarketResearch((prev) =>
       prev.map((r) => r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r)
     );
+    syncToApi(() => researchApi.update(id, updates), 'updateResearch');
   };
 
   const deleteResearch = (id) => {
     setMarketResearch((prev) => prev.filter((r) => r.id !== id));
+    syncToApi(() => researchApi.delete(id), 'deleteResearch');
   };
 
   // Prospects / Pipeline
@@ -223,6 +241,7 @@ export function SalesProvider({ children }) {
       updatedAt: new Date().toISOString(),
     };
     setProspects((prev) => [newProspect, ...prev]);
+    syncToApi(() => prospectsApi.create(newProspect), 'addProspect');
     return { success: true, prospect: newProspect };
   };
 
@@ -234,10 +253,12 @@ export function SalesProvider({ children }) {
           : p
       )
     );
+    syncToApi(() => prospectsApi.update(id, updates), 'updateProspect');
   };
 
   const deleteProspect = (id) => {
     setProspects((prev) => prev.filter((p) => p.id !== id));
+    syncToApi(() => prospectsApi.delete(id), 'deleteProspect');
   };
 
   const addProspectNote = (prospectId, noteText) => {
@@ -260,6 +281,7 @@ export function SalesProvider({ children }) {
         };
       })
     );
+    syncToApi(() => prospectsApi.addNote(prospectId, { text: noteText.trim(), author: currentUser?.name || 'System' }), 'addProspectNote');
   };
 
   const deleteProspectNote = (prospectId, noteId) => {
@@ -270,6 +292,7 @@ export function SalesProvider({ children }) {
           : p
       )
     );
+    syncToApi(() => prospectsApi.deleteNote(prospectId, noteId), 'deleteProspectNote');
   };
 
   const addProspectDocument = (prospectId, document) => {
@@ -291,6 +314,7 @@ export function SalesProvider({ children }) {
           : p
       )
     );
+    syncToApi(() => prospectsApi.uploadDocument(prospectId, document), 'addProspectDocument');
     return { success: true, document: newDoc };
   };
 
@@ -302,6 +326,7 @@ export function SalesProvider({ children }) {
           : p
       )
     );
+    syncToApi(() => prospectsApi.deleteDocument(prospectId, docId), 'deleteProspectDocument');
   };
 
   const closeProspect = (id, outcome, details = {}) => {
@@ -319,6 +344,7 @@ export function SalesProvider({ children }) {
         };
       })
     );
+    syncToApi(() => prospectsApi.update(id, { stage: 'closed', outcome, lossReason: details.lossReason || '', revisitDate: details.revisitDate || '' }), 'closeProspect');
   };
 
   const reopenProspect = (id, stage = 'negotiating') => {
@@ -329,44 +355,20 @@ export function SalesProvider({ children }) {
           : p
       )
     );
+    syncToApi(() => prospectsApi.update(id, { stage, outcome: null, lossReason: '' }), 'reopenProspect');
   };
 
+  const value = useMemo(() => ({
+    leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote,
+    businessDatabase, saveToBusinessDb, getFromBusinessDb, updateBusinessDb, deleteFromBusinessDb,
+    marketResearch, saveResearch, updateResearch, deleteResearch,
+    prospects, addProspect, updateProspect, deleteProspect, addProspectNote, deleteProspectNote,
+    addProspectDocument, deleteProspectDocument, closeProspect, reopenProspect,
+    PROSPECT_STAGES, LOSS_REASONS,
+  }), [leads, businessDatabase, marketResearch, prospects]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <SalesContext.Provider
-      value={{
-        // Leads
-        leads,
-        addLead,
-        updateLead,
-        deleteLead,
-        addLeadNote,
-        deleteLeadNote,
-        // Business Database
-        businessDatabase,
-        saveToBusinessDb,
-        getFromBusinessDb,
-        updateBusinessDb,
-        deleteFromBusinessDb,
-        // Market Research
-        marketResearch,
-        saveResearch,
-        updateResearch,
-        deleteResearch,
-        // Pipeline / Prospects
-        prospects,
-        addProspect,
-        updateProspect,
-        deleteProspect,
-        addProspectNote,
-        deleteProspectNote,
-        addProspectDocument,
-        deleteProspectDocument,
-        closeProspect,
-        reopenProspect,
-        PROSPECT_STAGES,
-        LOSS_REASONS,
-      }}
-    >
+    <SalesContext.Provider value={value}>
       {children}
     </SalesContext.Provider>
   );

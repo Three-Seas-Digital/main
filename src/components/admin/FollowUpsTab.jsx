@@ -10,9 +10,9 @@ import Calendar from '../Calendar';
 import { FollowUpBadge, formatDisplayDate } from './adminUtils';
 
 export default function FollowUpsTab() {
-  const { appointments, markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, addProspect, updateAppointment, hasPermission, currentUser, deleteAppointment, users, assignAppointment, STAFF_COLORS } = useAppContext();
+  const { appointments, markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, addProspect, updateAppointment, hasPermission, deleteAppointment, users, assignAppointment, STAFF_COLORS, addNotification, saveToBusinessDb } = useAppContext();
   const canManage = hasPermission('manage_appointments');
-  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const canDelete = hasPermission('delete_clients') || hasPermission('manage_appointments');
   const [showFormFor, setShowFormFor] = useState(null);
   const [note, setNote] = useState('');
   const [priority, setPriority] = useState('normal');
@@ -36,7 +36,7 @@ export default function FollowUpsTab() {
     : withFollowUp.filter((a) => a.followUp.status === filterFU), [withFollowUp, filterFU]);
 
   // Staff members for kanban
-  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role)), [users]);
+  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && u.role !== 'pending'), [users]);
 
   // Drag and drop handlers
   const handleDragStart = (e, appt) => {
@@ -89,8 +89,30 @@ export default function FollowUpsTab() {
       notes: allNotes,
     });
     if (result.success) {
+      // Auto-populate business database
+      saveToBusinessDb({
+        name: appt.name,
+        address: appt.message || '',
+        phone: appt.phone || '',
+        type: appt.service || '',
+        source: 'follow-up',
+        enrichment: {
+          pipelineStatus: 'prospect',
+          sentToPipelineAt: new Date().toISOString(),
+          pointOfContact: appt.name,
+          contactEmail: appt.email || '',
+          contactPhone: appt.phone || '',
+          serviceInterest: appt.service || '',
+          notes: allNotes.map((n) => n.text).join(' | '),
+        },
+      });
       updateAppointment(apptId, { sentToPipeline: true });
       setConvertMsg('Added to pipeline successfully!');
+      addNotification({
+        type: 'info',
+        title: 'Sent to Pipeline',
+        message: `${appt.name} added to sales pipeline from follow-up`,
+      });
     } else {
       setConvertMsg(result.error || 'Failed to add to pipeline');
     }

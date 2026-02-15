@@ -12,6 +12,10 @@ import {
   Eye, RefreshCw, PhoneCall
 } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
+import SteamParticles from '../components/demos/SteamParticles';
+import PlexusField from '../components/demos/PlexusField';
+import AuroraWaves from '../components/demos/AuroraWaves';
+import DataGrid from '../components/demos/DataGrid';
 
 /* ==========================================================
    STARTER TIER - COASTAL COFFEE
@@ -62,6 +66,7 @@ export function StarterShowcase() {
           <FallbackImg src="/images/demo-coffee-hero.jpg" alt="Coffee" />
           <div className="starter-hero-overlay" />
         </div>
+        <SteamParticles />
         <div className="starter-hero-content">
           <h1>Brewed with <Heart size={32} className="starter-heart" /> by the Sea</h1>
           <p>Artisan coffee, fresh pastries, and ocean views since 2019</p>
@@ -264,6 +269,7 @@ export function BusinessShowcase() {
           <FallbackImg src="/images/demo-law-hero.jpg" alt="Law Office" />
           <div className="business-hero-overlay" />
         </div>
+        <PlexusField />
         <div className="business-hero-content">
           <div className="business-container">
             <span className="business-hero-label">Trusted Legal Counsel Since 1995</span>
@@ -537,6 +543,7 @@ export function PremiumShowcase() {
               <FallbackImg src="/images/demo-spa-hero.jpg" alt="Spa" />
               <div className="premium-hero-overlay" />
             </div>
+            <AuroraWaves />
             <div className="premium-hero-content">
               <span className="premium-hero-tag">Luxury Wellness Experience</span>
               <h1>Restore. Renew. Revive.</h1>
@@ -879,6 +886,7 @@ export function EnterpriseShowcase() {
 
         {/* MAIN CONTENT */}
         <main className="enterprise-main">
+          <DataGrid />
           <header className="enterprise-header">
             <div className="enterprise-header-left">
               <h1>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
@@ -1090,6 +1098,257 @@ export function EnterpriseShowcase() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'shipments' && (
+            <div className="enterprise-shipments">
+              <div className="enterprise-toolbar">
+                <div className="enterprise-filters">
+                  <button className="enterprise-filter-btn active">All</button>
+                  <button className="enterprise-filter-btn">In Transit</button>
+                  <button className="enterprise-filter-btn">Delivered</button>
+                  <button className="enterprise-filter-btn">Pending</button>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <div className="enterprise-search" style={{ margin: 0 }}>
+                    <Search size={18} />
+                    <input type="text" placeholder="Search shipments..." />
+                  </div>
+                  <button className="enterprise-btn-primary"><Plus size={16} /> Create Shipment</button>
+                </div>
+              </div>
+              <div className="enterprise-card">
+                <div className="enterprise-table-wrapper">
+                  <table className="enterprise-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Customer</th>
+                        <th>Route</th>
+                        <th>Status</th>
+                        <th>Driver</th>
+                        <th>ETA</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shipments.map((s) => (
+                        <tr key={s.id}>
+                          <td><strong>{s.id}</strong></td>
+                          <td>{s.customer}</td>
+                          <td className="enterprise-route">{s.origin} &rarr; {s.dest}</td>
+                          <td>
+                            <span className="enterprise-status-badge" style={{ background: `${getStatusColor(s.status)}20`, color: getStatusColor(s.status) }}>
+                              {s.status}
+                            </span>
+                          </td>
+                          <td>{s.driver}</td>
+                          <td>{s.eta}</td>
+                          <td className="enterprise-actions">
+                            <button><Eye size={14} /></button>
+                            <button><Edit3 size={14} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="enterprise-pagination">
+                  <span>Showing 1-{shipments.length} of {shipments.length} shipments</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'customers' && (
+            <div className="enterprise-customers">
+              <div className="enterprise-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {[
+                  { label: 'Total Customers', value: '24', icon: <Users size={20} />, color: '#3b82f6' },
+                  { label: 'Active', value: '18', icon: <CheckCircle size={20} />, color: '#10b981' },
+                  { label: 'New This Month', value: '3', icon: <TrendingUp size={20} />, color: '#8b5cf6' },
+                ].map((stat) => (
+                  <div key={stat.label} className="enterprise-stat-card">
+                    <div className="enterprise-stat-icon" style={{ background: `${stat.color}20`, color: stat.color }}>
+                      {stat.icon}
+                    </div>
+                    <div className="enterprise-stat-content">
+                      <span className="enterprise-stat-label">{stat.label}</span>
+                      <div className="enterprise-stat-value">
+                        <strong>{stat.value}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="enterprise-toolbar">
+                <div className="enterprise-search" style={{ margin: 0 }}>
+                  <Search size={18} />
+                  <input type="text" placeholder="Search customers..." />
+                </div>
+                <button className="enterprise-btn-primary"><Plus size={16} /> Add Customer</button>
+              </div>
+
+              <div className="enterprise-drivers-grid">
+                {[
+                  { initials: 'TS', name: 'TechStart Inc', contact: 'Sarah Chen', email: 'sarah@techstart.io', shipments: 12, revenue: '$45,200', status: 'Active', statusColor: '#10b981' },
+                  { initials: 'GF', name: 'Global Foods Corp', contact: 'Mike Rodriguez', email: 'mike@globalfoods.com', shipments: 8, revenue: '$32,800', status: 'Active', statusColor: '#10b981' },
+                  { initials: 'MR', name: 'Metro Retail Group', contact: 'Lisa Wang', email: 'lisa@metroretail.com', shipments: 5, revenue: '$18,500', status: 'New', statusColor: '#8b5cf6' },
+                ].map((c) => (
+                  <div key={c.name} className="enterprise-customer-card">
+                    <div className="enterprise-customer-header">
+                      <div className="enterprise-customer-avatar">{c.initials}</div>
+                      <div className="enterprise-customer-info">
+                        <h4>{c.name}</h4>
+                        <span style={{ color: c.statusColor, fontWeight: 600 }}>{c.status}</span>
+                      </div>
+                    </div>
+                    <div className="enterprise-customer-details">
+                      <div><User size={14} /> {c.contact}</div>
+                      <div><Mail size={14} /> {c.email}</div>
+                    </div>
+                    <div className="enterprise-customer-metrics">
+                      <div>
+                        <span>Shipments</span>
+                        <strong>{c.shipments}</strong>
+                      </div>
+                      <div>
+                        <span>Revenue</span>
+                        <strong>{c.revenue}</strong>
+                      </div>
+                    </div>
+                    <div className="enterprise-driver-actions">
+                      <button className="enterprise-btn-sm"><Eye size={14} /> View</button>
+                      <button className="enterprise-btn-sm"><PhoneCall size={14} /> Contact</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="enterprise-settings">
+              <div className="enterprise-settings-grid">
+                {/* Company Profile */}
+                <div className="enterprise-card">
+                  <div className="enterprise-card-header">
+                    <h3><Briefcase size={18} /> Company Profile</h3>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
+                    <div className="enterprise-form-row">
+                      <div className="enterprise-form-group">
+                        <label>Company Name</label>
+                        <input type="text" defaultValue="Apex Logistics" readOnly />
+                      </div>
+                      <div className="enterprise-form-group">
+                        <label>Industry</label>
+                        <select defaultValue="logistics" disabled>
+                          <option value="logistics">Logistics & Transportation</option>
+                          <option value="freight">Freight Forwarding</option>
+                          <option value="courier">Courier Services</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="enterprise-form-row">
+                      <div className="enterprise-form-group">
+                        <label>Phone</label>
+                        <input type="text" defaultValue="(555) 123-4567" readOnly />
+                      </div>
+                      <div className="enterprise-form-group">
+                        <label>Address</label>
+                        <input type="text" defaultValue="100 Logistics Pkwy, Dallas, TX" readOnly />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notifications */}
+                <div className="enterprise-card">
+                  <div className="enterprise-card-header">
+                    <h3><Bell size={18} /> Notifications</h3>
+                  </div>
+                  <div style={{ padding: '0.5rem 0' }}>
+                    <div className="enterprise-toggle-row">
+                      <div className="enterprise-toggle-label">
+                        <strong>Email Alerts</strong>
+                        <span>Receive email notifications for shipment updates</span>
+                      </div>
+                      <label className="enterprise-toggle">
+                        <input type="checkbox" defaultChecked readOnly />
+                        <span className="enterprise-toggle-slider" />
+                      </label>
+                    </div>
+                    <div className="enterprise-toggle-row">
+                      <div className="enterprise-toggle-label">
+                        <strong>SMS Notifications</strong>
+                        <span>Get text alerts for delivery confirmations</span>
+                      </div>
+                      <label className="enterprise-toggle">
+                        <input type="checkbox" readOnly />
+                        <span className="enterprise-toggle-slider" />
+                      </label>
+                    </div>
+                    <div className="enterprise-toggle-row">
+                      <div className="enterprise-toggle-label">
+                        <strong>Weekly Reports</strong>
+                        <span>Automated weekly performance summary via email</span>
+                      </div>
+                      <label className="enterprise-toggle">
+                        <input type="checkbox" defaultChecked readOnly />
+                        <span className="enterprise-toggle-slider" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Integrations */}
+                <div className="enterprise-card">
+                  <div className="enterprise-card-header">
+                    <h3><Globe size={18} /> Integrations</h3>
+                  </div>
+                  <div className="enterprise-integration-grid">
+                    <div className="enterprise-integration-item">
+                      <div>
+                        <div className="enterprise-integration-icon" style={{ background: '#3b82f6' }}>
+                          <MapPin size={20} />
+                        </div>
+                        <div>
+                          <strong>GPS Tracking</strong>
+                          <div className="enterprise-integration-status"><span className="dot" /> Connected</div>
+                        </div>
+                      </div>
+                      <button className="enterprise-btn-sm" style={{ color: '#10b981' }}><Check size={14} /> Active</button>
+                    </div>
+                    <div className="enterprise-integration-item">
+                      <div>
+                        <div className="enterprise-integration-icon" style={{ background: '#8b5cf6' }}>
+                          <Package size={20} />
+                        </div>
+                        <div>
+                          <strong>Warehouse System</strong>
+                          <div className="enterprise-integration-status"><span className="dot" /> Connected</div>
+                        </div>
+                      </div>
+                      <button className="enterprise-btn-sm" style={{ color: '#10b981' }}><Check size={14} /> Active</button>
+                    </div>
+                    <div className="enterprise-integration-item">
+                      <div>
+                        <div className="enterprise-integration-icon" style={{ background: '#f59e0b' }}>
+                          <CreditCard size={20} />
+                        </div>
+                        <div>
+                          <strong>Payment Gateway</strong>
+                          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Not configured</span>
+                        </div>
+                      </div>
+                      <button className="enterprise-btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>Configure</button>
+                    </div>
                   </div>
                 </div>
               </div>

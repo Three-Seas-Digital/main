@@ -1,6 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { generateId, safeSetItem, safeGetItem } from '../constants';
+import { syncToApi } from '../api/apiSync';
+import { expensesApi } from '../api/expenses';
+import { paymentsApi } from '../api/payments';
 
 const FinanceContext = createContext();
 
@@ -63,6 +66,7 @@ export function FinanceProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setExpenses((prev) => [...prev, expense]);
+    syncToApi(() => expensesApi.create(expense), 'addExpense');
     return { success: true, expense };
   };
 
@@ -70,11 +74,13 @@ export function FinanceProvider({ children }) {
     const exists = expenses.find((e) => e.id === id);
     if (!exists) return { success: false, error: 'Expense not found' };
     setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
+    syncToApi(() => expensesApi.update(id, updates), 'updateExpense');
     return { success: true };
   };
 
   const deleteExpense = (id) => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
+    syncToApi(() => expensesApi.delete(id), 'deleteExpense');
     return { success: true };
   };
 
@@ -91,35 +97,30 @@ export function FinanceProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
     setPayments((prev) => [...prev, payment]);
+    syncToApi(() => paymentsApi.create(payment), 'recordPayment');
     return payment;
   };
 
   // Used by markInvoicePaid in AppContext
   const addPaymentRecord = (payment) => {
     setPayments((prev) => [...prev, payment]);
+    syncToApi(() => paymentsApi.create(payment), 'addPaymentRecord');
   };
 
   // Used by unmarkInvoicePaid in AppContext
   const removePaymentByInvoice = (invoiceId) => {
     setPayments((prev) => prev.filter((p) => p.invoiceId !== invoiceId));
+    syncToApi(() => paymentsApi.delete(invoiceId), 'removePaymentByInvoice');
   };
 
+  const value = useMemo(() => ({
+    payments, expenses, addExpense, updateExpense, deleteExpense,
+    recordPayment, addPaymentRecord, removePaymentByInvoice,
+    EXPENSE_CATEGORIES, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES,
+  }), [payments, expenses]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <FinanceContext.Provider
-      value={{
-        payments,
-        expenses,
-        addExpense,
-        updateExpense,
-        deleteExpense,
-        recordPayment,
-        addPaymentRecord,
-        removePaymentByInvoice,
-        EXPENSE_CATEGORIES,
-        SUBSCRIPTION_TIERS,
-        RECURRING_FREQUENCIES,
-      }}
-    >
+    <FinanceContext.Provider value={value}>
       {children}
     </FinanceContext.Provider>
   );

@@ -4,6 +4,7 @@ import {
   Wallet, Calendar as CalendarIcon, AlertCircle, Printer,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 export default function TaxesTab() {
   const { expenses, payments, clients, EXPENSE_CATEGORIES } = useAppContext();
@@ -209,7 +210,7 @@ export default function TaxesTab() {
           <thead><tr><th>Category</th><th>Count</th><th class="amount">Total</th></tr></thead>
           <tbody>
             ${taxData.expensesByCategory.map((c) => `
-              <tr><td>${c.label}</td><td>${c.count}</td><td class="amount">${formatCurrency(c.total)}</td></tr>
+              <tr><td>${escapeHtml(c.label)}</td><td>${c.count}</td><td class="amount">${formatCurrency(c.total)}</td></tr>
             `).join('')}
             <tr style="font-weight:bold;border-top:2px solid #1e3a5f">
               <td>TOTAL DEDUCTIONS</td>

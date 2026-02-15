@@ -10,6 +10,10 @@ export default class ErrorBoundary extends Component {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -18,6 +22,11 @@ export default class ErrorBoundary extends Component {
           <p style={{ color: '#666', marginBottom: '1.5rem' }}>
             An unexpected error occurred. Please try refreshing the page.
           </p>
+          {this.state.error && (
+            <p style={{ color: '#999', fontSize: '0.8rem', marginBottom: '1rem', fontFamily: 'monospace' }}>
+              {this.state.error.message}
+            </p>
+          )}
           <button
             onClick={() => window.location.reload()}
             style={{

@@ -1,16 +1,17 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { FinanceProvider } from './context/FinanceContext';
 import { SalesProvider } from './context/SalesContext';
 import { AppProvider } from './context/AppContext';
+import { initSync } from './api/sync';
 import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import Home from './pages/Home';
 import NotFound from './pages/NotFound';
 
 // Lazy-load heavier pages for code splitting
+const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -31,6 +32,20 @@ function PageLoader() {
 }
 
 const DEMO_PATHS = ['/portfolio/starter', '/portfolio/business', '/portfolio/premium', '/portfolio/enterprise'];
+
+// Runs initSync once after all providers are mounted.
+// Non-blocking — app renders immediately while sync happens in background.
+function SyncInitializer({ children }) {
+  const didSync = useRef(false);
+  useEffect(() => {
+    if (didSync.current) return;
+    didSync.current = true;
+    initSync().catch(() => {
+      // Sync failure is non-fatal — app runs in localStorage-only mode
+    });
+  }, []);
+  return children;
+}
 
 function AppLayout() {
   const location = useLocation();
@@ -70,9 +85,11 @@ export default function App() {
       <FinanceProvider>
         <SalesProvider>
           <AppProvider>
-            <BrowserRouter>
-              <AppLayout />
-            </BrowserRouter>
+            <SyncInitializer>
+              <BrowserRouter>
+                <AppLayout />
+              </BrowserRouter>
+            </SyncInitializer>
           </AppProvider>
         </SalesProvider>
       </FinanceProvider>

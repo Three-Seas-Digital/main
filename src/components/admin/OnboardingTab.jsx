@@ -3,17 +3,18 @@ import {
   ClipboardCheck, User, Mail, Phone, Building2, MapPin,
   Check, Circle, ChevronRight, Copy, Eye, Send, Briefcase,
   Plus, SkipForward, CheckCircle, FileText, Shield, Star,
-  ArrowRight, Clock, Hash,
+  ArrowRight, Clock, Hash, Download, Upload, CheckSquare, X,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { generateId, safeGetItem, safeSetItem } from '../../constants';
+import { generateAllOnboardingPdfs } from '../../utils/generateOnboardingPdfs';
 
 const STEPS = [
   { id: 'profile', label: 'Complete Profile', description: 'Business name, phone, and address' },
   { id: 'tier', label: 'Assign Tier', description: 'Select a service tier' },
   { id: 'portal', label: 'Portal Access', description: 'Set a temporary password' },
   { id: 'welcome', label: 'Send Welcome Email', description: 'Preview and mark sent' },
-  { id: 'bi', label: 'Initialize BI', description: 'Create intake & growth templates' },
+  { id: 'documents', label: 'Generate & Review Documents', description: 'Create onboarding PDFs and review uploads' },
   { id: 'project', label: 'Create First Project', description: 'Set up initial project' },
 ];
 
@@ -24,12 +25,27 @@ const SOURCE_LABELS = {
   appointment: { label: 'Appointment', color: '#8b5cf6' },
 };
 
+const DOC_LABELS = {
+  intake: 'Intake Questionnaire',
+  contract: 'Service Contract',
+  proposal: 'Service Proposal',
+  welcome_packet: 'Welcome Packet',
+};
+
+const DOC_STATUS_COLORS = {
+  pending: { bg: '#f3f4f6', color: '#6b7280', label: 'Pending' },
+  generated: { bg: '#dbeafe', color: '#2563eb', label: 'Generated' },
+  downloaded: { bg: '#e0e7ff', color: '#4f46e5', label: 'Downloaded' },
+  uploaded: { bg: '#fef3c7', color: '#d97706', label: 'Under Review' },
+  approved: { bg: '#dcfce7', color: '#16a34a', label: 'Approved' },
+};
+
 export default function OnboardingTab() {
   const {
-    clients, updateClient, addProject, hashPassword,
+    clients, updateClient, addProject, hashPassword, addClientDocument,
     completeOnboarding, updateClientOnboarding,
     emailTemplates, addNotification, logActivity, currentUser,
-    prospects,
+    prospects, SUBSCRIPTION_TIERS,
   } = useAppContext();
 
   const [selectedId, setSelectedId] = useState(null);
@@ -52,6 +68,12 @@ export default function OnboardingTab() {
 
   // Project form state
   const [projectForm, setProjectForm] = useState({ title: '', description: '' });
+
+  // Doc generation loading
+  const [generating, setGenerating] = useState(false);
+
+  // Document preview modal
+  const [viewingDoc, setViewingDoc] = useState(null);
 
   // Queue derivation
   const onboardingQueue = useMemo(() => {
@@ -97,8 +119,11 @@ export default function OnboardingTab() {
     const hasPassword = !!client.password;
     const welcomeSent = !!client.onboarding?.welcomeEmailSent;
 
-    const intakes = safeGetItem('threeseas_bi_intakes', {});
-    const hasBi = !!intakes[client.id];
+    // Step 5: documents generated AND all approved
+    const docs = client.onboarding?.documents;
+    const docsGenerated = !!client.onboarding?.documentsGeneratedAt;
+    const allApproved = docsGenerated && docs && Object.values(docs).every((d) => d.status === 'approved');
+    const hasDocuments = allApproved;
 
     const hasProject = (client.projects || []).length > 0;
 
@@ -107,14 +132,14 @@ export default function OnboardingTab() {
       tier: hasTier,
       portal: hasPassword,
       welcome: welcomeSent,
-      bi: hasBi,
+      documents: hasDocuments,
       project: hasProject,
     };
   };
 
   const stepStatus = selectedClient ? getStepStatus(selectedClient) : {};
   const completedSteps = Object.values(stepStatus).filter(Boolean).length;
-  const requiredComplete = stepStatus.profile && stepStatus.tier && stepStatus.portal && stepStatus.welcome && stepStatus.bi;
+  const requiredComplete = stepStatus.profile && stepStatus.tier && stepStatus.portal && stepStatus.welcome && stepStatus.documents;
 
   // Prospect notes for pipeline conversions
   const sourceProspect = useMemo(() => {
@@ -125,11 +150,9 @@ export default function OnboardingTab() {
   // Handlers
   const handleSelectClient = (client) => {
     setSelectedId(client.id);
-    // Mark started
     if (!client.onboarding?.startedAt) {
       updateClientOnboarding(client.id, { startedAt: new Date().toISOString() });
     }
-    // Init form values
     setProfileForm({
       businessName: client.businessName || '',
       phone: client.phone || '',
@@ -171,7 +194,6 @@ export default function OnboardingTab() {
     let pwd = '';
     for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
     setTempPassword(pwd);
-
     const hashed = hashPassword(pwd);
     updateClient(selectedClient.id, { password: hashed });
   };
@@ -191,9 +213,80 @@ export default function OnboardingTab() {
     setShowWelcomePreview(false);
   };
 
-  const handleInitBi = () => {
+  // Step 5: Generate Documents
+  const handleGenerateDocuments = async () => {
     if (!selectedClient) return;
+    setGenerating(true);
     const id = selectedClient.id;
+
+    try {
+      // Read intake data + tier data
+      const intakes = safeGetItem('threeseas_bi_intakes', {});
+      const intakeData = intakes[id] || {};
+      const tierData = SUBSCRIPTION_TIERS[selectedClient.tier] || SUBSCRIPTION_TIERS.free;
+
+      // Generate all 4 PDFs
+      const pdfs = await generateAllOnboardingPdfs(selectedClient, tierData, intakeData);
+
+      // Check for pre-existing proposal from pipeline
+      const existingProposal = (selectedClient.documents || []).find(d => d.type === 'proposal');
+
+      // Attach each as a client document and track IDs
+      const docUpdates = {};
+      for (const [key, pdfData] of Object.entries(pdfs)) {
+        // Skip proposal generation if one already exists from pipeline
+        if (key === 'proposal' && existingProposal) {
+          docUpdates[key] = {
+            status: 'generated',
+            generatedDocId: existingProposal.id,
+            uploadedDocId: null,
+            generatedAt: existingProposal.uploadedAt || new Date().toISOString(),
+            downloadedAt: null, uploadedAt: null,
+            reviewedAt: null, reviewedBy: null, adminNotes: '',
+          };
+          continue;
+        }
+
+        const result = addClientDocument(id, {
+          name: pdfData.name,
+          type: pdfData.type,
+          description: pdfData.description,
+          fileData: pdfData.fileData,
+          fileType: pdfData.fileType,
+          fileSize: pdfData.fileSize,
+        });
+
+        docUpdates[key] = {
+          status: 'generated',
+          generatedDocId: result.document.id,
+          uploadedDocId: null,
+          generatedAt: new Date().toISOString(),
+          downloadedAt: null, uploadedAt: null,
+          reviewedAt: null, reviewedBy: null, adminNotes: '',
+        };
+      }
+
+      // Update onboarding with doc references
+      updateClientOnboarding(id, {
+        documents: docUpdates,
+        documentsGeneratedAt: new Date().toISOString(),
+        documentsGeneratedBy: currentUser?.name || 'Admin',
+      });
+
+      // Also run BI scaffolding (preserve old behavior)
+      _initBiTemplates(id);
+
+      addNotification({ type: 'success', title: 'Documents Generated', message: `4 onboarding documents created for ${selectedClient.name}` });
+      logActivity('onboarding_docs_generated', { clientId: id, clientName: selectedClient.name });
+    } catch (e) {
+      addNotification({ type: 'error', title: 'Generation Failed', message: `Failed to generate documents: ${e.message}` });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // BI template scaffolding (extracted from old handleInitBi)
+  const _initBiTemplates = (id) => {
     try {
       const intakes = safeGetItem('threeseas_bi_intakes', {});
       if (!intakes[id]) {
@@ -232,11 +325,37 @@ export default function OnboardingTab() {
         }));
         safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...targets, ...newTargets]));
       }
-
-      addNotification({ type: 'success', title: 'BI Initialized', message: `Business Intelligence templates created for ${selectedClient.name}` });
     } catch (e) {
-      addNotification({ type: 'error', title: 'BI Error', message: `Failed to initialize BI for ${selectedClient.name}` });
+      // BI scaffold is non-critical
     }
+  };
+
+  // Approve individual doc
+  const handleApproveDocument = (docKey) => {
+    if (!selectedClient) return;
+    const docs = { ...(selectedClient.onboarding?.documents || {}) };
+    docs[docKey] = {
+      ...docs[docKey],
+      status: 'approved',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: currentUser?.name || 'Admin',
+    };
+    updateClientOnboarding(selectedClient.id, { documents: docs });
+    addNotification({ type: 'success', title: 'Document Approved', message: `${DOC_LABELS[docKey]} approved for ${selectedClient.name}` });
+  };
+
+  // Approve all uploaded docs
+  const handleApproveAllDocuments = () => {
+    if (!selectedClient) return;
+    const docs = { ...(selectedClient.onboarding?.documents || {}) };
+    const now = new Date().toISOString();
+    for (const key of Object.keys(docs)) {
+      if (docs[key].status === 'uploaded') {
+        docs[key] = { ...docs[key], status: 'approved', reviewedAt: now, reviewedBy: currentUser?.name || 'Admin' };
+      }
+    }
+    updateClientOnboarding(selectedClient.id, { documents: docs });
+    addNotification({ type: 'success', title: 'All Documents Approved', message: `All uploaded documents approved for ${selectedClient.name}` });
   };
 
   const handleCreateProject = () => {
@@ -262,19 +381,23 @@ export default function OnboardingTab() {
     setSelectedId(null);
   };
 
-  // Progress bar helper
   const getProgressForClient = (client) => {
     const s = getStepStatus(client);
     return Object.values(s).filter(Boolean).length;
   };
 
-  // Welcome email template
   const welcomeTemplate = emailTemplates.find((t) => t.id === 'welcome');
 
   const getSourceInfo = (client) => {
     if (client.sourceProspectId || client.source === 'pipeline') return SOURCE_LABELS.pipeline;
     return SOURCE_LABELS[client.source] || SOURCE_LABELS.manual;
   };
+
+  // Document status helpers
+  const docsGenerated = !!selectedClient?.onboarding?.documentsGeneratedAt;
+  const onbDocs = selectedClient?.onboarding?.documents || {};
+  const allUploaded = docsGenerated && Object.values(onbDocs).every((d) => d.status === 'uploaded' || d.status === 'approved');
+  const allApproved = docsGenerated && Object.values(onbDocs).every((d) => d.status === 'approved');
 
   return (
     <div className="onboarding-tab">
@@ -486,22 +609,23 @@ export default function OnboardingTab() {
                       <span className="onboarding-step-desc">{stepStatus.portal ? 'Password set' : 'No password set'}</span>
                     </div>
                   </div>
-                  {!stepStatus.portal && (
-                    <div className="onboarding-step-body">
-                      {!tempPassword ? (
-                        <button className="btn btn-sm btn-outline" onClick={handleGeneratePassword}>
-                          <Shield size={14} /> Generate Temp Password
+                  <div className="onboarding-step-body">
+                    {tempPassword ? (
+                      <div className="onboarding-password-row">
+                        <code className="onboarding-password">{tempPassword}</code>
+                        <button className="btn btn-sm btn-outline" onClick={handleCopyPassword}>
+                          <Copy size={14} /> {passwordCopied ? 'Copied!' : 'Copy'}
                         </button>
-                      ) : (
-                        <div className="onboarding-password-row">
-                          <code className="onboarding-password">{tempPassword}</code>
-                          <button className="btn btn-sm btn-outline" onClick={handleCopyPassword}>
-                            <Copy size={14} /> {passwordCopied ? 'Copied!' : 'Copy'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        <button className="btn btn-sm btn-outline" onClick={handleGeneratePassword}>
+                          <Shield size={14} /> Regenerate
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-sm btn-outline" onClick={handleGeneratePassword}>
+                        <Shield size={14} /> {stepStatus.portal ? 'Reset Password' : 'Generate Temp Password'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Step 4: Welcome Email */}
@@ -540,20 +664,107 @@ export default function OnboardingTab() {
                   )}
                 </div>
 
-                {/* Step 5: Initialize BI */}
-                <div className={`onboarding-step ${stepStatus.bi ? 'complete' : ''}`}>
+                {/* Step 5: Generate & Review Documents */}
+                <div className={`onboarding-step ${stepStatus.documents ? 'complete' : ''}`}>
                   <div className="onboarding-step-header">
-                    {stepStatus.bi ? <Check size={18} /> : <Circle size={18} />}
+                    {stepStatus.documents ? <Check size={18} /> : <Circle size={18} />}
                     <div>
-                      <span className="onboarding-step-label">5. Initialize BI</span>
-                      <span className="onboarding-step-desc">{stepStatus.bi ? 'Templates created' : 'No BI templates yet'}</span>
+                      <span className="onboarding-step-label">5. Generate & Review Documents</span>
+                      <span className="onboarding-step-desc">
+                        {allApproved ? 'All documents approved' : docsGenerated ? 'Awaiting client uploads / review' : 'Generate onboarding PDFs'}
+                      </span>
                     </div>
                   </div>
-                  {!stepStatus.bi && (
+                  {!stepStatus.documents && (
                     <div className="onboarding-step-body">
-                      <button className="btn btn-sm btn-outline" onClick={handleInitBi}>
-                        <Briefcase size={14} /> Initialize BI Templates
-                      </button>
+                      {!docsGenerated ? (
+                        <button
+                          className="btn btn-sm btn-primary onboarding-generate-btn"
+                          onClick={handleGenerateDocuments}
+                          disabled={generating}
+                        >
+                          {generating ? (
+                            <><span className="onboarding-spinner" /> Generating...</>
+                          ) : (
+                            <><FileText size={14} /> Generate Documents</>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="onboarding-doc-table-wrap">
+                          <table className="onboarding-doc-table">
+                            <thead>
+                              <tr>
+                                <th>Document</th>
+                                <th>Generated</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(onbDocs).map(([key, doc]) => {
+                                const statusInfo = DOC_STATUS_COLORS[doc.status] || DOC_STATUS_COLORS.pending;
+                                const genDoc = (selectedClient.documents || []).find((d) => d.id === doc.generatedDocId);
+                                const uploadDoc = doc.uploadedDocId ? (selectedClient.documents || []).find((d) => d.id === doc.uploadedDocId) : null;
+                                return (
+                                  <tr key={key}>
+                                    <td className="onboarding-doc-name">
+                                      <FileText size={14} />
+                                      {DOC_LABELS[key]}
+                                    </td>
+                                    <td className="onboarding-doc-date">
+                                      {doc.generatedAt ? new Date(doc.generatedAt).toLocaleDateString() : '—'}
+                                    </td>
+                                    <td>
+                                      <span
+                                        className="onboarding-doc-status"
+                                        style={{ background: statusInfo.bg, color: statusInfo.color }}
+                                      >
+                                        {statusInfo.label}
+                                      </span>
+                                    </td>
+                                    <td className="onboarding-doc-actions">
+                                      {genDoc?.fileData && (
+                                        <button
+                                          className="btn btn-sm btn-outline"
+                                          onClick={() => setViewingDoc(genDoc)}
+                                          title="View generated document"
+                                        >
+                                          <Eye size={14} /> View
+                                        </button>
+                                      )}
+                                      {uploadDoc?.fileData && (
+                                        <button
+                                          className="btn btn-sm btn-outline"
+                                          onClick={() => setViewingDoc(uploadDoc)}
+                                          title="View uploaded version"
+                                        >
+                                          <Upload size={14} /> Uploaded
+                                        </button>
+                                      )}
+                                      {doc.status === 'uploaded' && (
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          onClick={() => handleApproveDocument(key)}
+                                        >
+                                          <Check size={14} /> Approve
+                                        </button>
+                                      )}
+                                      {doc.status === 'approved' && (
+                                        <span className="onboarding-doc-approved-icon"><CheckCircle size={16} /></span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                          {allUploaded && !allApproved && (
+                            <button className="btn btn-sm btn-primary" style={{ marginTop: 8 }} onClick={handleApproveAllDocuments}>
+                              <CheckSquare size={14} /> Approve All
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -600,19 +811,6 @@ export default function OnboardingTab() {
                       </div>
                     </div>
                   )}
-                  {selectedClient.documents?.length > 0 && (
-                    <div className="onboarding-transferred-section">
-                      <h4><FileText size={14} /> Transferred Documents ({selectedClient.documents.length})</h4>
-                      <div className="onboarding-docs-list">
-                        {selectedClient.documents.map((doc) => (
-                          <div key={doc.id} className="onboarding-doc">
-                            <span className="onboarding-doc-name">{doc.name}</span>
-                            <span className="onboarding-doc-type">{doc.type}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -634,6 +832,39 @@ export default function OnboardingTab() {
           )}
         </div>
       </div>
+
+      {/* Document Preview Modal */}
+      {viewingDoc && (
+        <div className="modal-overlay" onClick={() => setViewingDoc(null)}>
+          <div className="modal-content document-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setViewingDoc(null)} aria-label="Close"><X size={20} /></button>
+            <div className="document-preview-header">
+              <h3>{viewingDoc.name}</h3>
+              {viewingDoc.type && (
+                <span className="onboarding-doc-status" style={{
+                  background: DOC_STATUS_COLORS.generated.bg,
+                  color: DOC_STATUS_COLORS.generated.color,
+                }}>
+                  {DOC_LABELS[viewingDoc.type] || viewingDoc.type}
+                </span>
+              )}
+            </div>
+            {viewingDoc.description && <p className="document-preview-desc">{viewingDoc.description}</p>}
+            <div className="document-preview-content">
+              {viewingDoc.fileType?.startsWith('image/') ? (
+                <img src={viewingDoc.fileData} alt={viewingDoc.name} />
+              ) : viewingDoc.fileType === 'application/pdf' ? (
+                <iframe src={viewingDoc.fileData} title={viewingDoc.name} />
+              ) : (
+                <div className="document-no-preview">
+                  <FileText size={48} />
+                  <p>Preview not available for this file type</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

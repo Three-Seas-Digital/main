@@ -1,14 +1,36 @@
 /* ===== FOOTER ===== */
 .footer {
-  background: var(--dark);
-  color: var(--gray-300);
-  padding: 60px 0 0;
+  background: rgba(8, 8, 10, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-secondary);
+  padding: 96px 0 0;
+  border-top: 1px solid rgba(200, 164, 62, 0.08);
+  position: relative;
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(200, 164, 62, 0.25),
+    rgba(184, 96, 46, 0.3),
+    rgba(200, 164, 62, 0.25),
+    transparent
+  );
+  animation: shimmer 10s linear infinite;
+  background-size: 200% 100%;
 }
 
 .footer-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 32px;
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   gap: 48px;
@@ -17,60 +39,83 @@
 .footer-logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--white);
-  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: var(--sirius-white);
+  margin-bottom: 16px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(200, 164, 62, 0.1);
+}
+
+.footer-logo img {
+  border-radius: 50%;
+  border: 1px solid rgba(200, 164, 62, 0.15);
+  box-shadow: 0 0 10px rgba(200, 164, 62, 0.05);
 }
 
 .footer-section p {
   font-size: 0.9rem;
   line-height: 1.7;
-  color: var(--gray-400);
+  color: var(--text-muted);
+  font-weight: 300;
 }
 
 .footer-section h4 {
-  color: var(--white);
+  color: rgba(200, 164, 62, 0.45);
   font-weight: 600;
-  margin-bottom: 16px;
-  font-size: 1rem;
+  margin-bottom: 20px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
 }
 
 .footer-section ul {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .footer-section ul a {
-  color: var(--gray-400);
+  color: var(--text-muted);
   font-size: 0.9rem;
-  transition: color var(--transition);
+  transition: all var(--transition-fast);
+  font-weight: 400;
 }
 
 .footer-section ul a:hover {
-  color: var(--white);
+  color: var(--accent-gold);
+  transform: translateX(3px);
 }
 
 .footer-contact li {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 0.9rem;
-  color: var(--gray-400);
+  color: var(--text-muted);
+}
+
+.footer-contact li svg {
+  color: var(--accent-gold);
+  opacity: 0.4;
 }
 
 .footer-bottom {
-  margin-top: 40px;
-  padding: 20px 24px;
-  border-top: 1px solid var(--gray-800);
-  text-align: center;
+  margin-top: 48px;
+  padding: 24px 32px;
+  border-top: 1px solid rgba(200, 164, 62, 0.06);
+  display: flex;
+  justify-content: center;
 }
 
 .footer-bottom p {
-  font-size: 0.85rem;
-  color: var(--gray-600);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 768px) {
@@ -80,3 +125,49 @@
   }
 }
 
+/* ===== LIGHT THEME — Footer ===== */
+:root.light-theme .footer {
+  background: #d8d8e0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+:root.light-theme .footer::before {
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(154, 122, 30, 0.2),
+    rgba(142, 72, 24, 0.25),
+    rgba(154, 122, 30, 0.2),
+    transparent
+  );
+}
+:root.light-theme .footer-logo {
+  text-shadow: none;
+  color: #1a1a22;
+}
+:root.light-theme .footer-logo img {
+  border-color: rgba(154, 122, 30, 0.2);
+}
+:root.light-theme .footer-section p {
+  color: #4a4a56;
+}
+:root.light-theme .footer-section h4 {
+  color: rgba(100, 78, 18, 0.7);
+}
+:root.light-theme .footer-section ul a {
+  color: #3a3a46;
+}
+:root.light-theme .footer-section ul a:hover {
+  color: #6a5210;
+}
+:root.light-theme .footer-contact li {
+  color: #3a3a46;
+}
+:root.light-theme .footer-contact li svg {
+  color: #8a6a14;
+  opacity: 0.7;
+}
+:root.light-theme .footer-bottom p {
+  color: #5a5a68;
+}
+:root.light-theme .footer-bottom {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}

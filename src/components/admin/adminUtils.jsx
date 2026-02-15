@@ -14,7 +14,11 @@ export function StatusBadge({ status }) {
 }
 
 export function RoleBadge({ role }) {
-  const cls = { admin: 'role-admin', manager: 'role-manager', staff: 'role-staff' };
+  const cls = {
+    owner: 'role-owner', admin: 'role-admin', manager: 'role-manager',
+    sales: 'role-sales', accountant: 'role-accountant', it: 'role-it',
+    developer: 'role-developer', analyst: 'role-analyst',
+  };
   return <span className={`role-badge ${cls[role] || ''}`}><Shield size={12} /> {role}</span>;
 }
 

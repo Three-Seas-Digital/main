@@ -11,7 +11,7 @@ import { useAppContext } from '../../context/AppContext';
 import { StatusBadge, FollowUpBadge, TierBadge, formatDisplayDate } from './adminUtils';
 import ProjectBoard from './ProjectBoard';
 
-export default function ClientsTab() {
+export default function ClientsTab({ onClientViewed }) {
   const {
     clients, updateClient, addClientNote, deleteClientNote,
     addClientTag, removeClientTag, archiveClient, restoreClient, permanentlyDeleteClient, addClientManually,
@@ -22,7 +22,7 @@ export default function ClientsTab() {
     addClientDocument, deleteClientDocument, DOCUMENT_TYPES,
   } = useAppContext();
   const canManage = hasPermission('manage_clients');
-  const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const canDelete = hasPermission('delete_clients');
   const [selectedClient, setSelectedClient] = useState(null);
   const [newNote, setNewNote] = useState('');
   const [newTag, setNewTag] = useState('');
@@ -56,9 +56,18 @@ export default function ClientsTab() {
   const [documentError, setDocumentError] = useState('');
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
+  const [deleteNoteConfirm, setDeleteNoteConfirm] = useState(null);
+  const [deleteInvoiceConfirm, setDeleteInvoiceConfirm] = useState(null);
+
+  // Select and mark client as viewed
+  const handleSelectClient = (clientId) => {
+    setSelectedClient(clientId);
+    if (onClientViewed) onClientViewed(clientId);
+  };
 
   // Staff members for kanban
-  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role)), [users]);
+  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && u.role !== 'pending'), [users]);
 
   // Drag and drop handlers
   const handleDragStart = (e, client) => {
@@ -100,7 +109,7 @@ export default function ClientsTab() {
   const archivedClients = useMemo(() => clients.filter((c) => c.status === 'archived'), [clients]);
 
   const client = useMemo(() => selectedClient ? clients.find((c) => c.id === selectedClient) : null, [selectedClient, clients]);
-  const clientAppointments = useMemo(() => client ? appointments.filter((a) => a.email.toLowerCase() === client.email.toLowerCase()) : [], [client, appointments]);
+  const clientAppointments = useMemo(() => client ? appointments.filter((a) => a.clientId === client.id || a.email?.toLowerCase() === client.email?.toLowerCase()) : [], [client, appointments]);
 
   const handleAddClient = (e) => {
     e.preventDefault();
@@ -319,6 +328,16 @@ export default function ClientsTab() {
                       {client.status === 'active' ? 'Active' : client.status === 'inactive' ? 'Inactive' : 'VIP'}
                     </span>
                     <TierBadge tier={client.tier} />
+                    <span className="client-source-badge" style={{
+                      background: client.sourceProspectId ? '#ecfdf5' : client.source === 'self-registered' ? '#eff6ff' : '#f3f4f6',
+                      color: client.sourceProspectId ? '#059669' : client.source === 'self-registered' ? '#2563eb' : '#6b7280',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                    }}>
+                      {client.sourceProspectId ? 'Pipeline' : client.source === 'self-registered' ? 'Self-registered' : 'Manual'}
+                    </span>
                     {client.service && <span className="client-service"><Briefcase size={13} /> {client.service.replace('-', ' ')}</span>}
                     <span className="client-since">Client since {new Date(client.createdAt).toLocaleDateString()}</span>
                   </div>
@@ -505,9 +524,17 @@ export default function ClientsTab() {
                           <button className="btn btn-sm btn-confirm" onClick={() => markInvoicePaid(client.id, inv.id)}>
                             <CreditCard size={14} /> Mark Paid
                           </button>
-                          <button className="btn btn-sm btn-delete" onClick={() => deleteInvoice(client.id, inv.id)}>
-                            <Trash2 size={14} /> Delete
-                          </button>
+                          {deleteInvoiceConfirm === inv.id ? (
+                            <div className="delete-confirm-inline">
+                              <span>Delete?</span>
+                              <button className="btn btn-xs btn-delete" onClick={() => { deleteInvoice(client.id, inv.id); setDeleteInvoiceConfirm(null); }}>Yes</button>
+                              <button className="btn btn-xs btn-outline" onClick={() => setDeleteInvoiceConfirm(null)}>No</button>
+                            </div>
+                          ) : (
+                            <button className="btn btn-sm btn-delete" onClick={() => setDeleteInvoiceConfirm(inv.id)}>
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          )}
                         </div>
                       )}
                       {canManage && inv.status === 'paid' && (
@@ -515,9 +542,17 @@ export default function ClientsTab() {
                           <button className="btn btn-sm btn-outline" style={{ color: 'var(--gray-600)', borderColor: 'var(--gray-300)' }} onClick={() => unmarkInvoicePaid(client.id, inv.id)}>
                             Undo Payment
                           </button>
-                          <button className="btn btn-sm btn-delete" onClick={() => deleteInvoice(client.id, inv.id)}>
-                            <Trash2 size={14} /> Delete
-                          </button>
+                          {deleteInvoiceConfirm === inv.id ? (
+                            <div className="delete-confirm-inline">
+                              <span>Delete?</span>
+                              <button className="btn btn-xs btn-delete" onClick={() => { deleteInvoice(client.id, inv.id); setDeleteInvoiceConfirm(null); }}>Yes</button>
+                              <button className="btn btn-xs btn-outline" onClick={() => setDeleteInvoiceConfirm(null)}>No</button>
+                            </div>
+                          ) : (
+                            <button className="btn btn-sm btn-delete" onClick={() => setDeleteInvoiceConfirm(inv.id)}>
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -651,9 +686,17 @@ export default function ClientsTab() {
                         <Download size={14} />
                       </button>
                       {canManage && (
-                        <button className="btn btn-sm btn-delete" onClick={() => deleteClientDocument(client.id, doc.id)} title="Delete">
-                          <Trash2 size={14} />
-                        </button>
+                        deleteDocConfirm === doc.id ? (
+                          <div className="delete-confirm-inline">
+                            <span>Delete?</span>
+                            <button className="btn btn-xs btn-delete" onClick={() => { deleteClientDocument(client.id, doc.id); setDeleteDocConfirm(null); }}>Yes</button>
+                            <button className="btn btn-xs btn-outline" onClick={() => setDeleteDocConfirm(null)}>No</button>
+                          </div>
+                        ) : (
+                          <button className="btn btn-sm btn-delete" onClick={() => setDeleteDocConfirm(doc.id)} title="Delete">
+                            <Trash2 size={14} />
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
@@ -917,7 +960,17 @@ export default function ClientsTab() {
                     <div className="note-header">
                       <strong>{n.author}</strong>
                       <span>{new Date(n.createdAt).toLocaleString()}</span>
-                      {canManage && <button className="note-delete" onClick={() => deleteClientNote(client.id, n.id)}><Trash2 size={13} /></button>}
+                      {canManage && (
+                        deleteNoteConfirm === n.id ? (
+                          <div className="delete-confirm-inline">
+                            <span>Delete?</span>
+                            <button className="btn btn-xs btn-delete" onClick={() => { deleteClientNote(client.id, n.id); setDeleteNoteConfirm(null); }}>Yes</button>
+                            <button className="btn btn-xs btn-outline" onClick={() => setDeleteNoteConfirm(null)}>No</button>
+                          </div>
+                        ) : (
+                          <button className="note-delete" onClick={() => setDeleteNoteConfirm(n.id)}><Trash2 size={13} /></button>
+                        )
+                      )}
                     </div>
                     <p>{n.text}</p>
                   </div>
@@ -967,7 +1020,7 @@ export default function ClientsTab() {
                       draggable={canManage}
                       onDragStart={(e) => handleDragStart(e, client)}
                       onDragEnd={handleDragEnd}
-                      onClick={() => setSelectedClient(client.id)}
+                      onClick={() => handleSelectClient(client.id)}
                     >
                       <div className="kanban-card-header">
                         <strong>{client.name}</strong>
@@ -1015,7 +1068,7 @@ export default function ClientsTab() {
                           draggable={canManage}
                           onDragStart={(e) => handleDragStart(e, client)}
                           onDragEnd={handleDragEnd}
-                          onClick={() => setSelectedClient(client.id)}
+                          onClick={() => handleSelectClient(client.id)}
                         >
                           <div className="kanban-card-header">
                             <strong>{client.name}</strong>
@@ -1109,7 +1162,7 @@ export default function ClientsTab() {
       ) : (
         <div className="clients-grid">
           {filtered.map((c) => (
-            <div key={c.id} className={`client-card ${c.status === 'vip' ? 'vip-card' : ''}`} onClick={() => setSelectedClient(c.id)}>
+            <div key={c.id} className={`client-card ${c.status === 'vip' ? 'vip-card' : ''}`} onClick={() => handleSelectClient(c.id)}>
               <div className="client-card-top">
                 <div className={`client-avatar ${c.status === 'vip' ? 'vip-avatar' : ''}`}>{c.name.charAt(0).toUpperCase()}</div>
                 <div className="client-card-info">
@@ -1121,6 +1174,16 @@ export default function ClientsTab() {
               </div>
               <div className="client-card-bottom">
                 {c.service && <span className="client-service-tag">{c.service.replace('-', ' ')}</span>}
+                <span className="client-source-badge" style={{
+                  background: c.sourceProspectId ? '#ecfdf5' : c.source === 'self-registered' ? '#eff6ff' : '#f3f4f6',
+                  color: c.sourceProspectId ? '#059669' : c.source === 'self-registered' ? '#2563eb' : '#6b7280',
+                  padding: '2px 6px',
+                  borderRadius: '12px',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                }}>
+                  {c.sourceProspectId ? 'Pipeline' : c.source === 'self-registered' ? 'Self-registered' : 'Manual'}
+                </span>
                 <span className="client-card-date">Since {new Date(c.createdAt).toLocaleDateString()}</span>
                 {c.status === 'vip' && (c.projects || []).length > 0 && (
                   <span className="client-projects-count"><FolderKanban size={12} /> {(c.projects || []).length} projects</span>

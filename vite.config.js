@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
           vendor: ['react', 'react-dom', 'react-router-dom'],
           charts: ['recharts'],
           icons: ['lucide-react'],
+          three: ['three', '@react-three/fiber'],
         },
       },
     },

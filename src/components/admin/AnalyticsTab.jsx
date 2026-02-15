@@ -11,6 +11,7 @@ import {
   Tooltip, ResponsiveContainer, Legend, ComposedChart,
 } from 'recharts';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 const CHART_COLORS = ['#0f4c75', '#00b4d8', '#3282b8', '#40c057', '#f59e0b', '#8b5cf6', '#f03e3e', '#fab005'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -479,7 +480,7 @@ export default function AnalyticsTab() {
       .sort(([, a], [, b]) => b.revenue - a.revenue)
       .map(([svc, data]) => {
         const pct = totalRevenue > 0 ? ((data.revenue / totalRevenue) * 100).toFixed(1) : '0.0';
-        return `<tr><td>${svc.replace('-', ' ')}</td><td style="text-align:center">${data.count}</td><td style="text-align:right;font-family:monospace">$${data.revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td style="text-align:right">${pct}%</td></tr>`;
+        return `<tr><td>${escapeHtml(svc.replace('-', ' '))}</td><td style="text-align:center">${data.count}</td><td style="text-align:right;font-family:monospace">$${data.revenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td style="text-align:right">${pct}%</td></tr>`;
       }).join('');
 
     // Payment details
@@ -487,8 +488,8 @@ export default function AnalyticsTab() {
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .map((p) => {
         const date = new Date(p.createdAt).toLocaleDateString('en-US');
-        const clientName = fc.find((c) => c.id === p.clientId)?.name || p.clientName || 'Unknown';
-        return `<tr><td>${date}</td><td>${clientName}</td><td>${(p.service || 'N/A').replace('-', ' ')}</td><td>${p.serviceTier || 'N/A'}</td><td style="text-align:right;font-family:monospace">$${p.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td>${(p.method || 'N/A').replace('-', ' ')}</td></tr>`;
+        const clientName = escapeHtml(fc.find((c) => c.id === p.clientId)?.name || p.clientName || 'Unknown');
+        return `<tr><td>${date}</td><td>${clientName}</td><td>${escapeHtml((p.service || 'N/A').replace('-', ' '))}</td><td>${escapeHtml(p.serviceTier || 'N/A')}</td><td style="text-align:right;font-family:monospace">$${p.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td><td>${escapeHtml((p.method || 'N/A').replace('-', ' '))}</td></tr>`;
       }).join('');
 
     // Client summary
@@ -499,7 +500,7 @@ export default function AnalyticsTab() {
     });
     const tierRows = Object.entries(tierCounts).map(([tier, count]) => {
       const label = SUBSCRIPTION_TIERS[tier]?.label || tier;
-      return `<tr><td>${label}</td><td style="text-align:center">${count}</td></tr>`;
+      return `<tr><td>${escapeHtml(label)}</td><td style="text-align:center">${count}</td></tr>`;
     }).join('');
 
     const sourceCounts = {};
@@ -508,7 +509,7 @@ export default function AnalyticsTab() {
       sourceCounts[src] = (sourceCounts[src] || 0) + 1;
     });
     const sourceRows = Object.entries(sourceCounts).map(([src, count]) => {
-      return `<tr><td>${src.replace('-', ' ')}</td><td style="text-align:center">${count}</td></tr>`;
+      return `<tr><td>${escapeHtml(src.replace('-', ' '))}</td><td style="text-align:center">${count}</td></tr>`;
     }).join('');
 
     const noDataMsg = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">No data for this period</td></tr>';

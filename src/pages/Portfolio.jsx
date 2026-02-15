@@ -1,113 +1,77 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Layers, ArrowRight, Check, Star } from 'lucide-react';
+import { ArrowRight, Lightbulb } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
 
-const tiers = [
+const capabilities = [
   {
     id: 'starter',
-    name: 'Starter',
-    color: '#9ca3af',
-    tagline: 'Perfect for getting online fast',
-    demo: 'Coastal Coffee',
-    demoDesc: 'A charming single-page site for a local coffee shop',
-    features: ['Landing Page', 'Mobile Responsive', 'Contact Form', 'Basic SEO', 'Social Links', 'Analytics'],
-    img: '/images/portfolio-coffee.jpg',
+    category: 'Digital Presence',
+    title: 'High-Performance Web Properties',
+    description: 'High-performance landing pages and web properties engineered for conversion. Sub-second load times, accessibility compliance, mobile-first architecture.',
+    metrics: '< 1s load time | WCAG 2.1 AA | 99.9% uptime',
+    path: '/portfolio/starter',
   },
   {
     id: 'business',
-    name: 'Business',
-    color: '#3b82f6',
-    tagline: 'Full website for established businesses',
-    demo: 'Summit Law Group',
-    demoDesc: 'A professional multi-page site for a law firm',
-    features: ['Multi-Page (5-10)', 'Custom Branding', 'Blog/News', 'Advanced SEO', 'Social Integration', 'Maps'],
-    img: '/images/portfolio-law.jpg',
+    category: 'Multi-Platform Solutions',
+    title: 'Integrated Platform Ecosystems',
+    description: 'Integrated multi-page platforms with content management, lead generation, and analytics infrastructure.',
+    metrics: 'Full CMS | Analytics Suite | Lead Pipeline',
+    path: '/portfolio/business',
   },
   {
     id: 'premium',
-    name: 'Premium',
-    color: '#8b5cf6',
-    tagline: 'Advanced features & custom functionality',
-    demo: 'Bella Spa & Wellness',
-    demoDesc: 'A spa with booking system and client portal',
-    features: ['CMS', 'User Auth', 'Client Portal', 'Booking System', 'Payments', 'Email Marketing'],
-    img: '/images/portfolio-spa.jpg',
+    category: 'Client Experience Platforms',
+    title: 'White-Label Client Portals',
+    description: 'White-label client portals with booking systems, document management, and real-time communication channels.',
+    metrics: 'Booking Engine | Client Portal | Real-time Messaging',
+    path: '/portfolio/premium',
   },
   {
     id: 'enterprise',
-    name: 'Enterprise',
-    color: '#f59e0b',
-    tagline: 'Full custom web applications',
-    demo: 'Apex Logistics CRM',
-    demoDesc: 'A complete business management system',
-    features: ['Custom Web App', 'Database', 'API', 'Admin Dashboard', 'Multi-User Roles', 'Real-Time'],
-    img: '/images/portfolio-logistics.jpg',
+    category: 'Enterprise Intelligence Systems',
+    title: 'Full-Scale Business Intelligence',
+    description: 'Full-scale CRM and business intelligence dashboards with audit scoring, financial analytics, and intervention tracking.',
+    metrics: 'BI Dashboard | Audit System | Financial Analytics',
+    path: '/portfolio/enterprise',
   },
 ];
 
 export default function Portfolio() {
-  useEffect(() => { document.title = 'Portfolio — Three Seas Digital'; }, []);
+  useEffect(() => { document.title = 'Capabilities — Three Seas Digital'; }, []);
   return (
     <div className="page">
       <section className="page-hero">
         <div className="page-hero-bg">
           <FallbackImg
             src="/images/portfolio-hero.jpg"
-            alt="Portfolio"
+            alt="Capabilities"
           />
           <div className="hero-overlay" />
         </div>
         <div className="page-hero-content">
-          <h1>Our Portfolio</h1>
-          <p>Live demos showcasing what we build at every tier</p>
+          <h1>Capabilities</h1>
+          <p>End-to-end digital solutions engineered for enterprise performance</p>
         </div>
       </section>
 
       <section className="section">
         <div className="container">
-          <div className="portfolio-intro">
-            <Layers size={32} className="portfolio-intro-icon" />
-            <h2>Choose Your Tier</h2>
-            <p>Each showcase is a fully-functional demo of the features included in that package. Click to explore and see exactly what you'll get.</p>
-          </div>
-
-          <div className="portfolio-tiers-grid">
-            {tiers.map((tier) => (
+          <div className="capabilities-grid">
+            {capabilities.map((capability) => (
               <Link
-                key={tier.id}
-                to={`/portfolio/${tier.id}`}
-                className="portfolio-tier-card"
-                style={{ '--tier-color': tier.color }}
+                key={capability.id}
+                to={capability.path}
+                className="capability-card"
               >
-                <div className="portfolio-tier-badge" style={{ background: tier.color }}>
-                  {tier.name}
-                </div>
-                <div className="portfolio-tier-image">
-                  <FallbackImg src={tier.img} alt={tier.demo} />
-                  <div className="portfolio-tier-overlay">
-                    <ExternalLink size={24} />
-                    <span>View Demo</span>
-                  </div>
-                </div>
-                <div className="portfolio-tier-content">
-                  <h3>{tier.demo}</h3>
-                  <p className="portfolio-tier-tagline">{tier.tagline}</p>
-                  <p className="portfolio-tier-desc">{tier.demoDesc}</p>
-                  <div className="portfolio-tier-features">
-                    {tier.features.slice(0, 4).map((f) => (
-                      <span key={f} className="portfolio-tier-feature">
-                        <Check size={12} /> {f}
-                      </span>
-                    ))}
-                    {tier.features.length > 4 && (
-                      <span className="portfolio-tier-more">+{tier.features.length - 4} more</span>
-                    )}
-                  </div>
-                  <div className="portfolio-tier-cta">
-                    <span>Explore Demo</span>
-                    <ArrowRight size={16} />
-                  </div>
+                <div className="capability-category">{capability.category}</div>
+                <h3 className="capability-title">{capability.title}</h3>
+                <p className="capability-description">{capability.description}</p>
+                <div className="capability-metrics">{capability.metrics}</div>
+                <div className="capability-cta">
+                  <span>Explore Demo</span>
+                  <ArrowRight size={16} />
                 </div>
               </Link>
             ))}
@@ -115,13 +79,13 @@ export default function Portfolio() {
 
           <div className="portfolio-bottom-cta">
             <div className="portfolio-cta-content">
-              <Star size={24} />
+              <Lightbulb size={28} />
               <div>
-                <h3>Not sure which tier fits your needs?</h3>
-                <p>Let's discuss your project and find the perfect solution</p>
+                <h3>Custom Solutions</h3>
+                <p>Every enterprise has unique requirements. Our team architects bespoke digital platforms tailored to your specific infrastructure, compliance needs, and growth targets.</p>
               </div>
               <Link to="/contact" className="btn btn-primary">
-                Get a Custom Quote <ArrowRight size={16} />
+                Discuss Your Requirements <ArrowRight size={16} />
               </Link>
             </div>
           </div>

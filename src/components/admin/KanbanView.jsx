@@ -8,8 +8,8 @@ export default function KanbanView({ appointments, users, onAssign, onStatusChan
   const [draggedAppt, setDraggedAppt] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
 
-  // Get staff members (admin, manager, staff roles)
-  const staffMembers = useMemo(() => users.filter((u) => ['admin', 'manager', 'staff'].includes(u.role)), [users]);
+  // Get all approved staff members
+  const staffMembers = useMemo(() => users.filter((u) => u.role !== 'pending'), [users]);
 
   // Group appointments by assignee
   const unassigned = useMemo(() => appointments.filter((a) => !a.assignedTo), [appointments]);

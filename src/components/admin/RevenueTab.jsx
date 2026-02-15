@@ -4,6 +4,7 @@ import {
   Calendar as CalendarIcon, Printer,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 const getPaymentDate = (p) => new Date(p.createdAt);
 const getPaymentYear = (p) => getPaymentDate(p).getFullYear();
@@ -154,13 +155,13 @@ export default function RevenueTab() {
         <h2>By Service</h2>
         <table>
           <thead><tr><th>Service</th><th>Transactions</th><th class="amount">Revenue</th></tr></thead>
-          <tbody>${byService.map((s) => `<tr><td>${formatLabel(s.name)}</td><td>${s.count}</td><td class="amount">${formatCurrency(s.revenue)}</td></tr>`).join('')}</tbody>
+          <tbody>${byService.map((s) => `<tr><td>${escapeHtml(formatLabel(s.name))}</td><td>${s.count}</td><td class="amount">${formatCurrency(s.revenue)}</td></tr>`).join('')}</tbody>
         </table>
 
         <h2>By Tier</h2>
         <table>
           <thead><tr><th>Tier</th><th>Transactions</th><th class="amount">Revenue</th></tr></thead>
-          <tbody>${byTier.map((t) => `<tr><td>${t.label}</td><td>${t.count}</td><td class="amount">${formatCurrency(t.revenue)}</td></tr>`).join('')}</tbody>
+          <tbody>${byTier.map((t) => `<tr><td>${escapeHtml(t.label)}</td><td>${t.count}</td><td class="amount">${formatCurrency(t.revenue)}</td></tr>`).join('')}</tbody>
         </table>
 
         <div class="footer"><p>Three Seas Digital CRM — Revenue Report</p></div>

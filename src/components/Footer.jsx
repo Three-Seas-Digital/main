@@ -1,4 +1,4 @@
-import { Anchor, Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SITE_INFO } from '../constants';
 
@@ -8,20 +8,20 @@ export default function Footer() {
       <div className="footer-container">
         <div className="footer-section">
           <div className="footer-logo">
-            <Anchor size={24} />
-            <span>{SITE_INFO.name}</span>
+            <img src="/images/brand-icon.png" alt={SITE_INFO.name} style={{ width: 28, height: 28 }} />
+            <span>THREE SEAS</span>
           </div>
-          <p>Navigating the digital waters to bring your vision to life. Web design, branding, and digital strategy.</p>
+          <p>Illuminating the complexities of the modern web with maritime precision and bioluminescent clarity.</p>
         </div>
 
         <div className="footer-section">
           <h4>Quick Links</h4>
           <ul>
             <li><Link to="/">Home</Link></li>
-            <li><Link to="/about">About</Link></li>
+            <li><Link to="/about">Philosophy</Link></li>
             <li><Link to="/portfolio">Portfolio</Link></li>
-            <li><Link to="/services">Client Portal</Link></li>
-            <li><Link to="/contact">Contact</Link></li>
+            <li><Link to="/services">Portal</Link></li>
+            <li><Link to="/contact">Initiate</Link></li>
           </ul>
         </div>
 

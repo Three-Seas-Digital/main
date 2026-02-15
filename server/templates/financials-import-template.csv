@@ -1,0 +1,4 @@
+date,revenue,expenses,customers,conversion_rate,avg_revenue_per_customer,new_customers,churn_rate,notes
+2026-01-01,15000,5000,120,3.5,125,15,2.1,Strong January performance
+2026-02-01,18000,6200,135,4.2,133.33,20,1.8,Valentine's campaign success
+2026-03-01,16500,5800,128,3.8,128.90,12,2.5,Seasonal dip expected

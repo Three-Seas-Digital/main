@@ -1,13 +1,17 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users, Search, X, Download,
   ChevronLeft, ChevronUp, ChevronDown,
   CheckSquare, Square,
+  FileText, Briefcase, BarChart3, Activity, Clock, DollarSign,
+  Target, Lightbulb, ChevronRight, Crosshair, Star, MessageSquare, FolderOpen,
+  User, Mail, Phone, Globe, MapPin, Building2, Calendar,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { safeGetItem } from '../../constants';
 
 export default function ClientsDatabaseTab() {
-  const { clients, payments, SUBSCRIPTION_TIERS } = useAppContext();
+  const { clients, payments, SUBSCRIPTION_TIERS, businessDatabase, prospects } = useAppContext();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTier, setFilterTier] = useState('all');
@@ -19,11 +23,29 @@ export default function ClientsDatabaseTab() {
   const [selectedClients, setSelectedClients] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [expandedClientId, setExpandedClientId] = useState(null);
 
   // Get unique values for filters
   const sources = useMemo(() => {
     const s = new Set(clients.map((c) => c.source).filter(Boolean));
     return Array.from(s).sort();
+  }, [clients]);
+
+  // Score map for table column + sorting (must be above filteredClients which depends on it)
+  const scoreMap = useMemo(() => {
+    const allAudits = safeGetItem('threeseas_bi_audits', []);
+    const map = {};
+    allAudits.forEach(a => {
+      if (!map[a.clientId] || new Date(a.createdAt) > new Date(map[a.clientId].createdAt)) {
+        map[a.clientId] = a;
+      }
+    });
+    const scores = {};
+    Object.entries(map).forEach(([cid, audit]) => {
+      const vals = Object.values(audit.scores || {}).filter(v => typeof v === 'number' && v > 0);
+      scores[cid] = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+    });
+    return scores;
   }, [clients]);
 
   // Filter and sort clients
@@ -78,6 +100,9 @@ export default function ClientsDatabaseTab() {
           case 'projects':
             cmp = (b.projects?.length || 0) - (a.projects?.length || 0);
             break;
+          case 'score':
+            cmp = (scoreMap[b.id] || 0) - (scoreMap[a.id] || 0);
+            break;
           case 'newest':
           default:
             cmp = new Date(b.createdAt) - new Date(a.createdAt);
@@ -85,7 +110,7 @@ export default function ClientsDatabaseTab() {
         }
         return sortDir === 'desc' ? cmp : -cmp;
       });
-  }, [clients, search, filterStatus, filterTier, filterSource, filterHasProjects, filterHasInvoices, sortBy, sortDir]);
+  }, [clients, search, filterStatus, filterTier, filterSource, filterHasProjects, filterHasInvoices, sortBy, sortDir, scoreMap]);
 
   // Reset page when filters change
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -117,6 +142,89 @@ export default function ClientsDatabaseTab() {
     };
   }, [clients, payments, SUBSCRIPTION_TIERS]);
 
+  // Compiled BI data for expanded client
+  const expandedData = useMemo(() => {
+    if (!expandedClientId) return null;
+    const client = clients.find(c => c.id === expandedClientId);
+    if (!client) return null;
+
+    // BI Data
+    const intakes = safeGetItem('threeseas_bi_intakes', {});
+    const intake = intakes[expandedClientId] || null;
+
+    const allAudits = safeGetItem('threeseas_bi_audits', []);
+    const audits = allAudits.filter(a => a.clientId === expandedClientId);
+    const latestAudit = audits.length ? audits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] : null;
+
+    const allRecs = safeGetItem('threeseas_bi_recommendations', {});
+    const recs = [];
+    audits.forEach(a => { (allRecs[a.id] || []).forEach(r => recs.push(r)); });
+
+    const financials = safeGetItem('threeseas_bi_client_financials', {});
+    const finData = financials[expandedClientId];
+    const finEntries = finData?.entries || [];
+    const totalRevenue = finEntries.reduce((s, e) => s + (e.revenue || 0), 0);
+    const totalExpenses = finEntries.reduce((s, e) => s + (e.expenses || 0), 0);
+
+    const allTargets = safeGetItem('threeseas_bi_growth_targets', []);
+    const targets = allTargets.filter(t => t.clientId === expandedClientId);
+
+    const allInterventions = safeGetItem('threeseas_bi_interventions', {});
+    const interventions = allInterventions[expandedClientId]?.interventions || [];
+
+    // Compute overall audit score from latest audit
+    let overallScore = null;
+    if (latestAudit?.scores) {
+      const vals = Object.values(latestAudit.scores).filter(v => typeof v === 'number' && v > 0);
+      overallScore = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null;
+    }
+
+    // Projects summary
+    const projects = client.projects || [];
+    const activeProjects = projects.filter(p => p.status === 'in-progress' || p.status === 'planning' || p.status === 'review');
+    const completedProjects = projects.filter(p => p.status === 'completed' || p.status === 'archived');
+
+    // Invoices summary
+    const invoices = client.invoices || [];
+    const paidInvoices = invoices.filter(i => i.status === 'paid');
+    const unpaidInvoices = invoices.filter(i => i.status !== 'paid');
+    const invoiceTotal = invoices.reduce((s, i) => s + (i.amount || 0), 0);
+    const paidTotal = paidInvoices.reduce((s, i) => s + (i.amount || 0), 0);
+
+    // Business Database entry (matched by name)
+    const bizEntry = businessDatabase.find(b =>
+      b.name && client.name && b.name.toLowerCase().trim() === client.name.toLowerCase().trim()
+    ) || null;
+
+    // Source prospect (if converted from pipeline)
+    const sourceProspect = client.sourceProspectId
+      ? prospects.find(p => p.id === client.sourceProspectId) || null
+      : null;
+
+    // Point of contact info (compiled from enrichment + client)
+    const poc = {
+      name: bizEntry?.enrichment?.pointOfContact || client.name || '',
+      email: bizEntry?.enrichment?.contactEmail || client.email || '',
+      phone: bizEntry?.enrichment?.contactPhone || client.phone || '',
+      website: bizEntry?.website || client.website || '',
+      address: bizEntry?.address || '',
+      decisionMaker: bizEntry?.enrichment?.decisionMaker || '',
+      directEmail: bizEntry?.enrichment?.directEmail || '',
+    };
+
+    return {
+      client, intake, audits, latestAudit, overallScore, recs,
+      finEntries, totalRevenue, totalExpenses,
+      targets, interventions,
+      projects, activeProjects, completedProjects,
+      invoices, paidInvoices, unpaidInvoices, invoiceTotal, paidTotal,
+      notes: client.notes || [],
+      tags: client.tags || [],
+      documents: client.documents || [],
+      bizEntry, sourceProspect, poc,
+    };
+  }, [expandedClientId, clients, businessDatabase, prospects]);
+
   const handleSort = (field) => {
     if (sortBy === field) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -145,19 +253,31 @@ export default function ClientsDatabaseTab() {
 
   const exportToCSV = () => {
     const data = (selectedClients.size > 0 ? filteredClients.filter((c) => selectedClients.has(c.id)) : filteredClients);
-    const headers = ['Name', 'Email', 'Phone', 'Business', 'Status', 'Tier', 'Source', 'Projects', 'Invoices', 'Created'];
-    const rows = data.map((c) => [
-      c.name || '',
-      c.email || '',
-      c.phone || '',
-      c.businessName || '',
-      c.status || '',
-      c.tier || '',
-      c.source || '',
-      (c.projects || []).length,
-      (c.invoices || []).length,
-      c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '',
-    ]);
+    const headers = ['Name', 'Email', 'Phone', 'Business', 'Status', 'Tier', 'Source', 'Projects', 'Invoices', 'Health Score', 'BI Revenue', 'Interventions', 'Recommendations', 'Notes Count', 'Created'];
+
+    const allAudits = safeGetItem('threeseas_bi_audits', []);
+    const allFinancials = safeGetItem('threeseas_bi_client_financials', {});
+    const allInterventions = safeGetItem('threeseas_bi_interventions', {});
+    const allRecs = safeGetItem('threeseas_bi_recommendations', {});
+
+    const rows = data.map((c) => {
+      const clientAudits = allAudits.filter(a => a.clientId === c.id);
+      const latest = clientAudits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+      const vals = latest?.scores ? Object.values(latest.scores).filter(v => typeof v === 'number' && v > 0) : [];
+      const score = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '';
+      const fin = allFinancials[c.id]?.entries || [];
+      const biRev = fin.reduce((s, e) => s + (e.revenue || 0), 0);
+      const ivs = allInterventions[c.id]?.interventions || [];
+      let recCount = 0;
+      clientAudits.forEach(a => { recCount += (allRecs[a.id] || []).length; });
+      return [
+        c.name || '', c.email || '', c.phone || '', c.businessName || '',
+        c.status || '', c.tier || '', c.source || '',
+        (c.projects || []).length, (c.invoices || []).length,
+        score, biRev, ivs.length, recCount, (c.notes || []).length,
+        c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '',
+      ];
+    });
     const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -302,6 +422,10 @@ export default function ClientsDatabaseTab() {
               <th className={`db-th-sortable ${sortBy === 'tier' ? 'active' : ''}`} onClick={() => handleSort('tier')}>
                 Tier {sortBy === 'tier' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </th>
+              <th className={`db-th-sortable ${sortBy === 'score' ? 'active' : ''}`} onClick={() => handleSort('score')}>
+                Score {sortBy === 'score' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
+              </th>
+              <th>Source</th>
               <th className={`db-th-sortable ${sortBy === 'projects' ? 'active' : ''}`} onClick={() => handleSort('projects')}>
                 Projects {sortBy === 'projects' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </th>
@@ -311,19 +435,23 @@ export default function ClientsDatabaseTab() {
               <th className={`db-th-sortable ${sortBy === 'newest' ? 'active' : ''}`} onClick={() => handleSort('newest')}>
                 Created {sortBy === 'newest' && (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
               </th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {paginatedClients.length === 0 ? (
-              <tr><td colSpan="9" className="db-empty">No clients found matching your criteria</td></tr>
+              <tr><td colSpan="12" className="db-empty">No clients found matching your criteria</td></tr>
             ) : (
               paginatedClients.map((client) => {
                 const tierInfo = SUBSCRIPTION_TIERS[client.tier] || SUBSCRIPTION_TIERS.free;
                 const isSelected = selectedClients.has(client.id);
                 return (
-                  <tr key={client.id} className={isSelected ? 'selected' : ''}>
+                  <React.Fragment key={client.id}>
+                  <tr className={`${isSelected ? 'selected' : ''} ${expandedClientId === client.id ? 'expanded-row' : ''}`}
+                    onClick={() => setExpandedClientId(expandedClientId === client.id ? null : client.id)}
+                    style={{ cursor: 'pointer' }}>
                     <td>
-                      <div className="db-checkbox" onClick={() => toggleSelectClient(client.id)}>
+                      <div className="db-checkbox" onClick={(e) => { e.stopPropagation(); toggleSelectClient(client.id); }}>
                         {isSelected ? <CheckSquare size={16} className="checked" /> : <Square size={16} />}
                       </div>
                     </td>
@@ -343,10 +471,33 @@ export default function ClientsDatabaseTab() {
                     <td>
                       <span className="db-tier-badge" style={{ background: tierInfo.color }}>{tierInfo.label}</span>
                     </td>
+                    <td className="db-td-score">
+                      {scoreMap[client.id] != null
+                        ? <span className={`db-score ${scoreMap[client.id] >= 7 ? 'good' : scoreMap[client.id] >= 4 ? 'fair' : 'poor'}`}>{scoreMap[client.id].toFixed(1)}</span>
+                        : <span className="db-score-none">--</span>
+                      }
+                    </td>
+                    <td>
+                      <span className="db-source-badge" style={{
+                        background: client.sourceProspectId ? '#ecfdf5' : client.source === 'self-registered' ? '#eff6ff' : '#f3f4f6',
+                        color: client.sourceProspectId ? '#059669' : client.source === 'self-registered' ? '#2563eb' : '#6b7280',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {client.sourceProspectId ? 'Pipeline' : client.source === 'self-registered' ? 'Self-registered' : 'Manual'}
+                      </span>
+                    </td>
                     <td className="db-td-count">{(client.projects || []).length}</td>
                     <td className="db-td-count">{(client.invoices || []).length}</td>
                     <td className="db-td-date">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '-'}</td>
+                    <td className="db-td-expand">
+                      <ChevronRight size={16} style={{ transform: expandedClientId === client.id ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </td>
                   </tr>
+                  </React.Fragment>
                 );
               })
             )}
@@ -386,6 +537,318 @@ export default function ClientsDatabaseTab() {
           >
             Last
           </button>
+        </div>
+      )}
+
+      {/* Full-Page Detail Overlay */}
+      {expandedClientId && expandedData && (
+        <div className="db-overlay" onClick={() => setExpandedClientId(null)}>
+          <div className="db-overlay-panel" onClick={(e) => e.stopPropagation()}>
+            {/* Overlay Header */}
+            <div className="db-overlay-header">
+              <div className="db-overlay-title-row">
+                <div>
+                  <h2>{expandedData.client.name}</h2>
+                  {expandedData.client.businessName && <p className="db-overlay-business">{expandedData.client.businessName}</p>}
+                </div>
+                <div className="db-overlay-header-actions">
+                  <div className="db-detail-badges">
+                    <span className={`db-detail-badge ${expandedData.client.status}`}>
+                      {expandedData.client.status === 'vip' ? 'VIP' : expandedData.client.status?.charAt(0).toUpperCase() + expandedData.client.status?.slice(1)}
+                    </span>
+                    {expandedData.client.tier && (
+                      <span className="db-tier-badge" style={{ background: (SUBSCRIPTION_TIERS[expandedData.client.tier] || {}).color }}>
+                        {(SUBSCRIPTION_TIERS[expandedData.client.tier] || {}).label || expandedData.client.tier}
+                      </span>
+                    )}
+                    {expandedData.client.sourceProspectId && <span className="db-detail-badge pipeline">Pipeline</span>}
+                  </div>
+                  <button className="btn btn-sm btn-outline" onClick={() => setExpandedClientId(null)} aria-label="Close detail view">
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Contact & POC Info */}
+              <div className="db-overlay-contact">
+                {expandedData.poc.email && <span><Mail size={14} /> {expandedData.poc.email}</span>}
+                {expandedData.poc.phone && <span><Phone size={14} /> {expandedData.poc.phone}</span>}
+                {expandedData.poc.website && <span><Globe size={14} /> {expandedData.poc.website}</span>}
+                {expandedData.poc.address && <span><MapPin size={14} /> {expandedData.poc.address}</span>}
+                {expandedData.poc.decisionMaker && <span><User size={14} /> Decision Maker: {expandedData.poc.decisionMaker}</span>}
+                {expandedData.poc.directEmail && expandedData.poc.directEmail !== expandedData.poc.email && (
+                  <span><Mail size={14} /> Direct: {expandedData.poc.directEmail}</span>
+                )}
+                {expandedData.client.createdAt && <span><Calendar size={14} /> Client since {new Date(expandedData.client.createdAt).toLocaleDateString()}</span>}
+              </div>
+            </div>
+
+            {/* Quick Stats Row */}
+            <div className="db-detail-stats">
+              <div className="db-detail-stat">
+                <BarChart3 size={16} />
+                <div><strong>{expandedData.overallScore || '--'}</strong><span>Health Score</span></div>
+              </div>
+              <div className="db-detail-stat">
+                <DollarSign size={16} />
+                <div><strong>${expandedData.totalRevenue.toLocaleString()}</strong><span>Total Revenue</span></div>
+              </div>
+              <div className="db-detail-stat">
+                <Briefcase size={16} />
+                <div><strong>{expandedData.activeProjects.length}/{expandedData.projects.length}</strong><span>Active/Total Projects</span></div>
+              </div>
+              <div className="db-detail-stat">
+                <FileText size={16} />
+                <div><strong>${expandedData.paidTotal.toLocaleString()}</strong><span>Paid of ${expandedData.invoiceTotal.toLocaleString()}</span></div>
+              </div>
+              <div className="db-detail-stat">
+                <Crosshair size={16} />
+                <div><strong>{expandedData.interventions.length}</strong><span>Interventions</span></div>
+              </div>
+              <div className="db-detail-stat">
+                <Lightbulb size={16} />
+                <div><strong>{expandedData.recs.length}</strong><span>Recommendations</span></div>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="db-overlay-body">
+              <div className="db-detail-grid">
+
+                {/* Business Intel from DB */}
+                {expandedData.bizEntry && (
+                  <div className="db-detail-section">
+                    <h4><Building2 size={16} /> Business Intelligence</h4>
+                    <div className="db-detail-kv">
+                      {expandedData.bizEntry.type && <div><span>Business Type:</span><strong>{expandedData.bizEntry.type}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.industry && <div><span>Industry:</span><strong>{expandedData.bizEntry.enrichment.industry}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.revenue && <div><span>Est. Revenue:</span><strong>{expandedData.bizEntry.enrichment.revenue}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.employees && <div><span>Employees:</span><strong>{expandedData.bizEntry.enrichment.employees}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.yearsInBusiness && <div><span>Years in Business:</span><strong>{expandedData.bizEntry.enrichment.yearsInBusiness}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.googleRating && <div><span>Google Rating:</span><strong>{expandedData.bizEntry.enrichment.googleRating} ({expandedData.bizEntry.enrichment.googleReviews || 0} reviews)</strong></div>}
+                      {expandedData.bizEntry.enrichment?.yelpRating && <div><span>Yelp Rating:</span><strong>{expandedData.bizEntry.enrichment.yelpRating}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.pipelineStatus && <div><span>Pipeline Status:</span><strong>{expandedData.bizEntry.enrichment.pipelineStatus}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.dealValue > 0 && <div><span>Deal Value:</span><strong>${Number(expandedData.bizEntry.enrichment.dealValue).toLocaleString()}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.serviceInterest && <div><span>Service Interest:</span><strong>{expandedData.bizEntry.enrichment.serviceInterest}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.sentToPipelineAt && <div><span>Pipeline Date:</span><strong>{new Date(expandedData.bizEntry.enrichment.sentToPipelineAt).toLocaleDateString()}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.convertedToClientAt && <div><span>Converted:</span><strong>{new Date(expandedData.bizEntry.enrichment.convertedToClientAt).toLocaleDateString()}</strong></div>}
+                      {expandedData.bizEntry.enrichment?.notes && <div className="db-detail-full"><span>Intel Notes:</span><p>{expandedData.bizEntry.enrichment.notes}</p></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Source Prospect */}
+                {expandedData.sourceProspect && (
+                  <div className="db-detail-section">
+                    <h4><Briefcase size={16} /> Pipeline Origin</h4>
+                    <div className="db-detail-kv">
+                      <div><span>Stage Reached:</span><strong>{expandedData.sourceProspect.stage}</strong></div>
+                      {expandedData.sourceProspect.dealValue > 0 && <div><span>Deal Value:</span><strong>${expandedData.sourceProspect.dealValue.toLocaleString()}</strong></div>}
+                      {expandedData.sourceProspect.source && <div><span>Lead Source:</span><strong>{expandedData.sourceProspect.source}</strong></div>}
+                      <div><span>Created:</span><strong>{new Date(expandedData.sourceProspect.createdAt).toLocaleDateString()}</strong></div>
+                      {expandedData.sourceProspect.closedAt && <div><span>Closed:</span><strong>{new Date(expandedData.sourceProspect.closedAt).toLocaleDateString()}</strong></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Intake Summary */}
+                {expandedData.intake && (
+                  <div className="db-detail-section">
+                    <h4><FolderOpen size={16} /> Business Intake</h4>
+                    <div className="db-detail-kv">
+                      {expandedData.intake.industry && <div><span>Industry:</span><strong>{expandedData.intake.industry}</strong></div>}
+                      {expandedData.intake.annual_revenue_range && <div><span>Revenue Range:</span><strong>{expandedData.intake.annual_revenue_range}</strong></div>}
+                      {expandedData.intake.employee_count_range && <div><span>Employees:</span><strong>{expandedData.intake.employee_count_range}</strong></div>}
+                      {expandedData.intake.current_website_url && <div><span>Website:</span><strong>{expandedData.intake.current_website_url}</strong></div>}
+                      {expandedData.intake.budget_range && <div><span>Budget:</span><strong>{expandedData.intake.budget_range}</strong></div>}
+                      {expandedData.intake.pain_points && <div className="db-detail-full"><span>Pain Points:</span><p>{expandedData.intake.pain_points}</p></div>}
+                      {expandedData.intake.goals && <div className="db-detail-full"><span>Goals:</span><p>{expandedData.intake.goals}</p></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Audit History */}
+                {expandedData.audits.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><BarChart3 size={16} /> Audit History ({expandedData.audits.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.audits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map(audit => {
+                        const vals = Object.values(audit.scores || {}).filter(v => typeof v === 'number' && v > 0);
+                        const avg = vals.length ? (vals.reduce((x, y) => x + y, 0) / vals.length).toFixed(1) : '--';
+                        return (
+                          <div key={audit.id} className="db-detail-list-item">
+                            <span className="db-detail-list-date">{new Date(audit.createdAt).toLocaleDateString()}</span>
+                            <span className={`db-detail-score ${Number(avg) >= 7 ? 'good' : Number(avg) >= 4 ? 'fair' : 'poor'}`}>{avg}/10</span>
+                            <span className={`db-detail-badge ${audit.status}`}>{audit.status}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Projects */}
+                {expandedData.projects.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><Briefcase size={16} /> Projects ({expandedData.projects.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.projects.map(p => (
+                        <div key={p.id} className="db-detail-list-item">
+                          <span className="db-detail-list-title">{p.title}</span>
+                          <span className={`db-detail-badge ${p.status}`}>{p.status?.replace('-', ' ')}</span>
+                          {p.progress != null && <span className="db-detail-progress">{p.progress}%</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Invoices */}
+                {expandedData.invoices.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><FileText size={16} /> Invoices ({expandedData.invoices.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.invoices.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).map(inv => (
+                        <div key={inv.id} className="db-detail-list-item">
+                          <span className="db-detail-list-title">{inv.title || 'Invoice'}</span>
+                          <span className="db-detail-list-amount">${(inv.amount || 0).toLocaleString()}</span>
+                          <span className={`db-detail-badge ${inv.status}`}>{inv.status}</span>
+                          {inv.dueDate && <span className="db-detail-list-date">{new Date(inv.dueDate).toLocaleDateString()}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Growth Targets */}
+                {expandedData.targets.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><Target size={16} /> Growth Targets ({expandedData.targets.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.targets.map(t => {
+                        const pct = t.target > 0 ? Math.round((t.current / t.target) * 100) : 0;
+                        return (
+                          <div key={t.id} className="db-detail-list-item">
+                            <span className="db-detail-list-title">{t.name}</span>
+                            <div className="db-detail-target-bar">
+                              <div className="db-detail-target-fill" style={{ width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? '#22c55e' : pct >= 50 ? '#3b82f6' : '#f59e0b' }} />
+                            </div>
+                            <span className="db-detail-target-pct">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                {expandedData.recs.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><Lightbulb size={16} /> Recommendations ({expandedData.recs.length})</h4>
+                    <div className="db-detail-rec-summary">
+                      {['proposed','accepted','in_progress','completed','declined'].map(status => {
+                        const count = expandedData.recs.filter(r => r.status === status).length;
+                        if (count === 0) return null;
+                        return <span key={status} className={`db-detail-badge ${status}`}>{count} {status.replace('_', ' ')}</span>;
+                      })}
+                    </div>
+                    <div className="db-detail-list">
+                      {expandedData.recs.map(r => (
+                        <div key={r.id} className="db-detail-list-item">
+                          <span className="db-detail-list-title">{r.title}</span>
+                          <span className={`db-detail-badge ${r.priority}`}>{r.priority}</span>
+                          <span className={`db-detail-badge ${r.status}`}>{r.status?.replace('_', ' ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Interventions */}
+                {expandedData.interventions.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><Crosshair size={16} /> Interventions ({expandedData.interventions.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.interventions.map(iv => {
+                        const revChange = (iv.afterMetrics?.revenue || 0) - (iv.beforeMetrics?.revenue || 0);
+                        const roiVal = iv.cost > 0 ? ((revChange - iv.cost) / iv.cost * 100).toFixed(0) : null;
+                        return (
+                          <div key={iv.id} className="db-detail-list-item">
+                            <span className="db-detail-list-title">{iv.title}</span>
+                            <span className={`db-detail-badge ${iv.status}`}>{iv.status?.replace('_', ' ')}</span>
+                            {iv.cost > 0 && <span className="db-detail-list-amount">${iv.cost.toLocaleString()}</span>}
+                            {roiVal && <span className={`db-detail-roi ${Number(roiVal) >= 0 ? 'positive' : 'negative'}`}>{roiVal}% ROI</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Financial Summary */}
+                {expandedData.finEntries.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><DollarSign size={16} /> Financial History ({expandedData.finEntries.length} months)</h4>
+                    <div className="db-detail-kv">
+                      <div><span>Total Revenue:</span><strong style={{ color: '#22c55e' }}>${expandedData.totalRevenue.toLocaleString()}</strong></div>
+                      <div><span>Total Expenses:</span><strong style={{ color: '#ef4444' }}>${expandedData.totalExpenses.toLocaleString()}</strong></div>
+                      <div><span>Net Profit:</span><strong style={{ color: expandedData.totalRevenue - expandedData.totalExpenses >= 0 ? '#22c55e' : '#ef4444' }}>${(expandedData.totalRevenue - expandedData.totalExpenses).toLocaleString()}</strong></div>
+                      <div><span>Avg Revenue/Mo:</span><strong>${Math.round(expandedData.totalRevenue / expandedData.finEntries.length).toLocaleString()}</strong></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {expandedData.notes.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><MessageSquare size={16} /> Notes ({expandedData.notes.length})</h4>
+                    <div className="db-detail-notes">
+                      {expandedData.notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(n => (
+                        <div key={n.id} className="db-detail-note">
+                          <p>{n.text}</p>
+                          <span className="db-detail-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Documents */}
+                {expandedData.documents.length > 0 && (
+                  <div className="db-detail-section">
+                    <h4><FolderOpen size={16} /> Documents ({expandedData.documents.length})</h4>
+                    <div className="db-detail-list">
+                      {expandedData.documents.map(d => (
+                        <div key={d.id} className="db-detail-list-item">
+                          <span className="db-detail-list-title">{d.name}</span>
+                          <span className="db-detail-badge">{d.type}</span>
+                          {d.fileSize && <span className="db-detail-list-date">{(d.fileSize / 1024).toFixed(0)} KB</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {expandedData.tags.length > 0 && (
+                  <div className="db-detail-section db-detail-section-sm">
+                    <h4>Tags</h4>
+                    <div className="db-detail-tags">
+                      {expandedData.tags.map((tag, i) => <span key={i} className="db-detail-tag">{tag}</span>)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!expandedData.intake && !expandedData.bizEntry && expandedData.audits.length === 0 && expandedData.finEntries.length === 0 && expandedData.recs.length === 0 && expandedData.interventions.length === 0 && expandedData.targets.length === 0 && expandedData.notes.length === 0 && expandedData.projects.length === 0 && expandedData.invoices.length === 0 && (
+                  <div className="db-detail-empty">
+                    <Activity size={24} />
+                    <p>No detailed data available for this client yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

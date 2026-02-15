@@ -17,3 +17,10 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+// Dismiss the HTML loader
+const loader = document.getElementById('app-loader');
+if (loader) {
+  loader.classList.add('hide');
+  setTimeout(() => loader.remove(), 600);
+}

@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CalendarDays, Clock, AlertCircle, UserPlus,
   PhoneForwarded, CheckCircle, DollarSign, TrendingUp, Briefcase,
   Receipt, CreditCard, Timer, RefreshCw, Activity,
-  ArrowRight, Zap, BarChart3, Search, History,
+  ArrowRight, Zap, BarChart3, Search, History, Trash2,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { StatusBadge, formatDisplayDate } from './adminUtils';
@@ -11,8 +11,10 @@ import { StatusBadge, formatDisplayDate } from './adminUtils';
 export default function DashboardHomeTab({ onNavigate }) {
   const {
     appointments, clients, payments, prospects,
-    activityLog,
+    activityLog, clearActivityLog,
   } = useAppContext();
+
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
@@ -284,6 +286,19 @@ export default function DashboardHomeTab({ onNavigate }) {
         <div className="dashboard-card">
           <div className="dashboard-card-header">
             <h3><History size={18} /> Recent Activity</h3>
+            {recentActivity.length > 0 && (
+              clearConfirm ? (
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Clear all?</span>
+                  <button className="btn btn-sm btn-delete" onClick={() => { clearActivityLog(); setClearConfirm(false); }}>Yes</button>
+                  <button className="btn btn-sm btn-outline" onClick={() => setClearConfirm(false)}>No</button>
+                </div>
+              ) : (
+                <button className="btn btn-sm btn-outline" onClick={() => setClearConfirm(true)}>
+                  <Trash2 size={14} /> Clear
+                </button>
+              )
+            )}
           </div>
           <div className="dashboard-card-content">
             {recentActivity.length === 0 ? (

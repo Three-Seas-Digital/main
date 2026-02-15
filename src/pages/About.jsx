@@ -1,29 +1,89 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Users } from 'lucide-react';
+import { ArrowRight, Shield, Clock, CheckCircle, BarChart3, Target, Lock, Database, Cog, TrendingUp, Zap } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
 
-const values = [
+const commitments = [
   {
-    title: 'Innovation First',
-    desc: 'We stay ahead of the curve, adopting new technologies and approaches to deliver cutting-edge solutions.',
+    title: '99.9% Platform Uptime',
+    desc: 'SLA-backed availability across all managed platforms with real-time monitoring and incident response.',
+    icon: Shield,
   },
   {
-    title: 'Client Partnership',
-    desc: 'We treat every project as a partnership. Your success is our success, and we go the extra mile to ensure it.',
+    title: '48-Hour Response Guarantee',
+    desc: 'Critical issues addressed within 4 hours. Standard requests within 48. No exceptions.',
+    icon: Clock,
   },
   {
-    title: 'Quality Craftsmanship',
-    desc: 'Every pixel, every line of code, every strategy is crafted with precision and care.',
+    title: 'SOC 2 Compliant Processes',
+    desc: 'Enterprise-grade security practices, data governance protocols, and regulatory compliance built into every engagement.',
+    icon: Lock,
   },
   {
-    title: 'Transparent Communication',
-    desc: 'No jargon, no surprises. We keep you informed and involved at every stage of the process.',
+    title: 'Quarterly Strategic Reviews',
+    desc: 'Data-driven performance reviews with actionable insights, ROI analysis, and roadmap adjustments.',
+    icon: BarChart3,
+  },
+];
+
+const capabilities = [
+  {
+    title: 'Digital Transformation',
+    desc: 'End-to-end infrastructure modernization with measurable business outcomes.',
+    icon: Zap,
+  },
+  {
+    title: 'Business Intelligence',
+    desc: 'Data strategy and analytics platforms that drive executive decision-making.',
+    icon: TrendingUp,
+  },
+  {
+    title: 'Platform Engineering',
+    desc: 'Scalable architecture designed for high-availability enterprise workloads.',
+    icon: Cog,
+  },
+  {
+    title: 'Security & Compliance',
+    desc: 'Regulatory adherence frameworks including SOC 2, GDPR, and industry-specific standards.',
+    icon: Shield,
+  },
+  {
+    title: 'Data Strategy',
+    desc: 'Integration, governance, and analytics infrastructure for enterprise data ecosystems.',
+    icon: Database,
+  },
+  {
+    title: 'Growth Operations',
+    desc: 'Revenue optimization through systematic performance measurement and continuous improvement.',
+    icon: Target,
+  },
+];
+
+const processSteps = [
+  {
+    number: '01',
+    title: 'Audit',
+    desc: 'Comprehensive digital infrastructure assessment',
+  },
+  {
+    number: '02',
+    title: 'Strategy',
+    desc: 'Prioritized roadmap with ROI projections',
+  },
+  {
+    number: '03',
+    title: 'Execute',
+    desc: 'Precision implementation with milestone tracking',
+  },
+  {
+    number: '04',
+    title: 'Optimize',
+    desc: 'Continuous improvement through data intelligence',
   },
 ];
 
 export default function About() {
-  useEffect(() => { document.title = 'About Us — Three Seas Digital'; }, []);
+  useEffect(() => { document.title = 'Philosophy & Methodology — Three Seas Digital'; }, []);
   return (
     <div className="page">
       {/* Hero */}
@@ -31,89 +91,108 @@ export default function About() {
         <div className="page-hero-bg">
           <FallbackImg
             src="/images/about-hero.jpg"
-            alt="About Us"
+            alt="Our Methodology"
           />
           <div className="hero-overlay" />
         </div>
         <div className="page-hero-content">
-          <h1>About Us</h1>
-          <p>The people and values behind Three Seas Digital</p>
+          <h1>The Philosophy</h1>
+          <p>Precision-engineered digital solutions for enterprise scale</p>
         </div>
       </section>
 
-      {/* Our Story */}
+      {/* Our Methodology */}
       <section className="section">
         <div className="container">
           <div className="about-story-grid">
             <div className="about-story-text">
-              <h2>Our Story</h2>
+              <h2>Our Methodology</h2>
               <p>
-                Three Seas Digital was founded with a simple belief: every
-                business deserves a powerful digital presence. What started as a
-                small team with big ambitions has grown into a full-service
-                digital agency serving clients across industries.
+                Enterprises lose millions annually to fragmented digital infrastructure.
+                We apply a systematic methodology to eliminate that friction — from audit
+                through implementation to continuous optimization.
               </p>
               <p>
-                We've navigated the ever-changing digital landscape together,
-                learning, adapting, and perfecting our craft along the way. Our
-                name reflects our reach — spanning seas to connect brands with
-                their audiences wherever they are.
+                Every engagement begins with a comprehensive digital audit. We map your
+                current infrastructure, identify friction points, and deliver a prioritized
+                roadmap with measurable ROI projections.
               </p>
               <p>
-                Today, we combine creativity with technology to build digital
-                experiences that don't just look great — they deliver real
-                results.
+                Our approach combines technical precision with business intelligence,
+                ensuring every solution delivers quantifiable value to stakeholders while
+                maintaining institutional standards for security, compliance, and scale.
               </p>
             </div>
             <div className="about-story-image">
               <FallbackImg
                 src="/images/about-team.jpg"
-                alt="Our office"
+                alt="Enterprise methodology"
               />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Our Values */}
+      {/* Enterprise Commitments */}
       <section className="section values-section">
         <div className="container">
           <div className="section-header">
-            <h2>Our Values</h2>
-            <p>The principles that guide everything we do</p>
+            <h2>Enterprise Commitments</h2>
+            <p>SLA-backed guarantees for mission-critical operations</p>
           </div>
           <div className="values-grid">
-            {values.map((v, i) => (
-              <div key={v.title} className="value-card">
-                <div className="value-number">{String(i + 1).padStart(2, '0')}</div>
-                <h3>{v.title}</h3>
-                <p>{v.desc}</p>
-              </div>
-            ))}
+            {commitments.map((c) => {
+              const Icon = c.icon;
+              return (
+                <div key={c.title} className="value-card">
+                  <div className="value-icon"><Icon size={32} /></div>
+                  <h3>{c.title}</h3>
+                  <p>{c.desc}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Meet the Team */}
-      <section className="section">
+      {/* Credentials & Capabilities */}
+      <section className="section credentials-section">
         <div className="container">
           <div className="section-header">
-            <h2>Our Team</h2>
-            <p>Dedicated professionals building your digital future</p>
+            <h2>Credentials & Capabilities</h2>
+            <p>Full-spectrum digital transformation for enterprise organizations</p>
           </div>
-          <div className="team-growing">
-            <div className="team-growing-icon"><Users size={48} /></div>
-            <h3>A Growing Team</h3>
-            <p>
-              Three Seas Digital is a lean, focused agency where every team member
-              wears multiple hats. We bring together expertise in design, development,
-              strategy, and marketing to deliver results that matter.
-            </p>
-            <p>
-              Interested in working with us?{' '}
-              <Link to="/contact">Get in touch</Link> — we're always open to
-              collaborating with talented people.
-            </p>
+          <div className="capabilities-grid">
+            {capabilities.map((cap) => {
+              const Icon = cap.icon;
+              return (
+                <div key={cap.title} className="capability-card">
+                  <div className="capability-icon"><Icon size={28} /></div>
+                  <h3>{cap.title}</h3>
+                  <p>{cap.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Our Process */}
+      <section className="section process-section">
+        <div className="container">
+          <div className="section-header">
+            <h2>Our Process</h2>
+            <p>A systematic approach to digital transformation</p>
+          </div>
+          <div className="process-steps">
+            {processSteps.map((step, i) => (
+              <div key={step.number} className="process-step">
+                <div className="process-step-number">{step.number}</div>
+                <h3>{step.title}</h3>
+                <p>{step.desc}</p>
+                {i < processSteps.length - 1 && <div className="process-connector" />}
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -121,13 +200,13 @@ export default function About() {
       {/* CTA */}
       <section className="cta-section">
         <div className="container">
-          <h2>Want to Join Our Crew?</h2>
+          <h2>Begin Your Digital Audit</h2>
           <p>
-            We're always looking for talented individuals who share our passion
-            for great digital work.
+            Identify infrastructure gaps, quantify ROI opportunities, and receive
+            a prioritized roadmap tailored to your enterprise objectives.
           </p>
           <Link to="/contact" className="btn btn-primary btn-lg">
-            Get in Touch <ArrowRight size={18} />
+            Schedule Consultation <ArrowRight size={18} />
           </Link>
         </div>
       </section>

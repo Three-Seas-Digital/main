@@ -13,8 +13,10 @@ export default function UserManagement() {
   const [error, setError] = useState('');
   const [showPasswords, setShowPasswords] = useState({});
   const [approveRoles, setApproveRoles] = useState({});
-  const [form, setForm] = useState({ username: '', password: '', name: '', email: '', role: 'staff' });
-  const resetForm = () => { setForm({ username: '', password: '', name: '', email: '', role: 'staff' }); setShowForm(false); setEditingId(null); setError(''); };
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [rejectConfirm, setRejectConfirm] = useState(null);
+  const [form, setForm] = useState({ username: '', password: '', name: '', email: '', role: 'developer' });
+  const resetForm = () => { setForm({ username: '', password: '', name: '', email: '', role: 'developer' }); setShowForm(false); setEditingId(null); setError(''); };
   const handleSubmit = (e) => {
     e.preventDefault(); setError('');
     if (editingId) {
@@ -35,7 +37,7 @@ export default function UserManagement() {
   const rejectedUsers = useMemo(() => users.filter((u) => u.status === 'rejected'), [users]);
 
   const handleApprove = (userId) => {
-    const role = approveRoles[userId] || 'staff';
+    const role = approveRoles[userId] || 'developer';
     approveUser(userId, role);
     setApproveRoles((prev) => { const next = { ...prev }; delete next[userId]; return next; });
   };
@@ -73,7 +75,7 @@ export default function UserManagement() {
                   <div className="pending-role-select">
                     <label>Assign Role:</label>
                     <select
-                      value={approveRoles[user.id] || 'staff'}
+                      value={approveRoles[user.id] || 'developer'}
                       onChange={(e) => setApproveRoles((prev) => ({ ...prev, [user.id]: e.target.value }))}
                       className="filter-select"
                     >
@@ -85,9 +87,17 @@ export default function UserManagement() {
                   <button className="btn btn-sm btn-confirm" onClick={() => handleApprove(user.id)}>
                     <CheckCircle size={14} /> Approve
                   </button>
-                  <button className="btn btn-sm btn-delete" onClick={() => rejectUser(user.id)}>
-                    <Ban size={14} /> Reject
-                  </button>
+                  {rejectConfirm === user.id ? (
+                    <div className="delete-confirm-inline">
+                      <span>Reject?</span>
+                      <button className="btn btn-sm btn-delete" onClick={() => { rejectUser(user.id); setRejectConfirm(null); }}>Yes</button>
+                      <button className="btn btn-sm btn-outline" onClick={() => setRejectConfirm(null)}>No</button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-sm btn-delete" onClick={() => setRejectConfirm(user.id)}>
+                      <Ban size={14} /> Reject
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -117,7 +127,7 @@ export default function UserManagement() {
                   <div className="pending-role-select">
                     <label>Assign Role:</label>
                     <select
-                      value={approveRoles[user.id] || 'staff'}
+                      value={approveRoles[user.id] || 'developer'}
                       onChange={(e) => setApproveRoles((prev) => ({ ...prev, [user.id]: e.target.value }))}
                       className="filter-select"
                     >
@@ -129,9 +139,17 @@ export default function UserManagement() {
                   <button className="btn btn-sm btn-confirm" onClick={() => handleApprove(user.id)}>
                     <CheckCircle size={14} /> Approve
                   </button>
-                  <button className="btn btn-sm btn-delete" onClick={() => deleteUser(user.id)}>
-                    <Trash2 size={14} /> Remove
-                  </button>
+                  {deleteConfirm === `rejected-${user.id}` ? (
+                    <div className="delete-confirm-inline">
+                      <span>Remove?</span>
+                      <button className="btn btn-sm btn-delete" onClick={() => { deleteUser(user.id); setDeleteConfirm(null); }}>Yes</button>
+                      <button className="btn btn-sm btn-outline" onClick={() => setDeleteConfirm(null)}>No</button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-sm btn-delete" onClick={() => setDeleteConfirm(`rejected-${user.id}`)}>
+                      <Trash2 size={14} /> Remove
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -195,7 +213,17 @@ export default function UserManagement() {
             </div>
             <div className="user-card-actions">
               <button className="btn btn-sm btn-outline" onClick={() => startEdit(user)}><Edit3 size={14} /> Edit</button>
-              {user.id !== '1' && user.id !== currentUser?.id && <button className="btn btn-sm btn-delete" onClick={() => deleteUser(user.id)}><Trash2 size={14} /> Delete</button>}
+              {user.id !== '1' && user.id !== currentUser?.id && (
+                deleteConfirm === user.id ? (
+                  <div className="delete-confirm-inline">
+                    <span>Delete?</span>
+                    <button className="btn btn-sm btn-delete" onClick={() => { deleteUser(user.id); setDeleteConfirm(null); }}>Yes</button>
+                    <button className="btn btn-sm btn-outline" onClick={() => setDeleteConfirm(null)}>No</button>
+                  </div>
+                ) : (
+                  <button className="btn btn-sm btn-delete" onClick={() => setDeleteConfirm(user.id)}><Trash2 size={14} /> Delete</button>
+                )
+              )}
             </div>
           </div>
         ))}

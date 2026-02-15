@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Mail, Lock, User, Check, Zap, Eye, EyeOff,
   LogOut, Printer, DollarSign, FolderKanban, FileText,
@@ -6,10 +6,27 @@ import {
   Settings, Phone, MapPin, Calendar, Clock, ArrowLeft,
   MessageSquare, Send, HelpCircle, ChevronDown, ChevronUp,
   CheckCircle, Circle, AlertCircle, Milestone, Users,
+  BarChart3, TrendingUp, Lightbulb, Bell, Star, Activity, Crosshair,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { SITE_INFO } from '../constants';
+import { SITE_INFO, escapeHtml } from '../constants';
+
+/* ===== LAZY-LOADED PORTAL COMPONENTS ===== */
+const PortalDashboard = lazy(() => import('../components/portal/Dashboard'));
+const PortalScorecard = lazy(() => import('../components/portal/Scorecard'));
+const PortalGrowthMetrics = lazy(() => import('../components/portal/GrowthMetrics'));
+const PortalRecommendations = lazy(() => import('../components/portal/Recommendations'));
+const PortalServiceRequests = lazy(() => import('../components/portal/ServiceRequests'));
+const PortalFeedback = lazy(() => import('../components/portal/Feedback'));
+const PortalInterventions = lazy(() => import('../components/portal/Interventions'));
+const PortalRevenueView = lazy(() => import('../components/portal/RevenueView'));
+const PortalExpenseView = lazy(() => import('../components/portal/ExpenseView'));
+const PortalProfitabilityView = lazy(() => import('../components/portal/ProfitabilityView'));
+const PortalFinancialReports = lazy(() => import('../components/portal/FinancialReports'));
+const PortalOnboarding = lazy(() => import('../components/portal/Onboarding'));
+const PortalDocuments = lazy(() => import('../components/portal/Documents'));
 
 /* ===== TIER BADGE ===== */
 function TierBadge({ tier }) {
@@ -26,7 +43,7 @@ function TierBadge({ tier }) {
 function SignUpStep() {
   const { registerClient, checkClientEmail, clientLogin, login } = useAppContext();
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [profileStep, setProfileStep] = useState(false);
@@ -101,20 +118,20 @@ function SignUpStep() {
 
   if (registrationComplete) {
     return (
-      <div className="signup-card registration-pending-card">
-        <div className="signup-header">
-          <div className="pending-icon">
-            <Clock size={48} />
+      <div className="portal-auth-card">
+        <div className="portal-auth-brand">
+          <div className="portal-auth-logo">Three Seas Digital</div>
+          <div className="portal-auth-subtitle">CLIENT PORTAL</div>
+        </div>
+        <div className="portal-auth-pending">
+          <div className="portal-auth-pending-icon">
+            <Clock size={40} />
           </div>
-          <h2>Registration Submitted!</h2>
-          <p>Your account is pending approval</p>
+          <h2>Access Request Submitted</h2>
+          <p>Your access request has been submitted. Our team will review and respond within 24 hours.</p>
         </div>
-        <div className="pending-message">
-          <p>Thank you for registering! An administrator will review your application and approve your account.</p>
-          <p>You will be able to log in once your account has been approved.</p>
-        </div>
-        <button className="btn btn-outline" onClick={() => { setRegistrationComplete(false); setProfileStep(false); setIsLogin(true); }}>
-          <ArrowLeft size={16} /> Back to Login
+        <button className="portal-auth-btn portal-auth-btn-secondary" onClick={() => { setRegistrationComplete(false); setProfileStep(false); setIsLogin(true); }}>
+          Return to Sign In
         </button>
       </div>
     );
@@ -122,55 +139,42 @@ function SignUpStep() {
 
   if (profileStep) {
     return (
-      <div className="signup-card profile-gate-card">
-        <div className="signup-header">
-          <div className="profile-gate-icon">
-            <User size={28} />
-          </div>
-          <h2>Complete Your Profile</h2>
-          <p>Please fill in all required fields to continue</p>
+      <div className="portal-auth-card">
+        <div className="portal-auth-brand">
+          <div className="portal-auth-logo">Three Seas Digital</div>
+          <div className="portal-auth-subtitle">COMPLETE YOUR PROFILE</div>
         </div>
-        {profileError && <div className="signup-error">{profileError}</div>}
-        <form onSubmit={handleProfileSubmit} className="signup-form">
-          <div className="form-group">
-            <label>Business Name *</label>
-            <div className="input-icon-wrap">
-              <Building2 size={16} />
-              <input type="text" value={profileData.businessName} onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })} placeholder="Your company name" required />
+        {profileError && <div className="portal-auth-error">{profileError}</div>}
+        <form onSubmit={handleProfileSubmit} className="portal-auth-form">
+          <div className="portal-auth-form-group">
+            <label>Business Name</label>
+            <input type="text" className="portal-auth-input" value={profileData.businessName} onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })} placeholder="Your company name" required />
+          </div>
+          <div className="portal-auth-form-group">
+            <label>Phone</label>
+            <input type="tel" className="portal-auth-input" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} placeholder="(555) 123-4567" required />
+          </div>
+          <div className="portal-auth-form-group">
+            <label>Street Address</label>
+            <input type="text" className="portal-auth-input" value={profileData.street} onChange={(e) => setProfileData({ ...profileData, street: e.target.value })} placeholder="123 Main St" required />
+          </div>
+          <div className="portal-auth-address-row">
+            <div className="portal-auth-form-group">
+              <label>City</label>
+              <input type="text" className="portal-auth-input" value={profileData.city} onChange={(e) => setProfileData({ ...profileData, city: e.target.value })} placeholder="City" required />
+            </div>
+            <div className="portal-auth-form-group">
+              <label>State</label>
+              <input type="text" className="portal-auth-input" value={profileData.state} onChange={(e) => setProfileData({ ...profileData, state: e.target.value })} placeholder="State" required />
+            </div>
+            <div className="portal-auth-form-group">
+              <label>Zip</label>
+              <input type="text" className="portal-auth-input" value={profileData.zip} onChange={(e) => setProfileData({ ...profileData, zip: e.target.value })} placeholder="12345" required />
             </div>
           </div>
-          <div className="form-group">
-            <label>Phone *</label>
-            <div className="input-icon-wrap">
-              <Phone size={16} />
-              <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} placeholder="(555) 123-4567" required />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Street Address *</label>
-            <div className="input-icon-wrap">
-              <MapPin size={16} />
-              <input type="text" value={profileData.street} onChange={(e) => setProfileData({ ...profileData, street: e.target.value })} placeholder="123 Main St" required />
-            </div>
-          </div>
-          <div className="signup-address-row">
-            <div className="form-group">
-              <label>City *</label>
-              <input type="text" value={profileData.city} onChange={(e) => setProfileData({ ...profileData, city: e.target.value })} placeholder="City" required />
-            </div>
-            <div className="form-group">
-              <label>State *</label>
-              <input type="text" value={profileData.state} onChange={(e) => setProfileData({ ...profileData, state: e.target.value })} placeholder="State" required />
-            </div>
-            <div className="form-group">
-              <label>Zip Code *</label>
-              <input type="text" value={profileData.zip} onChange={(e) => setProfileData({ ...profileData, zip: e.target.value })} placeholder="12345" required />
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary btn-full">Save & Continue</button>
+          <button type="submit" className="portal-auth-btn">Continue</button>
         </form>
-        <button type="button" className="profile-gate-back" onClick={() => { setProfileStep(false); setPendingRegistration(null); }}>
-          <Lock size={14} />
+        <button type="button" className="portal-auth-link" onClick={() => { setProfileStep(false); setPendingRegistration(null); }}>
           Back to Sign Up
         </button>
       </div>
@@ -179,123 +183,118 @@ function SignUpStep() {
 
   if (isLogin) {
     return (
-      <div className="signup-card">
-        <div className="signup-header">
-          <Lock size={28} />
-          <h2>Welcome Back</h2>
-          <p>Sign in to your account to continue</p>
+      <div className="portal-auth-card">
+        <div className="portal-auth-brand">
+          <div className="portal-auth-logo">Three Seas Digital</div>
+          <div className="portal-auth-subtitle">CLIENT PORTAL</div>
         </div>
-        {error && <div className="signup-error">{error}</div>}
-        <form onSubmit={handleLogin} className="signup-form">
-          <div className="form-group">
-            <label>Email or Username</label>
-            <div className="input-icon-wrap">
-              <Mail size={16} />
-              <input
-                type="text"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="your@email.com or username"
-                required
-              />
-            </div>
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <div className="input-icon-wrap">
-              <Lock size={16} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Your password"
-                required
-              />
-              <button type="button" className="input-toggle" onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary btn-full">Sign In</button>
-        </form>
-        <p className="signup-toggle">
-          Don't have an account?{' '}
-          <button onClick={() => { setIsLogin(false); setError(''); }}>Sign up</button>
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="signup-card">
-      <div className="signup-header">
-        <Zap size={28} />
-        <h2>Create Your Account</h2>
-        <p>Get started with Three Seas Digital services</p>
-      </div>
-      {error && <div className="signup-error">{error}</div>}
-      <form onSubmit={handleSignUp} className="signup-form">
-        <div className="form-group">
-          <label>Full Name</label>
-          <div className="input-icon-wrap">
-            <User size={16} />
+        {error && <div className="portal-auth-error">{error}</div>}
+        <form onSubmit={handleLogin} className="portal-auth-form">
+          <div className="portal-auth-form-group">
+            <label>Email</label>
             <input
               type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="John Doe"
-              required
-            />
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Email</label>
-          <div className="input-icon-wrap">
-            <Mail size={16} />
-            <input
-              type="email"
+              className="portal-auth-input"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="your@email.com"
               required
             />
           </div>
+          <div className="portal-auth-form-group">
+            <label>Password</label>
+            <div className="portal-auth-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="portal-auth-input"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter your password"
+                required
+              />
+              <button type="button" className="portal-auth-toggle" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <button type="button" className="portal-auth-forgot">Forgot password?</button>
+          <button type="submit" className="portal-auth-btn">Sign In</button>
+        </form>
+        <div className="portal-auth-divider">
+          <span>or</span>
         </div>
-        <div className="form-group">
+        <button type="button" className="portal-auth-link" onClick={() => { setIsLogin(false); setError(''); }}>
+          Don't have an account? Request Access
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="portal-auth-card">
+      <div className="portal-auth-brand">
+        <div className="portal-auth-logo">Three Seas Digital</div>
+        <div className="portal-auth-subtitle">REQUEST ACCESS</div>
+      </div>
+      {error && <div className="portal-auth-error">{error}</div>}
+      <form onSubmit={handleSignUp} className="portal-auth-form">
+        <div className="portal-auth-form-group">
+          <label>Full Name</label>
+          <input
+            type="text"
+            className="portal-auth-input"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="John Doe"
+            required
+          />
+        </div>
+        <div className="portal-auth-form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            className="portal-auth-input"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="your@email.com"
+            required
+          />
+        </div>
+        <div className="portal-auth-form-group">
           <label>Password</label>
-          <div className="input-icon-wrap">
-            <Lock size={16} />
+          <div className="portal-auth-input-wrap">
             <input
               type={showPassword ? 'text' : 'password'}
+              className="portal-auth-input"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="Min 6 characters"
               required
             />
-            <button type="button" className="input-toggle" onClick={() => setShowPassword(!showPassword)}>
+            <button type="button" className="portal-auth-toggle" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
-        <div className="form-group">
+        <div className="portal-auth-form-group">
           <label>Confirm Password</label>
-          <div className="input-icon-wrap">
-            <Lock size={16} />
-            <input
-              type="password"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              placeholder="Confirm password"
-              required
-            />
-          </div>
+          <input
+            type="password"
+            className="portal-auth-input"
+            value={formData.confirmPassword}
+            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+            placeholder="Confirm password"
+            required
+          />
         </div>
-        <button type="submit" className="btn btn-primary btn-full">Create Account</button>
+        <button type="submit" className="portal-auth-btn">Request Access</button>
       </form>
-      <p className="signup-toggle">
-        Already have an account?{' '}
-        <button onClick={() => { setIsLogin(true); setError(''); }}>Sign in</button>
-      </p>
+      <div className="portal-auth-divider">
+        <span>or</span>
+      </div>
+      <button type="button" className="portal-auth-link" onClick={() => { setIsLogin(true); setError(''); }}>
+        Already have an account? Sign In
+      </button>
     </div>
   );
 }
@@ -306,7 +305,7 @@ function printInvoice(invoice, clientName) {
   printWindow.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Invoice - ${invoice.title}</title>
+  <title>Invoice - ${escapeHtml(invoice.title)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; color: #1a1a2e; }
@@ -346,7 +345,7 @@ function printInvoice(invoice, clientName) {
   <div class="details">
     <div>
       <h3>Bill To</h3>
-      <p><strong>${clientName}</strong></p>
+      <p><strong>${escapeHtml(clientName)}</strong></p>
     </div>
     <div>
       <h3>Invoice Details</h3>
@@ -359,7 +358,7 @@ function printInvoice(invoice, clientName) {
   <table>
     <thead><tr><th>Description</th><th class="amount">Amount</th></tr></thead>
     <tbody>
-      <tr><td>${invoice.title}${invoice.description ? `<br><small style="color:#666">${invoice.description}</small>` : ''}</td><td class="amount">$${invoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>
+      <tr><td>${escapeHtml(invoice.title)}${invoice.description ? `<br><small style="color:#666">${escapeHtml(invoice.description)}</small>` : ''}</td><td class="amount">$${invoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>
       <tr class="total-row"><td>Total</td><td class="amount">$${invoice.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>
     </tbody>
   </table>
@@ -652,16 +651,19 @@ function ProfileSettings({ client, onClose }) {
 function ClientDashboard() {
   const { currentClient, clientLogout, clients, SUBSCRIPTION_TIERS, addClientNote, users } = useAppContext();
 
-  const [payingInvoice, setPayingInvoice] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [expandedProject, setExpandedProject] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [supportMessage, setSupportMessage] = useState('');
-  const [supportSubject, setSupportSubject] = useState('');
-  const [supportSent, setSupportSent] = useState(false);
+  if (!currentClient) return null; // Guard against stale state during logout
 
   // Get live client data from clients array so admin changes show up
   const liveClient = clients.find((c) => c.id === currentClient.id) || currentClient;
+
+  const [payingInvoice, setPayingInvoice] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [expandedProject, setExpandedProject] = useState(null);
+  const onboardingIncomplete = liveClient.onboarding && !liveClient.onboarding.complete;
+  const [activeTab, setActiveTab] = useState(onboardingIncomplete ? 'onboarding' : 'bi-dashboard');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportSent, setSupportSent] = useState(false);
 
   const invoices = liveClient.invoices || [];
   const projects = liveClient.projects || [];
@@ -715,24 +717,174 @@ function ClientDashboard() {
         <ProfileSettings client={liveClient} onClose={() => setShowSettings(false)} />
       ) : (
       <>
-      {/* Portal Navigation Tabs */}
-      <div className="portal-tabs">
-        <button className={`portal-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
-          <User size={16} /> Overview
-        </button>
-        <button className={`portal-tab ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
-          <FolderKanban size={16} /> Projects {activeProjects.length > 0 && <span className="portal-tab-badge">{activeProjects.length}</span>}
-        </button>
-        <button className={`portal-tab ${activeTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveTab('invoices')}>
-          <FileText size={16} /> Invoices {unpaidInvoices.length > 0 && <span className="portal-tab-badge warning">{unpaidInvoices.length}</span>}
-        </button>
-        <button className={`portal-tab ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
-          <MessageSquare size={16} /> Messages {notes.length > 0 && <span className="portal-tab-badge">{notes.length}</span>}
-        </button>
-        <button className={`portal-tab ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>
-          <HelpCircle size={16} /> Support
-        </button>
-      </div>
+      {/* Portal Sidebar + Content Layout */}
+      <div className="portal-layout">
+        <nav className="portal-sidebar">
+          {onboardingIncomplete && (
+            <button className={`portal-sidebar-item ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
+              <ClipboardCheck size={16} /> Onboarding
+              <span className="portal-sidebar-badge">New</span>
+            </button>
+          )}
+          <button className={`portal-sidebar-item ${activeTab === 'bi-dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('bi-dashboard')}>
+            <Activity size={16} /> Dashboard
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+            <User size={16} /> Overview
+          </button>
+
+          <div className="portal-sidebar-divider" />
+          <div className="portal-sidebar-group-label">Business Health</div>
+          <button className={`portal-sidebar-item ${activeTab === 'scorecard' ? 'active' : ''}`} onClick={() => setActiveTab('scorecard')}>
+            <BarChart3 size={16} /> Scorecard
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'growth' ? 'active' : ''}`} onClick={() => setActiveTab('growth')}>
+            <TrendingUp size={16} /> Growth Metrics
+          </button>
+
+          <div className="portal-sidebar-divider" />
+          <div className="portal-sidebar-group-label">Financials</div>
+          <button className={`portal-sidebar-item ${activeTab === 'revenue' ? 'active' : ''}`} onClick={() => setActiveTab('revenue')}>
+            <DollarSign size={16} /> Revenue
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'expenses' ? 'active' : ''}`} onClick={() => setActiveTab('expenses')}>
+            <TrendingUp size={16} /> Expenses
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'profitability' ? 'active' : ''}`} onClick={() => setActiveTab('profitability')}>
+            <BarChart3 size={16} /> Profitability
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
+            <FileText size={16} /> Reports
+          </button>
+
+          <div className="portal-sidebar-divider" />
+          <button className={`portal-sidebar-item ${activeTab === 'interventions' ? 'active' : ''}`} onClick={() => setActiveTab('interventions')}>
+            <Crosshair size={16} /> Interventions
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'recommendations' ? 'active' : ''}`} onClick={() => setActiveTab('recommendations')}>
+            <Lightbulb size={16} /> Recommendations
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'projects' ? 'active' : ''}`} onClick={() => setActiveTab('projects')}>
+            <FolderKanban size={16} /> Projects
+            {activeProjects.length > 0 && <span className="portal-sidebar-badge info">{activeProjects.length}</span>}
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveTab('invoices')}>
+            <FileText size={16} /> Invoices
+            {unpaidInvoices.length > 0 && <span className="portal-sidebar-badge">{unpaidInvoices.length}</span>}
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>
+            <FileText size={16} /> Documents
+            {(liveClient.documents || []).length > 0 && <span className="portal-sidebar-badge info">{(liveClient.documents || []).length}</span>}
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'service-requests' ? 'active' : ''}`} onClick={() => setActiveTab('service-requests')}>
+            <Bell size={16} color="#eab308" /> Service Requests
+          </button>
+
+          <div className="portal-sidebar-divider" />
+          <button className={`portal-sidebar-item ${activeTab === 'messages' ? 'active' : ''}`} onClick={() => setActiveTab('messages')}>
+            <MessageSquare size={16} /> Messages
+            {notes.length > 0 && <span className="portal-sidebar-badge info">{notes.length}</span>}
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'feedback' ? 'active' : ''}`} onClick={() => setActiveTab('feedback')}>
+            <Star size={16} /> Feedback
+          </button>
+          <button className={`portal-sidebar-item ${activeTab === 'support' ? 'active' : ''}`} onClick={() => setActiveTab('support')}>
+            <HelpCircle size={16} /> Support
+          </button>
+        </nav>
+
+        <div className="portal-content">
+
+      {/* Onboarding Tab */}
+      {activeTab === 'onboarding' && (
+        <Suspense fallback={<div className="portal-loading">Loading onboarding...</div>}>
+          <PortalOnboarding client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* BI Dashboard Tab */}
+      {activeTab === 'bi-dashboard' && (
+        <Suspense fallback={<div className="portal-loading">Loading dashboard...</div>}>
+          <PortalDashboard client={liveClient} onNavigate={setActiveTab} />
+        </Suspense>
+      )}
+
+      {/* Scorecard Tab */}
+      {activeTab === 'scorecard' && (
+        <Suspense fallback={<div className="portal-loading">Loading scorecard...</div>}>
+          <PortalScorecard client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Growth Metrics Tab */}
+      {activeTab === 'growth' && (
+        <Suspense fallback={<div className="portal-loading">Loading growth metrics...</div>}>
+          <PortalGrowthMetrics client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Revenue Tab */}
+      {activeTab === 'revenue' && (
+        <Suspense fallback={<div className="portal-loading">Loading revenue analytics...</div>}>
+          <PortalRevenueView client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Expenses Tab */}
+      {activeTab === 'expenses' && (
+        <Suspense fallback={<div className="portal-loading">Loading expense analytics...</div>}>
+          <PortalExpenseView client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Profitability Tab */}
+      {activeTab === 'profitability' && (
+        <Suspense fallback={<div className="portal-loading">Loading profitability analytics...</div>}>
+          <PortalProfitabilityView client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Reports Tab */}
+      {activeTab === 'reports' && (
+        <Suspense fallback={<div className="portal-loading">Loading financial reports...</div>}>
+          <PortalFinancialReports client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Interventions Tab */}
+      {activeTab === 'interventions' && (
+        <Suspense fallback={<div className="portal-loading">Loading interventions...</div>}>
+          <PortalInterventions client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Recommendations Tab */}
+      {activeTab === 'recommendations' && (
+        <Suspense fallback={<div className="portal-loading">Loading recommendations...</div>}>
+          <PortalRecommendations client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Service Requests Tab */}
+      {activeTab === 'service-requests' && (
+        <Suspense fallback={<div className="portal-loading">Loading service requests...</div>}>
+          <PortalServiceRequests client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Feedback Tab */}
+      {activeTab === 'feedback' && (
+        <Suspense fallback={<div className="portal-loading">Loading feedback...</div>}>
+          <PortalFeedback client={liveClient} />
+        </Suspense>
+      )}
+
+      {/* Documents Tab */}
+      {activeTab === 'documents' && (
+        <Suspense fallback={<div className="portal-loading">Loading documents...</div>}>
+          <PortalDocuments client={liveClient} />
+        </Suspense>
+      )}
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -1032,10 +1184,10 @@ function ClientDashboard() {
                   </div>
                   <div className="portal-message-body">
                     <div className="portal-message-header">
-                      <strong>{note.author || 'Team'}</strong>
+                      <strong>{String(note.author || 'Team').replace(/<[^>]*>/g, '')}</strong>
                       <span>{new Date(note.createdAt).toLocaleString()}</span>
                     </div>
-                    <p>{note.text}</p>
+                    <p>{String(note.text || '').replace(/<[^>]*>/g, '')}</p>
                   </div>
                 </div>
               ))}
@@ -1097,6 +1249,9 @@ function ClientDashboard() {
           </div>
         </div>
       )}
+
+        </div>{/* end portal-content */}
+      </div>{/* end portal-layout */}
 
       {payingInvoice && (
         <PaymentModal
@@ -1234,17 +1389,9 @@ export default function ClientSignup() {
   }
 
   return (
-    <div className="page client-portal-page">
-      <section className="portal-hero">
-        <div className="container">
-          <h1>Client Portal</h1>
-          <p>Sign in or create an account to access your dashboard</p>
-        </div>
-      </section>
-      <div className="container">
-        <div className="portal-auth-wrapper">
-          <SignUpStep />
-        </div>
+    <div className="page client-portal-page portal-auth-page">
+      <div className="portal-auth-wrapper">
+        <SignUpStep />
       </div>
     </div>
   );

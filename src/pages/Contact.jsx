@@ -75,8 +75,8 @@ export default function Contact() {
           <div className="hero-overlay" />
         </div>
         <div className="page-hero-content">
-          <h1>Contact Us</h1>
-          <p>Schedule a consultation and let's discuss your project</p>
+          <h1>Initiate Contact</h1>
+          <p>Open a communication frequency and let's explore the depths together</p>
         </div>
       </section>
 

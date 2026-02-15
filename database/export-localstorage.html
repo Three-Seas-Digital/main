@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Export localStorage — Three Seas Digital</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #38bdf8;
+    }
+    p {
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      max-width: 480px;
+      line-height: 1.5;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1d4ed8; }
+    button:active { background: #1e40af; }
+    #status {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: #94a3b8;
+    }
+    #status.success { color: #4ade80; }
+    #status.error { color: #f87171; }
+    table {
+      margin-top: 1.5rem;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      width: 100%;
+      max-width: 520px;
+    }
+    th, td {
+      padding: 0.35rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #1e293b;
+    }
+    th { color: #64748b; font-weight: 600; }
+    td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <h1>Three Seas Digital &mdash; Export localStorage</h1>
+  <p>
+    Open this page on the <strong>same domain</strong> as the CRM app
+    (e.g. <code>localhost:5173</code>), then click the button to download
+    all CRM data as a JSON file.
+  </p>
+  <button onclick="exportData()">Export All Data</button>
+  <div id="status"></div>
+  <table id="summary" style="display:none">
+    <thead><tr><th>Key</th><th>Records</th></tr></thead>
+    <tbody id="summaryBody"></tbody>
+  </table>
+
+  <script>
+    function exportData() {
+      const statusEl = document.getElementById('status');
+      const summaryEl = document.getElementById('summary');
+      const bodyEl = document.getElementById('summaryBody');
+
+      const keys = [
+        'threeseas_users',
+        'threeseas_clients',
+        'threeseas_appointments',
+        'threeseas_payments',
+        'threeseas_expenses',
+        'threeseas_leads',
+        'threeseas_prospects',
+        'threeseas_time_entries',
+        'threeseas_email_templates',
+        'threeseas_notifications',
+        'threeseas_activity_log',
+        'threeseas_business_database',
+        'threeseas_market_research',
+      ];
+
+      const data = {};
+      let totalRecords = 0;
+      bodyEl.innerHTML = '';
+
+      try {
+        for (const key of keys) {
+          const raw = localStorage.getItem(key);
+          let parsed = null;
+          let count = 0;
+
+          if (raw) {
+            try {
+              parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                count = parsed.length;
+              } else if (parsed && typeof parsed === 'object') {
+                count = Object.keys(parsed).length;
+              }
+            } catch {
+              parsed = raw;
+              count = '?';
+            }
+          }
+
+          data[key] = parsed;
+          totalRecords += typeof count === 'number' ? count : 0;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + key.replace('threeseas_', '') + '</td><td>' + (count || 0) + '</td>';
+          bodyEl.appendChild(tr);
+        }
+
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'threeseas-export-' + new Date().toISOString().split('T')[0] + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        statusEl.textContent = 'Exported ' + totalRecords + ' total records (' + (json.length / 1024).toFixed(1) + ' KB)';
+        statusEl.className = 'success';
+        summaryEl.style.display = '';
+      } catch (err) {
+        statusEl.textContent = 'Export failed: ' + err.message;
+        statusEl.className = 'error';
+      }
+    }
+  </script>
+</body>
+</html>

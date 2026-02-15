@@ -42,7 +42,7 @@ function getBusinessType(tags) {
 }
 
 export default function LeadsTab() {
-  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, businessDatabase, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb } = useAppContext();
+  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, businessDatabase, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb, addNotification } = useAppContext();
 
   const [searchAddress, setSearchAddress] = useState('');
   const [searchRadius, setSearchRadius] = useState(1000);
@@ -59,6 +59,7 @@ export default function LeadsTab() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [manualForm, setManualForm] = useState({ businessName: '', address: '', phone: '', email: '', type: '', website: '', notes: '' });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteNoteConfirm, setDeleteNoteConfirm] = useState(null);
   const [sendToFollowUpConfirm, setSendToFollowUpConfirm] = useState(null);
   const [sendToPipelineConfirm, setSendToPipelineConfirm] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
@@ -135,6 +136,11 @@ export default function LeadsTab() {
       // Remove from leads
       deleteLead(lead.id);
       setToastMsg('Lead archived to database');
+      addNotification({
+        type: 'info',
+        title: 'Lead Archived',
+        message: `${lead.businessName} archived as not interested`,
+      });
       setTimeout(() => setToastMsg(''), 3000);
     } else if (newStatus === 'converted') {
       // Archive to database AND send to pipeline
@@ -172,6 +178,11 @@ export default function LeadsTab() {
       if (result.success) {
         deleteLead(lead.id);
         setToastMsg('Lead converted & sent to Pipeline!');
+        addNotification({
+          type: 'info',
+          title: 'Lead Converted',
+          message: `${lead.businessName} moved to sales pipeline`,
+        });
       } else {
         setToastMsg('Failed to convert lead');
       }
@@ -254,6 +265,26 @@ export default function LeadsTab() {
       notes: leadNotesFormatted, // Pass lead notes
     });
     if (result.success) {
+      // Auto-populate business database
+      saveToBusinessDb({
+        name: lead.businessName,
+        address: lead.address || '',
+        phone: lead.phone || '',
+        website: lead.website || '',
+        type: lead.type || '',
+        coordinates: lead.coordinates || null,
+        source: 'lead',
+        enrichment: {
+          ...(lead.enrichment || {}),
+          pipelineStatus: 'prospect',
+          sentToPipelineAt: new Date().toISOString(),
+          pointOfContact: lead.contactName || lead.enrichment?.decisionMaker || '',
+          contactEmail: lead.email || '',
+          contactPhone: lead.phone || '',
+          industry: lead.category || lead.type || '',
+          notes: leadNotesFormatted.map((n) => n.text).join(' | '),
+        },
+      });
       deleteLead(lead.id);
       setToastMsg('Lead sent to Pipeline!');
     } else {
@@ -1003,7 +1034,15 @@ export default function LeadsTab() {
                                 <div className="leads-note-header">
                                   <strong>{note.author}</strong>
                                   <span>{new Date(note.createdAt).toLocaleString()}</span>
-                                  <button className="leads-note-delete" onClick={() => deleteLeadNote(lead.id, note.id)}><X size={12} /></button>
+                                  {deleteNoteConfirm === note.id ? (
+                                    <div className="delete-confirm-inline">
+                                      <span>Delete?</span>
+                                      <button className="btn btn-xs btn-delete" onClick={() => { deleteLeadNote(lead.id, note.id); setDeleteNoteConfirm(null); }}>Yes</button>
+                                      <button className="btn btn-xs btn-outline" onClick={() => setDeleteNoteConfirm(null)}>No</button>
+                                    </div>
+                                  ) : (
+                                    <button className="leads-note-delete" onClick={() => setDeleteNoteConfirm(note.id)}><X size={12} /></button>
+                                  )}
                                 </div>
                                 <p>{note.text}</p>
                               </div>

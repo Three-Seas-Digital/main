@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useFinance } from './FinanceContext';
 import { useSales } from './SalesContext';
 import { generateId, safeSetItem, safeGetItem, onStorageWarning } from '../constants';
+import { generateBiDiscoveryPdf } from '../utils/generateOnboardingPdfs';
 import { syncToApi } from '../api/apiSync.js';
 import { appointmentsApi } from '../api/appointments.js';
 import { clientsApi } from '../api/clients.js';
@@ -15,6 +16,27 @@ import { paymentsApi } from '../api/payments.js';
 import { clientAuthApi } from '../api/clientAuth.js';
 
 const AppContext = createContext();
+
+// Onboarding document entry factory
+const createOnboardingDocEntry = () => ({
+  status: 'pending',       // pending → generated → downloaded → uploaded → approved
+  generatedDocId: null,    // ID in client.documents[] for admin-generated PDF
+  uploadedDocId: null,     // ID in client.documents[] for client-uploaded version
+  generatedAt: null, downloadedAt: null, uploadedAt: null,
+  reviewedAt: null, reviewedBy: null, adminNotes: '',
+});
+
+const createDefaultOnboarding = () => ({
+  complete: false, welcomeEmailSent: false,
+  startedAt: null, completedAt: null, completedBy: null,
+  documents: {
+    intake: createOnboardingDocEntry(),
+    contract: createOnboardingDocEntry(),
+    proposal: createOnboardingDocEntry(),
+    welcome_packet: createOnboardingDocEntry(),
+  },
+  documentsGeneratedAt: null, documentsGeneratedBy: null,
+});
 
 const STORAGE_KEY = 'threeseas_appointments';
 const CLIENTS_KEY = 'threeseas_clients';
@@ -455,7 +477,7 @@ export function AppProvider({ children }) {
       invoices: [],
       projects: [],
       documents: [],
-      onboarding: { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
+      onboarding: createDefaultOnboarding(),
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [...prev, newClient]);
@@ -525,12 +547,15 @@ export function AppProvider({ children }) {
 
   // Document types for categorization
   const DOCUMENT_TYPES = {
+    intake: { label: 'Intake Questionnaire', color: '#14b8a6' },
     proposal: { label: 'Proposal', color: '#6366f1' },
     contract: { label: 'Contract', color: '#22c55e' },
     agreement: { label: 'Agreement', color: '#0ea5e9' },
     invoice: { label: 'Invoice', color: '#f59e0b' },
     receipt: { label: 'Receipt', color: '#8b5cf6' },
     report: { label: 'Report', color: '#ec4899' },
+    welcome_packet: { label: 'Welcome Packet', color: '#f97316' },
+    bi_discovery: { label: 'BI Discovery', color: '#a855f7' },
     other: { label: 'Other', color: '#6b7280' },
   };
 
@@ -613,7 +638,7 @@ export function AppProvider({ children }) {
   // Keep deleteClient as alias for archiveClient for backward compatibility
   const deleteClient = archiveClient;
 
-  const approveClient = (id) => {
+  const approveClient = async (id) => {
     setClients((prev) =>
       prev.map((c) => {
         if (c.id !== id) return c;
@@ -624,7 +649,7 @@ export function AppProvider({ children }) {
           profileComplete: hasProfile ? true : c.profileComplete || false,
           approvedAt: new Date().toISOString(),
           approvedBy: currentUser?.name || 'Admin',
-          onboarding: c.onboarding || { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
+          onboarding: c.onboarding || createDefaultOnboarding(),
         };
       })
     );
@@ -1137,8 +1162,33 @@ export function AppProvider({ children }) {
   };
 
 
+  // Submit client intake from portal (saves to BI + updates onboarding status)
+  const submitClientIntake = (clientId, intakeData) => {
+    const intakes = safeGetItem('threeseas_bi_intakes', {});
+    intakes[clientId] = {
+      ...intakes[clientId],
+      ...intakeData,
+      submittedAt: new Date().toISOString(),
+      submittedBy: 'client',
+    };
+    safeSetItem('threeseas_bi_intakes', JSON.stringify(intakes));
+
+    const client = clients.find((c) => c.id === clientId);
+    const currentDocs = client?.onboarding?.documents || {};
+    updateClientOnboarding(clientId, {
+      documents: {
+        ...currentDocs,
+        intake: {
+          ...currentDocs.intake,
+          status: 'uploaded',
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    });
+  };
+
   // Onboarding
-  const completeOnboarding = (clientId) => {
+  const completeOnboarding = async (clientId) => {
     const client = clients.find((c) => c.id === clientId);
     if (!client) return;
     setClients((prev) =>
@@ -1151,6 +1201,19 @@ export function AppProvider({ children }) {
     syncToApi(() => clientsApi.update(clientId, { onboarding: { ...client.onboarding, complete: true, completedAt: new Date().toISOString(), completedBy: currentUser?.name || 'Admin' } }), 'completeOnboarding');
     logActivity('onboarding_completed', { clientId, clientName: client.name });
     addNotification({ type: 'success', title: 'Onboarding Complete', message: `${client.name} has been fully onboarded` });
+
+    // Generate BI Discovery Questionnaire
+    try {
+      const intakes = safeGetItem('threeseas_bi_intakes', {});
+      const intakeData = intakes[clientId] || {};
+      const biDoc = await generateBiDiscoveryPdf(
+        { name: client.name, email: client.email, businessName: client.businessName },
+        intakeData
+      );
+      addClientDocument(clientId, biDoc);
+    } catch (err) {
+      addNotification({ type: 'warning', title: 'BI Discovery PDF Failed', message: `Could not generate BI Discovery PDF: ${err.message}` });
+    }
   };
 
   const updateClientOnboarding = (clientId, updates) => {
@@ -1192,7 +1255,7 @@ export function AppProvider({ children }) {
       projects: [],
       documents: prospect.documents || [], // Pass documents from prospect
       sourceProspectId: prospectId,
-      onboarding: { complete: false, welcomeEmailSent: false, startedAt: null, completedAt: null, completedBy: null },
+      onboarding: createDefaultOnboarding(),
       createdAt: new Date().toISOString(),
     };
     setClients((prev) => [newClient, ...prev]);
@@ -1293,7 +1356,7 @@ export function AppProvider({ children }) {
 
     // Auto-create a paid invoice on the client
     const invoice = {
-      id: (Date.now() + 1).toString(),
+      id: generateId(),
       title: `${paymentData.service} - ${paymentData.serviceTier}`,
       amount: paymentData.amount,
       status: 'paid',
@@ -1323,100 +1386,27 @@ export function AppProvider({ children }) {
     }
   };
 
+  const value = useMemo(() => ({
+    appointments, addAppointment, updateAppointmentStatus, updateAppointment, assignAppointment,
+    markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, deleteAppointment, getAppointmentsForDate,
+    clients, convertToClient, addClientManually, updateClient, addClientNote, deleteClientNote,
+    addClientTag, removeClientTag, addClientDocument, updateClientDocument, deleteClientDocument, DOCUMENT_TYPES,
+    deleteClient, archiveClient, restoreClient, permanentlyDeleteClient, approveClient, rejectClient,
+    completeOnboarding, updateClientOnboarding, submitClientIntake,
+    addInvoice, updateInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
+    addProject, updateProject, deleteProject, addProjectTask, updateProjectTask, deleteProjectTask,
+    addMilestone, toggleMilestone, deleteMilestone, assignDeveloperToProject, removeDeveloperFromProject, completeProject,
+    recordPayment, updateClientTier, convertProspectToClient,
+    registerClient, checkClientEmail, clientLogin, clientLogout,
+    activityLog, logActivity, clearActivityLog,
+    notifications, addNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications,
+    timeEntries, addTimeEntry, updateTimeEntry, deleteTimeEntry, markTimeEntryBilled,
+    emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate, resetEmailTemplates, DEFAULT_EMAIL_TEMPLATES,
+    generateRecurringInvoice,
+  }), [appointments, clients, activityLog, notifications, timeEntries, emailTemplates]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <AppContext.Provider
-      value={{
-        // Appointments
-        appointments,
-        addAppointment,
-        updateAppointmentStatus,
-        updateAppointment,
-        assignAppointment,
-        markFollowUp,
-        updateFollowUp,
-        addFollowUpNote,
-        deleteFollowUpNote,
-        deleteAppointment,
-        getAppointmentsForDate,
-        // Clients
-        clients,
-        convertToClient,
-        addClientManually,
-        updateClient,
-        addClientNote,
-        deleteClientNote,
-        addClientTag,
-        removeClientTag,
-        addClientDocument,
-        updateClientDocument,
-        deleteClientDocument,
-        DOCUMENT_TYPES,
-        deleteClient,
-        archiveClient,
-        restoreClient,
-        permanentlyDeleteClient,
-        approveClient,
-        rejectClient,
-        // Onboarding
-        completeOnboarding,
-        updateClientOnboarding,
-        // Invoices
-        addInvoice,
-        updateInvoice,
-        markInvoicePaid,
-        unmarkInvoicePaid,
-        deleteInvoice,
-        // Projects
-        addProject,
-        updateProject,
-        deleteProject,
-        addProjectTask,
-        updateProjectTask,
-        deleteProjectTask,
-        addMilestone,
-        toggleMilestone,
-        deleteMilestone,
-        assignDeveloperToProject,
-        removeDeveloperFromProject,
-        completeProject,
-        // Finance (cross-context: invoices mutate clients)
-        recordPayment,
-        updateClientTier,
-        // Cross-context: prospect → client conversion
-        convertProspectToClient,
-        // Client Portal
-        registerClient,
-        checkClientEmail,
-        clientLogin,
-        clientLogout,
-        // Activity Log
-        activityLog,
-        logActivity,
-        clearActivityLog,
-        // Notifications
-        notifications,
-        addNotification,
-        markNotificationRead,
-        markAllNotificationsRead,
-        deleteNotification,
-        clearAllNotifications,
-        // Time Tracking
-        timeEntries,
-        addTimeEntry,
-        updateTimeEntry,
-        deleteTimeEntry,
-        markTimeEntryBilled,
-        // Email Templates
-        emailTemplates,
-        addEmailTemplate,
-        updateEmailTemplate,
-        deleteEmailTemplate,
-        resetEmailTemplates,
-        DEFAULT_EMAIL_TEMPLATES,
-        // Recurring Invoices
-        generateRecurringInvoice,
-      }}
-    >
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

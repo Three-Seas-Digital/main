@@ -177,7 +177,7 @@ export default function ProjectBoard({ client: clientProp }) {
   const [showDevDropdown, setShowDevDropdown] = useState(false);
 
   // Staff members for developer assignment
-  const staffMembers = users.filter((u) => u.status === 'approved' && ['admin', 'manager', 'staff'].includes(u.role));
+  const staffMembers = users.filter((u) => u.status === 'approved' && u.role !== 'pending');
 
   const projects = client?.projects || [];
   // If activeProject no longer exists in this client, treat as null

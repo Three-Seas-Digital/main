@@ -4,15 +4,17 @@ import {
   CheckCircle, XCircle, Trash2, RefreshCw,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 export default function InvoicesTab() {
   const { clients, markInvoicePaid, unmarkInvoicePaid, deleteInvoice, hasPermission } = useAppContext();
-  const canManage = hasPermission('manage_clients');
+  const canManage = hasPermission('manage_finance') || hasPermission('manage_clients');
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterClient, setFilterClient] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [selectedYear, setSelectedYear] = useState('all');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Gather all invoices from all clients
   const allInvoices = useMemo(() => {
@@ -178,8 +180,8 @@ export default function InvoicesTab() {
           <tbody>
             ${filteredInvoices.map((inv) => `
               <tr>
-                <td>${inv.title}</td>
-                <td>${inv.clientName}</td>
+                <td>${escapeHtml(inv.title)}</td>
+                <td>${escapeHtml(inv.clientName)}</td>
                 <td>${formatDate(inv.createdAt)}</td>
                 <td>${formatDate(inv.dueDate)}</td>
                 <td class="${isOverdue(inv) ? 'overdue' : inv.status}">${isOverdue(inv) ? 'Overdue' : inv.status}</td>
@@ -337,13 +339,21 @@ export default function InvoicesTab() {
                             <XCircle size={14} />
                           </button>
                         )}
-                        <button
-                          className="btn btn-xs btn-delete"
-                          onClick={() => deleteInvoice(inv.clientId, inv.id)}
-                          title="Delete invoice"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {deleteConfirm === `${inv.clientId}-${inv.id}` ? (
+                          <div className="delete-confirm-inline">
+                            <span>Delete?</span>
+                            <button className="btn btn-xs btn-delete" onClick={() => { deleteInvoice(inv.clientId, inv.id); setDeleteConfirm(null); }}>Yes</button>
+                            <button className="btn btn-xs btn-outline" onClick={() => setDeleteConfirm(null)}>No</button>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn btn-xs btn-delete"
+                            onClick={() => setDeleteConfirm(`${inv.clientId}-${inv.id}`)}
+                            title="Delete invoice"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}

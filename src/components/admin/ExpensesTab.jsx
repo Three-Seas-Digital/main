@@ -3,6 +3,7 @@ import {
   Plus, Receipt, FileText, X, Printer, Eye, Trash2,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { escapeHtml } from '../../constants';
 
 export default function ExpensesTab() {
   const { expenses, addExpense, deleteExpense, EXPENSE_CATEGORIES } = useAppContext();
@@ -237,16 +238,16 @@ export default function ExpensesTab() {
         }
         return `
           <div class="group-section">
-            <h3 class="group-header">${groupLabel} <span class="group-total">$${groupTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></h3>
+            <h3 class="group-header">${escapeHtml(groupLabel)} <span class="group-total">$${groupTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></h3>
             <table class="expense-table">
               <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Description</th><th class="amount">Amount</th></tr></thead>
               <tbody>
                 ${items.map((e) => `
                   <tr>
                     <td>${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
-                    <td>${getCatLabel(e.category)}</td>
-                    <td>${e.vendor || '-'}</td>
-                    <td>${e.description || '-'}</td>
+                    <td>${escapeHtml(getCatLabel(e.category))}</td>
+                    <td>${escapeHtml(e.vendor) || '-'}</td>
+                    <td>${escapeHtml(e.description) || '-'}</td>
                     <td class="amount">$${e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
                 `).join('')}
@@ -296,7 +297,7 @@ export default function ExpensesTab() {
         <h1>Expense Report</h1>
         <div class="report-meta">
           <span><strong>Period:</strong> ${periodLabel}</span>
-          <span><strong>Category:</strong> ${categoryLabel}</span>
+          <span><strong>Category:</strong> ${escapeHtml(categoryLabel)}</span>
           <span><strong>Generated:</strong> ${now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </div>
 
@@ -325,7 +326,7 @@ export default function ExpensesTab() {
           <tbody>
             ${catTotals.map((c) => `
               <tr>
-                <td>${c.label}</td>
+                <td>${escapeHtml(c.label)}</td>
                 <td>${c.count}</td>
                 <td style="text-align:right">$${c.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 <td style="text-align:right">${reportTotal > 0 ? ((c.total / reportTotal) * 100).toFixed(1) : 0}%</td>
@@ -348,9 +349,9 @@ export default function ExpensesTab() {
               ${reportExpenses.map((e) => `
                 <tr>
                   <td>${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                  <td>${getCatLabel(e.category)}</td>
-                  <td>${e.vendor || '-'}</td>
-                  <td>${e.description || '-'}</td>
+                  <td>${escapeHtml(getCatLabel(e.category))}</td>
+                  <td>${escapeHtml(e.vendor) || '-'}</td>
+                  <td>${escapeHtml(e.description) || '-'}</td>
                   <td class="amount">$${e.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                 </tr>
               `).join('')}

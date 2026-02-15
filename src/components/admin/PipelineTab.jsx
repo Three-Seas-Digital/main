@@ -2,9 +2,34 @@ import { useState, useMemo } from 'react';
 import {
   AlertCircle, CheckCircle, XCircle, Clock, Mail, Phone, Briefcase,
   Plus, X, Trash2, Search, FolderKanban, ChevronUp, ChevronDown,
-  ArrowRight, FileText, Eye, Download, Upload,
+  ArrowRight, FileText, Eye, Download, Upload, Printer,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { safeGetItem, escapeHtml } from '../../constants';
+import { generateProposalPdf } from '../../utils/generateOnboardingPdfs';
+
+const PROPOSAL_SERVICES = [
+  { id: 'web-design', label: 'Website Design & Development' },
+  { id: 'seo', label: 'Search Engine Optimization (SEO)' },
+  { id: 'content', label: 'Content Strategy & Creation' },
+  { id: 'social', label: 'Social Media Management' },
+  { id: 'branding', label: 'Branding & Identity' },
+  { id: 'analytics', label: 'Analytics & Reporting' },
+  { id: 'ppc', label: 'Paid Advertising (PPC)' },
+  { id: 'email-marketing', label: 'Email Marketing' },
+  { id: 'maintenance', label: 'Ongoing Maintenance & Support' },
+  { id: 'consulting', label: 'Business Consulting' },
+];
+
+const DEFAULT_PROPOSAL_FORM = {
+  services: [],
+  customPrice: '',
+  discount: '',
+  discountType: 'percent',
+  timeline: '',
+  paymentTerms: 'net15',
+  notes: '',
+};
 
 export default function PipelineTab() {
   const {
@@ -12,6 +37,7 @@ export default function PipelineTab() {
     addProspectNote, deleteProspectNote, closeProspect, reopenProspect,
     convertProspectToClient, PROSPECT_STAGES, LOSS_REASONS,
     addProspectDocument, deleteProspectDocument, DOCUMENT_TYPES,
+    addNotification, saveToBusinessDb, SUBSCRIPTION_TIERS,
   } = useAppContext();
 
   const [stageFilter, setStageFilter] = useState('all');
@@ -22,6 +48,8 @@ export default function PipelineTab() {
   const [newNote, setNewNote] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteNoteConfirm, setDeleteNoteConfirm] = useState(null);
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
   const [showDocForm, setShowDocForm] = useState(false);
   const [docForm, setDocForm] = useState({ name: '', type: 'contract', description: '' });
@@ -29,9 +57,12 @@ export default function PipelineTab() {
   const [docError, setDocError] = useState('');
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [viewingDoc, setViewingDoc] = useState(null);
+  const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [showProposalBuilder, setShowProposalBuilder] = useState(false);
+  const [proposalForm, setProposalForm] = useState({ ...DEFAULT_PROPOSAL_FORM });
 
   const [addForm, setAddForm] = useState({
-    name: '', email: '', phone: '', service: '', dealValue: '', probability: 25, expectedCloseDate: '',
+    name: '', email: '', phone: '', service: '', dealValue: '', expectedCloseDate: '',
   });
   const [closeForm, setCloseForm] = useState({
     outcome: 'won', lossReason: '', revisitDate: '',
@@ -55,10 +86,6 @@ export default function PipelineTab() {
     const won = closed_.filter((p) => p.outcome === 'won').length;
     const lost = closed_.filter((p) => p.outcome === 'lost').length;
     const deferred = closed_.filter((p) => p.outcome === 'deferred').length;
-    const conversionRate = (won + lost) > 0 ? ((won / (won + lost)) * 100).toFixed(1) : 0;
-    const pipelineValue = active_.reduce((sum, p) => sum + (parseFloat(p.dealValue) || 0), 0);
-    const weightedValue = active_.reduce((sum, p) => sum + ((parseFloat(p.dealValue) || 0) * (p.probability / 100)), 0);
-
     // Average deal time (for won deals)
     const wonDeals = closed_.filter((p) => p.outcome === 'won' && p.closedAt);
     const avgDealTime = wonDeals.length > 0
@@ -84,14 +111,14 @@ export default function PipelineTab() {
       stageCounts[s.value] = active_.filter((p) => p.stage === s.value).length;
     });
 
-    return { total, active, won, lost, deferred, conversionRate, pipelineValue, weightedValue, avgDealTime, lossReasons, upcomingRevisits, stageCounts };
+    return { total, active, won, lost, deferred, avgDealTime, lossReasons, upcomingRevisits, stageCounts };
   }, [prospects, PROSPECT_STAGES]);
 
   const handleAddProspect = (e) => {
     e.preventDefault();
     const result = addProspect({ ...addForm, dealValue: parseFloat(addForm.dealValue) || 0 });
     if (result.success) {
-      setAddForm({ name: '', email: '', phone: '', service: '', dealValue: '', probability: 25, expectedCloseDate: '' });
+      setAddForm({ name: '', email: '', phone: '', service: '', dealValue: '', expectedCloseDate: '' });
       setShowAddForm(false);
       setToastMsg('Prospect added successfully');
       setTimeout(() => setToastMsg(''), 3000);
@@ -99,6 +126,7 @@ export default function PipelineTab() {
   };
 
   const handleClose = (prospectId) => {
+    const prospect = prospects.find((p) => p.id === prospectId);
     closeProspect(prospectId, closeForm.outcome, {
       lossReason: closeForm.lossReason,
       revisitDate: closeForm.revisitDate,
@@ -106,10 +134,58 @@ export default function PipelineTab() {
     if (closeForm.outcome === 'won') {
       const result = convertProspectToClient(prospectId);
       setToastMsg(result.success ? 'Deal won! Client created.' : result.message || 'Deal marked as won');
+      addNotification({
+        type: 'success',
+        title: 'Deal Won',
+        message: `${prospect?.name || 'Prospect'} - deal closed as won`,
+      });
     } else if (closeForm.outcome === 'lost') {
+      // Update business database with loss reason
+      saveToBusinessDb({
+        name: prospect?.name || '',
+        address: '',
+        phone: prospect?.phone || '',
+        type: prospect?.service || '',
+        source: 'pipeline',
+        enrichment: {
+          pipelineStatus: 'lost',
+          lostAt: new Date().toISOString(),
+          lossReason: closeForm.lossReason || '',
+          pointOfContact: prospect?.name || '',
+          contactEmail: prospect?.email || '',
+          dealValue: prospect?.dealValue || 0,
+        },
+      });
       setToastMsg('Deal marked as lost');
+      addNotification({
+        type: 'warning',
+        title: 'Deal Lost',
+        message: `${prospect?.name || 'Prospect'} - deal lost${closeForm.lossReason ? ': ' + closeForm.lossReason : ''}`,
+      });
     } else {
+      // Update business database with deferred status
+      saveToBusinessDb({
+        name: prospect?.name || '',
+        address: '',
+        phone: prospect?.phone || '',
+        type: prospect?.service || '',
+        source: 'pipeline',
+        enrichment: {
+          pipelineStatus: 'deferred',
+          deferredAt: new Date().toISOString(),
+          revisitDate: closeForm.revisitDate || '',
+          deferredReason: closeForm.lossReason || '',
+          pointOfContact: prospect?.name || '',
+          contactEmail: prospect?.email || '',
+          dealValue: prospect?.dealValue || 0,
+        },
+      });
       setToastMsg('Deal deferred for follow-up');
+      addNotification({
+        type: 'warning',
+        title: 'Deal Deferred',
+        message: `${prospect?.name || 'Prospect'} - deal deferred${closeForm.lossReason ? ': ' + closeForm.lossReason : ''}`,
+      });
     }
     setShowCloseForm(null);
     setSelectedProspect(null); // Clear selection to update UI
@@ -121,6 +197,65 @@ export default function PipelineTab() {
     if (!newNote.trim()) return;
     addProspectNote(prospectId, newNote);
     setNewNote('');
+  };
+
+  const handleOpenProposalBuilder = () => {
+    setProposalForm({ ...DEFAULT_PROPOSAL_FORM });
+    setShowProposalBuilder(true);
+  };
+
+  const handleGenerateProposal = async () => {
+    const p = selectedProspect ? prospects.find((pr) => pr.id === selectedProspect) : null;
+    if (!p) return;
+    setGeneratingProposal(true);
+    try {
+      const tierData = SUBSCRIPTION_TIERS[p.tier] || SUBSCRIPTION_TIERS.free || { label: 'Standard', description: '' };
+      const intakes = safeGetItem('threeseas_bi_intakes', {});
+      const intakeData = intakes[p.id] || {};
+      const selectedLabels = proposalForm.services.map(
+        (id) => PROPOSAL_SERVICES.find((s) => s.id === id)?.label
+      ).filter(Boolean);
+      const pdfData = await generateProposalPdf(
+        { name: p.name, email: p.email, businessName: p.service },
+        tierData,
+        intakeData,
+        {
+          services: selectedLabels,
+          customPrice: proposalForm.customPrice,
+          discount: proposalForm.discount,
+          discountType: proposalForm.discountType,
+          timeline: proposalForm.timeline,
+          paymentTerms: proposalForm.paymentTerms,
+          notes: proposalForm.notes,
+        }
+      );
+      // Remove old proposal if regenerating
+      const oldProposal = (p.documents || []).find(d => d.type === 'proposal');
+      if (oldProposal) deleteProspectDocument(p.id, oldProposal.id);
+      addProspectDocument(p.id, pdfData);
+      setShowProposalBuilder(false);
+      setToastMsg('Proposal generated');
+      setTimeout(() => setToastMsg(''), 3000);
+    } finally {
+      setGeneratingProposal(false);
+    }
+  };
+
+  const toggleProposalService = (serviceId) => {
+    setProposalForm((prev) => ({
+      ...prev,
+      services: prev.services.includes(serviceId)
+        ? prev.services.filter((id) => id !== serviceId)
+        : [...prev.services, serviceId],
+    }));
+  };
+
+  const handlePrintProposal = (doc) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(doc.name)}</title><style>body{margin:0}iframe{width:100%;height:100vh;border:none}</style></head><body><iframe src="${escapeHtml(doc.fileData || '')}"></iframe></body></html>`);
+    printWindow.document.close();
+    printWindow.onload = () => printWindow.print();
   };
 
   const prospect = selectedProspect ? prospects.find((p) => p.id === selectedProspect) : null;
@@ -146,18 +281,6 @@ export default function PipelineTab() {
         <div className="pipeline-stat deferred">
           <span className="stat-value">{stats.deferred}</span>
           <span className="stat-label">Deferred</span>
-        </div>
-        <div className="pipeline-stat">
-          <span className="stat-value">{stats.conversionRate}%</span>
-          <span className="stat-label">Win Rate</span>
-        </div>
-        <div className="pipeline-stat">
-          <span className="stat-value">${stats.pipelineValue.toLocaleString()}</span>
-          <span className="stat-label">Pipeline Value</span>
-        </div>
-        <div className="pipeline-stat">
-          <span className="stat-value">${Math.round(stats.weightedValue).toLocaleString()}</span>
-          <span className="stat-label">Weighted</span>
         </div>
         <div className="pipeline-stat">
           <span className="stat-value">{stats.avgDealTime}d</span>
@@ -219,15 +342,6 @@ export default function PipelineTab() {
               </div>
               <div className="form-row">
                 <div className="form-group"><label>Deal Value ($)</label><input type="number" value={addForm.dealValue} onChange={(e) => setAddForm({ ...addForm, dealValue: e.target.value })} placeholder="0" /></div>
-                <div className="form-group"><label>Probability (%)</label>
-                  <select value={addForm.probability} onChange={(e) => setAddForm({ ...addForm, probability: parseInt(e.target.value) })}>
-                    <option value={10}>10%</option>
-                    <option value={25}>25%</option>
-                    <option value={50}>50%</option>
-                    <option value={75}>75%</option>
-                    <option value={90}>90%</option>
-                  </select>
-                </div>
                 <div className="form-group"><label>Expected Close</label><input type="date" value={addForm.expectedCloseDate} onChange={(e) => setAddForm({ ...addForm, expectedCloseDate: e.target.value })} /></div>
               </div>
               <div className="form-actions">
@@ -257,7 +371,6 @@ export default function PipelineTab() {
                 </div>
                 <div className="pipeline-card-footer">
                   {p.dealValue > 0 && <span className="deal-value">${parseFloat(p.dealValue).toLocaleString()}</span>}
-                  <span className="probability">{p.probability}%</span>
                 </div>
               </div>
             ))
@@ -295,16 +408,38 @@ export default function PipelineTab() {
                   <input type="number" value={prospect.dealValue || ''} onChange={(e) => updateProspect(prospect.id, { dealValue: parseFloat(e.target.value) || 0 })} placeholder="$0" />
                 </div>
                 <div className="deal-field">
-                  <span>Probability</span>
-                  <select value={prospect.probability} onChange={(e) => updateProspect(prospect.id, { probability: parseInt(e.target.value) })}>
-                    <option value={10}>10%</option><option value={25}>25%</option><option value={50}>50%</option><option value={75}>75%</option><option value={90}>90%</option>
-                  </select>
-                </div>
-                <div className="deal-field">
                   <span>Expected Close</span>
                   <input type="date" value={prospect.expectedCloseDate || ''} onChange={(e) => updateProspect(prospect.id, { expectedCloseDate: e.target.value })} />
                 </div>
               </div>
+            </div>
+
+            {/* Proposal Section */}
+            <div className="detail-section">
+              <label>Proposal</label>
+              {(() => {
+                const proposalDoc = (prospect.documents || []).find(d => d.type === 'proposal');
+                if (!proposalDoc) {
+                  return (
+                    <button className="btn btn-sm btn-primary" onClick={handleOpenProposalBuilder}>
+                      <FileText size={14} /> Generate Proposal
+                    </button>
+                  );
+                }
+                return (
+                  <div className="proposal-actions">
+                    <button className="btn btn-sm btn-outline" onClick={() => setViewingDoc(proposalDoc)}>
+                      <Eye size={14} /> View
+                    </button>
+                    <button className="btn btn-sm btn-outline" onClick={() => handlePrintProposal(proposalDoc)}>
+                      <Printer size={14} /> Print
+                    </button>
+                    <button className="btn btn-sm btn-outline" onClick={handleOpenProposalBuilder}>
+                      Regenerate
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Notes Section */}
@@ -316,7 +451,15 @@ export default function PipelineTab() {
                     <p>{n.text}</p>
                     <div className="note-meta">
                       <span>{n.author} · {new Date(n.createdAt).toLocaleDateString()}</span>
-                      <button onClick={() => deleteProspectNote(prospect.id, n.id)}><Trash2 size={12} /></button>
+                      {deleteNoteConfirm === n.id ? (
+                        <div className="delete-confirm-inline">
+                          <span>Delete?</span>
+                          <button className="btn btn-xs btn-delete" onClick={() => { deleteProspectNote(prospect.id, n.id); setDeleteNoteConfirm(null); }}>Yes</button>
+                          <button className="btn btn-xs btn-outline" onClick={() => setDeleteNoteConfirm(null)}>No</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeleteNoteConfirm(n.id)}><Trash2 size={12} /></button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -409,7 +552,15 @@ export default function PipelineTab() {
                           link.download = doc.name;
                           link.click();
                         }} title="Download"><Download size={12} /></button>
-                        <button onClick={() => deleteProspectDocument(prospect.id, doc.id)} title="Delete"><Trash2 size={12} /></button>
+                        {deleteDocConfirm === doc.id ? (
+                          <div className="delete-confirm-inline">
+                            <span>Delete?</span>
+                            <button className="btn btn-xs btn-delete" onClick={() => { deleteProspectDocument(prospect.id, doc.id); setDeleteDocConfirm(null); }}>Yes</button>
+                            <button className="btn btn-xs btn-outline" onClick={() => setDeleteDocConfirm(null)}>No</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setDeleteDocConfirm(doc.id)} title="Delete"><Trash2 size={12} /></button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -444,6 +595,113 @@ export default function PipelineTab() {
                         </button>
                       </div>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Proposal Builder Modal */}
+            {showProposalBuilder && (
+              <div className="proposal-builder-overlay" onClick={() => setShowProposalBuilder(false)}>
+                <div className="proposal-builder-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h3>Build Proposal for {prospect.name}</h3>
+                    <button className="modal-close" onClick={() => setShowProposalBuilder(false)} aria-label="Close"><X size={20} /></button>
+                  </div>
+                  <div className="proposal-builder-body">
+                    <div className="proposal-builder-col">
+                      <h4>Services</h4>
+                      <div className="proposal-service-list">
+                        {PROPOSAL_SERVICES.map((svc) => (
+                          <label key={svc.id} className={`proposal-service-item${proposalForm.services.includes(svc.id) ? ' checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={proposalForm.services.includes(svc.id)}
+                              onChange={() => toggleProposalService(svc.id)}
+                            />
+                            {svc.label}
+                          </label>
+                        ))}
+                      </div>
+                      <h4>Additional Notes</h4>
+                      <textarea
+                        rows={4}
+                        placeholder="Special terms, scope details, or additional info..."
+                        value={proposalForm.notes}
+                        onChange={(e) => setProposalForm({ ...proposalForm, notes: e.target.value })}
+                      />
+                    </div>
+                    <div className="proposal-builder-col">
+                      <h4>Pricing</h4>
+                      <div className="form-group">
+                        <label>Quote Amount ($)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="e.g. 2500"
+                          value={proposalForm.customPrice}
+                          onChange={(e) => setProposalForm({ ...proposalForm, customPrice: e.target.value })}
+                        />
+                      </div>
+                      <div className="proposal-discount-row">
+                        <label className="proposal-service-item">
+                          <input
+                            type="checkbox"
+                            checked={!!proposalForm.discount}
+                            onChange={(e) => setProposalForm({ ...proposalForm, discount: e.target.checked ? proposalForm.discount || '10' : '' })}
+                          />
+                          Apply Discount
+                        </label>
+                        {proposalForm.discount !== '' && (
+                          <>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={proposalForm.discount}
+                              onChange={(e) => setProposalForm({ ...proposalForm, discount: e.target.value })}
+                              style={{ width: 80 }}
+                            />
+                            <select
+                              value={proposalForm.discountType}
+                              onChange={(e) => setProposalForm({ ...proposalForm, discountType: e.target.value })}
+                              style={{ width: 80 }}
+                            >
+                              <option value="percent">%</option>
+                              <option value="flat">$ flat</option>
+                            </select>
+                          </>
+                        )}
+                      </div>
+                      <h4>Timeline</h4>
+                      <div className="form-group">
+                        <input
+                          type="text"
+                          placeholder="e.g. 8 weeks, 3 months"
+                          value={proposalForm.timeline}
+                          onChange={(e) => setProposalForm({ ...proposalForm, timeline: e.target.value })}
+                        />
+                      </div>
+                      <h4>Payment Terms</h4>
+                      <div className="form-group">
+                        <select
+                          value={proposalForm.paymentTerms}
+                          onChange={(e) => setProposalForm({ ...proposalForm, paymentTerms: e.target.value })}
+                        >
+                          <option value="net15">Net 15</option>
+                          <option value="net30">Net 30</option>
+                          <option value="net45">Net 45</option>
+                          <option value="due-on-receipt">Due on Receipt</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn btn-outline" onClick={() => setShowProposalBuilder(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={handleGenerateProposal} disabled={generatingProposal}>
+                      {generatingProposal ? 'Generating...' : <><FileText size={14} /> Generate PDF</>}
+                    </button>
                   </div>
                 </div>
               </div>
