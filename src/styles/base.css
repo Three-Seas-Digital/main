@@ -44,7 +44,7 @@
   
   /* Text */
   --text-bright: #f0f0f2;
-  --text-primary: #b0b0b8;
+  --text-primary: #c0c0c8;
   --text-secondary: #808088;
   --text-muted: #606068;
   --white: #ffffff;
@@ -138,7 +138,7 @@
   --axion-plum-soft: rgba(184, 96, 46, 0.25);
   --axion-gradient: linear-gradient(135deg, #C8A43E, #B8602E);
   --axion-gradient-subtle: linear-gradient(135deg, rgba(200, 164, 62, 0.12), rgba(184, 96, 46, 0.12));
-  --axion-gradient-text: linear-gradient(135deg, #C8A43E, #B8602E, #C8A43E);
+  --axion-gradient-text: linear-gradient(135deg, #D4B44A, #C8A43E, #A8882E, #C8A43E);
   --axion-dark: #0a0a0c;
   --axion-charcoal: #1a1a1e;
   --glow-ember: rgba(200, 164, 62, 0.15);
@@ -174,8 +174,8 @@
   --sirius-white: #1a1a22;
   --text-bright: #111118;
   --text-primary: #1a1a28;
-  --text-secondary: #3a3a4a;
-  --text-muted: #5a5a6e;
+  --text-secondary: #2a2a3a;
+  --text-muted: #4a4a5e;
   --white: #1a1a22;
 
   /* Glass — opaque white cards with real structure */
@@ -227,7 +227,7 @@
   --axion-plum-soft: rgba(142, 72, 24, 0.15);
   --axion-gradient: linear-gradient(135deg, #9a7a1e, #8e4818);
   --axion-gradient-subtle: linear-gradient(135deg, rgba(154, 122, 30, 0.08), rgba(142, 72, 24, 0.08));
-  --axion-gradient-text: linear-gradient(135deg, #9a7a1e, #8e4818, #9a7a1e);
+  --axion-gradient-text: linear-gradient(135deg, #b09428, #9a7a1e, #7a6418, #9a7a1e);
   --jelly-cyan: #8a7018;
   --jelly-blue: #7a6818;
   --jelly-pink: #8e4818;

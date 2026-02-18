@@ -4,6 +4,8 @@
  * Organized by tier: North Star (3 outcomes), Driver (5 levers), Guardrail (2 risk).
  */
 
+import { safeGetItem, safeSetItem, generateId } from '../../../constants';
+
 // --- Tier constructors (compact) ---
 const ns = (id, label, unit, desc) => ({ id, label, unit, tier: 'north_star', desc });
 const dr = (id, label, unit, desc) => ({ id, label, unit, tier: 'driver', desc });
@@ -690,6 +692,51 @@ export const INDUSTRY_KPI_PACKS = {
     gr('platform_policy_violations', 'Platform Policy Violations', '#', 'Content or selling policy strikes. Lower is better.'),
   ],
 };
+
+// ============================================================================
+// KPI Generation
+// ============================================================================
+
+/**
+ * Generate growth targets for a client based on their industry.
+ * Creates targets from industry pack (10 KPIs) + universal (18 KPIs).
+ * Skips any KPIs the client already has (matched by kpiId).
+ * Returns the array of newly created targets (for UI feedback).
+ */
+export function generateKpisForClient(clientId, industry) {
+  const industryPack = getIndustryPack(industry) || [];
+  const allKpis = [
+    ...industryPack.map(k => ({ ...k, source: 'industry' })),
+    ...UNIVERSAL_KPIS.map(k => ({ ...k, source: 'universal' })),
+  ];
+
+  const existing = safeGetItem('threeseas_bi_growth_targets', []);
+  const clientExisting = existing.filter(t => t.clientId === clientId);
+  const existingKpiIds = new Set(clientExisting.map(t => t.kpiId).filter(Boolean));
+
+  const now = new Date().toISOString();
+  const newTargets = allKpis
+    .filter(kpi => !existingKpiIds.has(kpi.id))
+    .map(kpi => ({
+      id: generateId(),
+      clientId,
+      kpiId: kpi.id,
+      name: kpi.label,
+      unit: kpi.unit,
+      tier: kpi.tier,
+      source: kpi.source,
+      baseline: 0,
+      current: 0,
+      target: 0,
+      status: 'active',
+      createdAt: now,
+    }));
+
+  if (newTargets.length > 0) {
+    safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...existing, ...newTargets]));
+  }
+  return newTargets;
+}
 
 // ============================================================================
 // Lookup Helpers

@@ -13,7 +13,7 @@ const timeSlots = [
 
 export default function Contact() {
   useEffect(() => { document.title = 'Contact Us — Three Seas Digital'; }, []);
-  const { addAppointment, getAppointmentsForDate } = useAppContext();
+  const { addAppointment, getBookedTimesForDate } = useAppContext();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -26,7 +26,7 @@ export default function Contact() {
   });
 
   const bookedTimes = selectedDate
-    ? getAppointmentsForDate(selectedDate).map((a) => a.time)
+    ? getBookedTimesForDate(selectedDate)
     : [];
 
   const handleChange = (e) => {

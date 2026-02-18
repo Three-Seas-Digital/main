@@ -102,12 +102,16 @@ function addParagraph(doc, y, text) {
 
 function toBase64Output(doc, name, type, description) {
   const pdfData = doc.output('datauristring');
-  const base64 = pdfData.split(',')[1];
+  // Strip jsPDF's filename param from data URI — it triggers browser download instead of display
+  // Before: data:application/pdf;filename=generated.pdf;base64,JVBERi0...
+  // After:  data:application/pdf;base64,JVBERi0...
+  const cleanData = pdfData.replace(/;filename=[^;]+/, '');
+  const base64 = cleanData.split(',')[1];
   const byteLength = Math.ceil(base64.length * 0.75);
   return {
     name,
     type,
-    fileData: pdfData,
+    fileData: cleanData,
     fileType: 'application/pdf',
     fileSize: byteLength,
     description,

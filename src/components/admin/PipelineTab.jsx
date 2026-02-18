@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react';
 import {
   AlertCircle, CheckCircle, XCircle, Clock, Mail, Phone, Briefcase,
   Plus, X, Trash2, Search, FolderKanban, ChevronUp, ChevronDown,
-  ArrowRight, FileText, Eye, Download, Upload, Printer,
+  ArrowRight, FileText, Eye, Download, Upload, Printer, CalendarDays, MessageSquare, Ban,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import AppointmentScheduler from './AppointmentScheduler';
 import { safeGetItem, escapeHtml } from '../../constants';
 import { generateProposalPdf } from '../../utils/generateOnboardingPdfs';
 
@@ -20,6 +21,8 @@ const PROPOSAL_SERVICES = [
   { id: 'maintenance', label: 'Ongoing Maintenance & Support' },
   { id: 'consulting', label: 'Business Consulting' },
 ];
+
+const APPT_NOTE_PREFIX = '[Appt]';
 
 const DEFAULT_PROPOSAL_FORM = {
   services: [],
@@ -38,6 +41,7 @@ export default function PipelineTab() {
     convertProspectToClient, PROSPECT_STAGES, LOSS_REASONS,
     addProspectDocument, deleteProspectDocument, DOCUMENT_TYPES,
     addNotification, saveToBusinessDb, SUBSCRIPTION_TIERS,
+    addAppointment, updateAppointment, updateAppointmentStatus, appointments,
   } = useAppContext();
 
   const [stageFilter, setStageFilter] = useState('all');
@@ -60,6 +64,11 @@ export default function PipelineTab() {
   const [generatingProposal, setGeneratingProposal] = useState(false);
   const [showProposalBuilder, setShowProposalBuilder] = useState(false);
   const [proposalForm, setProposalForm] = useState({ ...DEFAULT_PROPOSAL_FORM });
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [showNewAppt, setShowNewAppt] = useState(false);
+  const [showApptNotes, setShowApptNotes] = useState(false);
+  const [apptNote, setApptNote] = useState('');
+  const [cancelApptConfirm, setCancelApptConfirm] = useState(false);
 
   const [addForm, setAddForm] = useState({
     name: '', email: '', phone: '', service: '', dealValue: '', expectedCloseDate: '',
@@ -250,6 +259,24 @@ export default function PipelineTab() {
     }));
   };
 
+  const openDocPreview = (doc) => {
+    if (doc.fileType === 'application/pdf' && doc.fileData) {
+      // Build clean data URI without filename param, then embed in a new tab
+      const cleanUri = doc.fileData.replace(/;filename=[^;]*/, '');
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.write(
+          '<!DOCTYPE html><html><head><title>' + escapeHtml(doc.name) +
+          '</title><style>body{margin:0;overflow:hidden}embed{width:100%;height:100vh}</style></head>' +
+          '<body><embed src="' + cleanUri + '" type="application/pdf" /></body></html>'
+        );
+        w.document.close();
+      }
+      return;
+    }
+    setViewingDoc(doc);
+  };
+
   const handlePrintProposal = (doc) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -259,6 +286,27 @@ export default function PipelineTab() {
   };
 
   const prospect = selectedProspect ? prospects.find((p) => p.id === selectedProspect) : null;
+
+  const handleScheduleNewAppt = ({ date, time, message }) => {
+    if (!prospect) return;
+    const newAppt = addAppointment({
+      name: prospect.name,
+      email: prospect.email || '',
+      phone: prospect.phone || '',
+      date,
+      time,
+      service: prospect.service || '',
+      message: message || 'Pipeline prospect appointment',
+      status: 'pending',
+    });
+    if (newAppt?.id) {
+      updateProspect(prospect.id, { appointmentId: newAppt.id });
+      setShowScheduler(false);
+      setShowNewAppt(false);
+      setToastMsg('Appointment scheduled!');
+      setTimeout(() => setToastMsg(''), 2000);
+    }
+  };
 
   return (
     <div className="pipeline-tab">
@@ -360,7 +408,7 @@ export default function PipelineTab() {
             <div className="empty-state-sm"><p>No prospects found</p></div>
           ) : (
             filteredProspects.map((p) => (
-              <div key={p.id} className={`pipeline-card ${selectedProspect === p.id ? 'selected' : ''}`} onClick={() => setSelectedProspect(p.id)}>
+              <div key={p.id} className={`pipeline-card ${selectedProspect === p.id ? 'selected' : ''}`} onClick={() => { setSelectedProspect(p.id); setShowScheduler(false); setShowNewAppt(false); setShowApptNotes(false); setCancelApptConfirm(false); }}>
                 <div className="pipeline-card-header">
                   <strong>{p.name}</strong>
                   <span className="pipeline-stage-badge" style={{ background: PROSPECT_STAGES.find((s) => s.value === p.stage)?.color }}>{PROSPECT_STAGES.find((s) => s.value === p.stage)?.label}</span>
@@ -414,6 +462,136 @@ export default function PipelineTab() {
               </div>
             </div>
 
+            {/* Appointment Section */}
+            <div className="detail-section">
+              <label><CalendarDays size={14} /> Appointment</label>
+              {(() => {
+                const linkedAppt = prospect.appointmentId
+                  ? appointments.find((a) => a.id === prospect.appointmentId)
+                  : null;
+                if (linkedAppt) {
+                  const isCancelled = linkedAppt.status === 'cancelled';
+                  const closeAllApptPanels = (except) => {
+                    if (except !== 'scheduler') setShowScheduler(false);
+                    if (except !== 'newAppt') setShowNewAppt(false);
+                    if (except !== 'notes') setShowApptNotes(false);
+                    setCancelApptConfirm(false);
+                  };
+                  return (
+                    <div className="appt-linked-info">
+                      <p><CalendarDays size={13} /> {linkedAppt.date} at {linkedAppt.time} <span className={`badge badge-${linkedAppt.status === 'confirmed' ? 'success' : isCancelled ? 'danger' : 'warning'}`}>{linkedAppt.status}</span></p>
+                      {linkedAppt.message && <p className="appt-linked-message">{linkedAppt.message}</p>}
+                      <div className="appt-linked-actions">
+                        {!isCancelled && (
+                          <button className="btn btn-xs btn-outline" onClick={() => { closeAllApptPanels('scheduler'); setShowScheduler(!showScheduler); }}>
+                            {showScheduler ? 'Cancel' : 'Reschedule'}
+                          </button>
+                        )}
+                        <button className="btn btn-xs btn-outline" onClick={() => { closeAllApptPanels('newAppt'); setShowNewAppt(!showNewAppt); }}>
+                          {showNewAppt ? <><X size={12} /> Cancel</> : <><Plus size={12} /> New Appointment</>}
+                        </button>
+                        <button className="btn btn-xs btn-outline" onClick={() => { closeAllApptPanels('notes'); setShowApptNotes(!showApptNotes); }}>
+                          <MessageSquare size={12} /> Notes
+                        </button>
+                        {!isCancelled && (
+                          cancelApptConfirm ? (
+                            <span className="appt-cancel-confirm">
+                              Cancel appointment?
+                              <button className="btn btn-xs btn-danger" onClick={() => { updateAppointmentStatus(linkedAppt.id, 'cancelled'); setCancelApptConfirm(false); setToastMsg('Appointment cancelled'); setTimeout(() => setToastMsg(''), 2000); }}>Yes</button>
+                              <button className="btn btn-xs btn-outline" onClick={() => setCancelApptConfirm(false)}>No</button>
+                            </span>
+                          ) : (
+                            <button className="btn btn-xs btn-danger-outline" onClick={() => { closeAllApptPanels(); setCancelApptConfirm(true); }}>
+                              <Ban size={12} /> Cancel Appt
+                            </button>
+                          )
+                        )}
+                      </div>
+                      {showScheduler && (
+                        <AppointmentScheduler
+                          existingDate={linkedAppt.date}
+                          existingTime={linkedAppt.time}
+                          existingApptId={linkedAppt.id}
+                          linkedName={prospect.name}
+                          linkedEmail={prospect.email}
+                          linkedPhone={prospect.phone}
+                          linkedService={prospect.service}
+                          onSchedule={({ date, time }) => {
+                            updateAppointment(linkedAppt.id, { date, time });
+                            setShowScheduler(false);
+                            setToastMsg('Appointment rescheduled!');
+                            setTimeout(() => setToastMsg(''), 2000);
+                          }}
+                        />
+                      )}
+                      {showNewAppt && (
+                        <AppointmentScheduler
+                          linkedName={prospect.name}
+                          linkedEmail={prospect.email}
+                          linkedPhone={prospect.phone}
+                          linkedService={prospect.service}
+                          onSchedule={handleScheduleNewAppt}
+                        />
+                      )}
+                      {showApptNotes && (
+                        <div className="appt-notes-panel">
+                          <div className="appt-notes-list">
+                            {(prospect.notes || []).filter((n) => n.text.startsWith(APPT_NOTE_PREFIX)).length > 0 ? (
+                              (prospect.notes || []).filter((n) => n.text.startsWith(APPT_NOTE_PREFIX)).map((n) => (
+                                <div key={n.id} className="appt-note-item">
+                                  <p>{n.text.replace(`${APPT_NOTE_PREFIX} `, '')}</p>
+                                  <span className="appt-note-meta">{n.author} &middot; {new Date(n.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="appt-hint">No appointment notes yet</p>
+                            )}
+                          </div>
+                          <div className="appt-notes-input">
+                            <input
+                              type="text"
+                              placeholder="Add appointment note..."
+                              value={apptNote}
+                              onChange={(e) => setApptNote(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && apptNote.trim()) {
+                                  addProspectNote(prospect.id, `${APPT_NOTE_PREFIX} ${apptNote.trim()}`);
+                                  setApptNote('');
+                                }
+                              }}
+                            />
+                            <button
+                              className="btn btn-xs btn-primary"
+                              disabled={!apptNote.trim()}
+                              onClick={() => { addProspectNote(prospect.id, `${APPT_NOTE_PREFIX} ${apptNote.trim()}`); setApptNote(''); }}
+                            >
+                              <Plus size={12} /> Add
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <button className="btn btn-sm btn-outline" onClick={() => setShowScheduler(!showScheduler)}>
+                      {showScheduler ? <><X size={14} /> Cancel</> : <><CalendarDays size={14} /> Schedule Appointment</>}
+                    </button>
+                    {showScheduler && (
+                      <AppointmentScheduler
+                        linkedName={prospect.name}
+                        linkedEmail={prospect.email}
+                        linkedPhone={prospect.phone}
+                        linkedService={prospect.service}
+                        onSchedule={handleScheduleNewAppt}
+                      />
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
             {/* Proposal Section */}
             <div className="detail-section">
               <label>Proposal</label>
@@ -428,7 +606,7 @@ export default function PipelineTab() {
                 }
                 return (
                   <div className="proposal-actions">
-                    <button className="btn btn-sm btn-outline" onClick={() => setViewingDoc(proposalDoc)}>
+                    <button className="btn btn-sm btn-outline" onClick={() => openDocPreview(proposalDoc)}>
                       <Eye size={14} /> View
                     </button>
                     <button className="btn btn-sm btn-outline" onClick={() => handlePrintProposal(proposalDoc)}>
@@ -545,7 +723,7 @@ export default function PipelineTab() {
                         </span>
                       </div>
                       <div className="prospect-doc-actions">
-                        <button onClick={() => setViewingDoc(doc)} title="Preview"><Eye size={12} /></button>
+                        <button onClick={() => openDocPreview(doc)} title="Preview"><Eye size={12} /></button>
                         <button onClick={() => {
                           const link = document.createElement('a');
                           link.href = doc.fileData;

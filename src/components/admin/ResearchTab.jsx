@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { fetchWithTimeout } from '../../constants';
 import {
-  Users, GraduationCap, Building2, Activity,
+  Users, GraduationCap, Building2, Activity, Briefcase,
   Trees, Landmark, Globe, Search, FolderKanban,
   MapPin, CheckCircle, AlertCircle, Phone,
   ExternalLink, ChevronDown, Trash2, Eye,

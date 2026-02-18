@@ -83,5 +83,25 @@ RECOMMENDATION: <one line summary of what to do next>
 ---END_RALPH_STATUS---
 ```
 
-## Current Task
+## Current Phase: Phase 6 — Business Intelligence & Client Dashboard
+
+**CRITICAL:** Read BOTH spec files before starting any Phase 6 task:
+1. `.ralph/specs/database-schema.md` — Phase 5 base schema (25 tables, localStorage mapping)
+2. `.ralph/specs/business-intelligence-spec.md` — Phase 6 BI spec (28 new tables, sidebar nav, financials, interventions, automated feeds)
+
+**Phase 6 adds:**
+- 28 new database tables (53 total) for audits, scoring, recommendations, growth tracking, client financials, intervention effectiveness, automated data feeds, reporting
+- Restructured admin sidebar (grouped by: Clients, Business Intelligence, Analytics, Finance, Projects)
+- New client portal sidebar (Dashboard, Business Health, Recommendations, Financials, Projects, Documents)
+- Client financial tracking (revenue, expenses, profit, ad spend, channel/product breakdowns)
+- Intervention effectiveness measurement (before/after, ROI calculation, automated snapshots)
+- Automated data feeds (Google Analytics, Search Console, PageSpeed, social APIs, ad platforms)
+- Charts & filters (Recharts, filterable, searchable, exportable, comparison mode)
+
+**Sub-phases:** 6A (Schema + Admin Audit UI) → 6B (Client Dashboard) → 6C (Financials) → 6D (Interventions) → 6E (Data Feeds) → 6F (Reporting)
+
+**Constraint:** Do NOT break the existing frontend. localStorage must continue to work until the full API migration is complete. Build the backend alongside, not as a replacement.
+
+**Security:** Client portal endpoints must NEVER expose internal_notes, admin notes, or raw API tokens. Only show client_summary fields.
+
 Follow fix_plan.md and choose the highest-priority unchecked item to implement next.

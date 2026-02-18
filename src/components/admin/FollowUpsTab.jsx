@@ -3,14 +3,15 @@ import {
   CalendarDays, Clock, AlertCircle,
   PhoneForwarded, UserCheck, MessageSquare, Plus, CheckCircle,
   Mail, Phone, Trash2, ChevronUp, ChevronDown, Briefcase, FolderKanban,
-  BarChart3, Users, Calendar as CalendarIcon,
+  BarChart3, Users, Calendar as CalendarIcon, X,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import Calendar from '../Calendar';
+import AppointmentScheduler from './AppointmentScheduler';
 import { FollowUpBadge, formatDisplayDate } from './adminUtils';
 
 export default function FollowUpsTab() {
-  const { appointments, markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, addProspect, updateAppointment, hasPermission, deleteAppointment, users, assignAppointment, STAFF_COLORS, addNotification, saveToBusinessDb } = useAppContext();
+  const { appointments, addAppointment, markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, addProspect, updateAppointment, hasPermission, deleteAppointment, users, assignAppointment, STAFF_COLORS, addNotification, saveToBusinessDb } = useAppContext();
   const canManage = hasPermission('manage_appointments');
   const canDelete = hasPermission('delete_clients') || hasPermission('manage_appointments');
   const [showFormFor, setShowFormFor] = useState(null);
@@ -26,10 +27,14 @@ export default function FollowUpsTab() {
   const [draggedAppt, setDraggedAppt] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
+  const [rescheduleApptId, setRescheduleApptId] = useState(null);
+  const [newApptId, setNewApptId] = useState(null);
+  const [apptNotesId, setApptNotesId] = useState(null);
+  const [fuApptNotes, setFuApptNotes] = useState({});
 
   // Show confirmed appointments that need follow-up, plus ALL appointments that have follow-ups
   const confirmedAppts = useMemo(() => appointments.filter((a) => a.status === 'confirmed'), [appointments]);
-  const needsFollowUp = useMemo(() => confirmedAppts.filter((a) => !a.followUp && !a.sentToPipeline), [confirmedAppts]);
+  const needsFollowUp = useMemo(() => confirmedAppts.filter((a) => !a.followUp && !a.sentToPipeline && !a.parentFollowUpId), [confirmedAppts]);
   const withFollowUp = useMemo(() => appointments.filter((a) => a.followUp && !a.sentToPipeline), [appointments]);
   const filteredFollowUps = useMemo(() => filterFU === 'all'
     ? withFollowUp.filter((a) => a.followUp.status !== 'archived')
@@ -383,7 +388,13 @@ export default function FollowUpsTab() {
           <div className="empty-state-sm"><p>No follow-ups to show</p></div>
         ) : (
           <div className="fu-list">
-            {filteredFollowUps.map((appt) => (
+            {filteredFollowUps.map((appt) => {
+              const uniqueLeadNotes = appt.leadNotes?.filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i) || [];
+              const leadNoteIds = new Set(uniqueLeadNotes.map((n) => n.id));
+              const uniqueFollowUpNotes = (appt.followUp.notes || []).filter((n) => !leadNoteIds.has(n.id));
+              const totalNotes = uniqueLeadNotes.length + uniqueFollowUpNotes.length;
+
+              return (
               <div key={appt.id} className={`fu-card fu-priority-${appt.followUp.priority}${appt.followUp.status === 'archived' ? ' fu-archived' : ''}`}>
                 <div className="fu-card-top">
                   <div className="fu-card-info">
@@ -404,50 +415,37 @@ export default function FollowUpsTab() {
                   <div className="fu-additional-notes">
                     <button className="fu-notes-toggle" onClick={() => setExpandedNotes((prev) => ({ ...prev, [appt.id]: !prev[appt.id] }))}>
                       <MessageSquare size={14} />
-                      {(() => {
-                        const uniqueLeadNotes = appt.leadNotes?.filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i) || [];
-                        const leadNoteIds = new Set(uniqueLeadNotes.map((n) => n.id));
-                        const uniqueFollowUpNotes = (appt.followUp.notes || []).filter((n) => !leadNoteIds.has(n.id));
-                        const totalNotes = uniqueLeadNotes.length + uniqueFollowUpNotes.length;
-                        return totalNotes > 0 ? `${totalNotes} Note${totalNotes > 1 ? 's' : ''}` : 'Add Notes';
-                      })()}
+                      {totalNotes > 0 ? `${totalNotes} Note${totalNotes > 1 ? 's' : ''}` : 'Add Notes'}
                       {expandedNotes[appt.id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                     {expandedNotes[appt.id] && (
                       <div className="fu-notes-list">
                         {/* Lead Notes (from prospecting) - deduplicated */}
-                        {(() => {
-                          const uniqueLeadNotes = appt.leadNotes?.filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i) || [];
-                          return uniqueLeadNotes.length > 0 && (
-                            <div className="fu-notes-section">
-                              <span className="fu-notes-label">From Lead Prospecting:</span>
-                              {uniqueLeadNotes.map((n) => (
-                                <div key={n.id} className="fu-note-item lead-note">
-                                  <div className="fu-note-content">
-                                    <p>{n.text}</p>
-                                    <span className="fu-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()}</span>
-                                  </div>
+                        {uniqueLeadNotes.length > 0 && (
+                          <div className="fu-notes-section">
+                            <span className="fu-notes-label">From Lead Prospecting:</span>
+                            {uniqueLeadNotes.map((n) => (
+                              <div key={n.id} className="fu-note-item lead-note">
+                                <div className="fu-note-content">
+                                  <p>{n.text}</p>
+                                  <span className="fu-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()}</span>
                                 </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                        {/* Follow-up Notes (exclude any that are already in leadNotes) */}
-                        {(() => {
-                          const leadNoteIds = new Set((appt.leadNotes || []).map((n) => n.id));
-                          const uniqueFollowUpNotes = (appt.followUp.notes || []).filter((n) => !leadNoteIds.has(n.id));
-                          return uniqueFollowUpNotes.map((n) => (
-                            <div key={n.id} className="fu-note-item">
-                              <div className="fu-note-content">
-                                <p>{n.text}</p>
-                                <span className="fu-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
-                              {canManage && (
-                                <button className="fu-note-delete" onClick={() => deleteFollowUpNote(appt.id, n.id)} title="Delete note"><Trash2 size={12} /></button>
-                              )}
+                            ))}
+                          </div>
+                        )}
+                        {/* Follow-up Notes (exclude any that are already in leadNotes) */}
+                        {uniqueFollowUpNotes.map((n) => (
+                          <div key={n.id} className="fu-note-item">
+                            <div className="fu-note-content">
+                              <p>{n.text}</p>
+                              <span className="fu-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                          ));
-                        })()}
+                            {canManage && (
+                              <button className="fu-note-delete" onClick={() => deleteFollowUpNote(appt.id, n.id)} title="Delete note"><Trash2 size={12} /></button>
+                            )}
+                          </div>
+                        ))}
                         {canManage && (
                           <div className="fu-add-note-form">
                             <input
@@ -483,6 +481,15 @@ export default function FollowUpsTab() {
                   <div className="fu-actions">
                     {appt.followUp.status === 'pending' && <button className="btn btn-sm btn-outline" onClick={() => updateFollowUp(appt.id, { status: 'contacted' })}><Phone size={14} /> Mark Contacted</button>}
                     {appt.followUp.status === 'contacted' && <button className="btn btn-sm btn-confirm" onClick={() => updateFollowUp(appt.id, { status: 'completed' })}><CheckCircle size={14} /> Mark Completed</button>}
+                    <button className="btn btn-sm btn-outline" onClick={() => { setRescheduleApptId(rescheduleApptId === appt.id ? null : appt.id); setNewApptId(null); setApptNotesId(null); }}>
+                      <CalendarIcon size={14} /> {rescheduleApptId === appt.id ? 'Cancel' : 'Reschedule'}
+                    </button>
+                    <button className="btn btn-sm btn-outline" onClick={() => { setNewApptId(newApptId === appt.id ? null : appt.id); setRescheduleApptId(null); setApptNotesId(null); }}>
+                      {newApptId === appt.id ? <><X size={14} /> Cancel</> : <><Plus size={14} /> New Appt</>}
+                    </button>
+                    <button className="btn btn-sm btn-outline" onClick={() => { setApptNotesId(apptNotesId === appt.id ? null : appt.id); setRescheduleApptId(null); setNewApptId(null); }}>
+                      <MessageSquare size={14} /> Notes
+                    </button>
                     {!appt.sentToPipeline && <button className="btn btn-sm btn-pipeline" onClick={() => handleSendToPipeline(appt.id)}><Briefcase size={14} /> Send to Pipeline</button>}
                     {appt.sentToPipeline && <span className="pipeline-tag"><Briefcase size={12} /> In Pipeline</span>}
                     {appt.followUp.status !== 'archived' ? (
@@ -503,8 +510,107 @@ export default function FollowUpsTab() {
                     )}
                   </div>
                 )}
+                {rescheduleApptId === appt.id && (
+                  <AppointmentScheduler
+                    existingDate={appt.date}
+                    existingTime={appt.time}
+                    existingApptId={appt.id}
+                    linkedName={appt.name}
+                    linkedEmail={appt.email}
+                    linkedPhone={appt.phone}
+                    linkedService={appt.service}
+                    onSchedule={({ date, time }) => {
+                      updateAppointment(appt.id, { date, time });
+                      setRescheduleApptId(null);
+                    }}
+                  />
+                )}
+                {newApptId === appt.id && (
+                  <AppointmentScheduler
+                    linkedName={appt.name}
+                    linkedEmail={appt.email}
+                    linkedPhone={appt.phone}
+                    linkedService={appt.service}
+                    onSchedule={({ date, time, message }) => {
+                      const newAppt = addAppointment({
+                        name: appt.name,
+                        email: appt.email || '',
+                        phone: appt.phone || '',
+                        date,
+                        time,
+                        service: appt.service || '',
+                        message: message || `Follow-up appointment for ${appt.name}`,
+                        status: 'pending',
+                        parentFollowUpId: appt.id,
+                      });
+                      if (newAppt?.id) {
+                        const existing = appt.followUp.linkedAppointments || [];
+                        updateFollowUp(appt.id, { linkedAppointments: [...existing, newAppt.id] });
+                      }
+                      setNewApptId(null);
+                      setConvertMsg('New appointment added!');
+                      setTimeout(() => setConvertMsg(''), 2000);
+                    }}
+                  />
+                )}
+                {apptNotesId === appt.id && (
+                  <div className="appt-notes-panel">
+                    <div className="appt-notes-list">
+                      {(appt.followUp.notes || []).length > 0 ? (
+                        (appt.followUp.notes || []).map((n) => (
+                          <div key={n.id} className="appt-note-item">
+                            <p>{n.text}</p>
+                            <span className="appt-note-meta">{n.author} &middot; {new Date(n.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="appt-hint">No appointment notes yet</p>
+                      )}
+                    </div>
+                    <div className="appt-notes-input">
+                      <input
+                        type="text"
+                        placeholder="Add appointment note..."
+                        value={fuApptNotes[appt.id] || ''}
+                        onChange={(e) => setFuApptNotes((prev) => ({ ...prev, [appt.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && fuApptNotes[appt.id]?.trim()) {
+                            addFollowUpNote(appt.id, fuApptNotes[appt.id].trim());
+                            setFuApptNotes((prev) => ({ ...prev, [appt.id]: '' }));
+                          }
+                        }}
+                      />
+                      <button
+                        className="btn btn-xs btn-primary"
+                        disabled={!fuApptNotes[appt.id]?.trim()}
+                        onClick={() => { addFollowUpNote(appt.id, fuApptNotes[appt.id].trim()); setFuApptNotes((prev) => ({ ...prev, [appt.id]: '' })); }}
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {/* Linked Appointments */}
+                {appt.followUp.linkedAppointments?.length > 0 && (
+                  <div className="fu-linked-appts">
+                    <span className="fu-linked-label"><CalendarDays size={13} /> Scheduled Appointments ({appt.followUp.linkedAppointments.length})</span>
+                    {appt.followUp.linkedAppointments.map((aId) => {
+                      const linked = appointments.find((a) => a.id === aId);
+                      if (!linked) return null;
+                      return (
+                        <div key={aId} className={`fu-linked-appt-item ${linked.status === 'cancelled' ? 'cancelled' : ''}`}>
+                          <CalendarDays size={12} />
+                          <span className="fu-linked-date">{formatDisplayDate(linked.date)} at {linked.time}</span>
+                          <span className={`badge badge-${linked.status === 'confirmed' ? 'success' : linked.status === 'cancelled' ? 'danger' : 'warning'}`}>{linked.status}</span>
+                          {linked.message && <span className="fu-linked-msg">{linked.message}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

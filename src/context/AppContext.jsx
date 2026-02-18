@@ -4,6 +4,7 @@ import { useFinance } from './FinanceContext';
 import { useSales } from './SalesContext';
 import { generateId, safeSetItem, safeGetItem, onStorageWarning } from '../constants';
 import { generateBiDiscoveryPdf } from '../utils/generateOnboardingPdfs';
+import { generateKpisForClient } from '../components/admin/BusinessIntelligence/kpiRegistry';
 import { syncToApi } from '../api/apiSync.js';
 import { appointmentsApi } from '../api/appointments.js';
 import { clientsApi } from '../api/clients.js';
@@ -429,6 +430,12 @@ export function AppProvider({ children }) {
     return appointments.filter((appt) => appt.date === dateStr);
   };
 
+  const getBookedTimesForDate = (dateStr, excludeApptId) => {
+    return getAppointmentsForDate(dateStr)
+      .filter((a) => a.status !== 'cancelled' && a.id !== excludeApptId)
+      .map((a) => a.time);
+  };
+
   // Clients
   const convertToClient = (appointmentId) => {
     const appt = appointments.find((a) => a.id === appointmentId);
@@ -681,21 +688,26 @@ export function AppProvider({ children }) {
         safeSetItem('threeseas_bi_client_financials', JSON.stringify(financials));
       }
 
-      // Create default growth targets template
+      // Create growth targets — use industry KPIs if intake has industry, else generic defaults
       const targets = safeGetItem('threeseas_bi_growth_targets', []);
       const hasTargets = targets.some((t) => t.clientId === id);
       if (!hasTargets) {
-        const now = new Date().toISOString();
-        const defaultMetrics = [
-          { name: 'Website Traffic', unit: 'visitors/mo', baseline: 0, current: 0, target: 500, status: 'active' },
-          { name: 'Conversion Rate', unit: '%', baseline: 0, current: 0, target: 3, status: 'active' },
-          { name: 'Monthly Revenue', unit: '$', baseline: 0, current: 0, target: 5000, status: 'active' },
-          { name: 'Social Media Followers', unit: 'followers', baseline: 0, current: 0, target: 500, status: 'active' },
-        ];
-        const newTargets = defaultMetrics.map((m) => ({
-          id: generateId(), clientId: id, ...m, createdAt: now,
-        }));
-        safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...targets, ...newTargets]));
+        const intake = intakes[id];
+        if (intake && intake.industry && intake.industry !== 'Other') {
+          generateKpisForClient(id, intake.industry);
+        } else {
+          const now = new Date().toISOString();
+          const defaultMetrics = [
+            { name: 'Website Traffic', unit: 'visitors/mo', baseline: 0, current: 0, target: 500, status: 'active' },
+            { name: 'Conversion Rate', unit: '%', baseline: 0, current: 0, target: 3, status: 'active' },
+            { name: 'Monthly Revenue', unit: '$', baseline: 0, current: 0, target: 5000, status: 'active' },
+            { name: 'Social Media Followers', unit: 'followers', baseline: 0, current: 0, target: 500, status: 'active' },
+          ];
+          const newTargets = defaultMetrics.map((m) => ({
+            id: generateId(), clientId: id, ...m, createdAt: now,
+          }));
+          safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...targets, ...newTargets]));
+        }
       }
     } catch (e) {
       // BI template creation is non-critical — don't block approval
@@ -1336,6 +1348,14 @@ export function AppProvider({ children }) {
     return { success: true, client: newClient, pendingApproval: true };
   };
 
+  const changeClientPassword = (clientId, newPassword) => {
+    if (!newPassword || newPassword.length < 6) return { success: false, error: 'Password must be at least 6 characters' };
+    const hashed = hashPassword(newPassword);
+    setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, password: hashed } : c));
+    syncToApi(() => clientsApi.update(clientId, { password: newPassword }), 'changeClientPassword');
+    return { success: true };
+  };
+
   const clientLogin = (email, password) => {
     const result = auth.clientLogin(email, password, clients);
     // Handle plaintext password migration if needed
@@ -1388,7 +1408,7 @@ export function AppProvider({ children }) {
 
   const value = useMemo(() => ({
     appointments, addAppointment, updateAppointmentStatus, updateAppointment, assignAppointment,
-    markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, deleteAppointment, getAppointmentsForDate,
+    markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, deleteAppointment, getAppointmentsForDate, getBookedTimesForDate,
     clients, convertToClient, addClientManually, updateClient, addClientNote, deleteClientNote,
     addClientTag, removeClientTag, addClientDocument, updateClientDocument, deleteClientDocument, DOCUMENT_TYPES,
     deleteClient, archiveClient, restoreClient, permanentlyDeleteClient, approveClient, rejectClient,
@@ -1397,7 +1417,7 @@ export function AppProvider({ children }) {
     addProject, updateProject, deleteProject, addProjectTask, updateProjectTask, deleteProjectTask,
     addMilestone, toggleMilestone, deleteMilestone, assignDeveloperToProject, removeDeveloperFromProject, completeProject,
     recordPayment, updateClientTier, convertProspectToClient,
-    registerClient, checkClientEmail, clientLogin, clientLogout,
+    registerClient, checkClientEmail, clientLogin, clientLogout, changeClientPassword,
     activityLog, logActivity, clearActivityLog,
     notifications, addNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications,
     timeEntries, addTimeEntry, updateTimeEntry, deleteTimeEntry, markTimeEntryBilled,

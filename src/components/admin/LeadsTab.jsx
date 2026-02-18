@@ -7,6 +7,7 @@ import {
   PhoneCall, Briefcase, DollarSign,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { TIME_SLOTS } from './AppointmentScheduler';
 
 const LEAD_STATUSES = [
   { value: 'new', label: 'New', color: '#3b82f6' },
@@ -42,7 +43,7 @@ function getBusinessType(tags) {
 }
 
 export default function LeadsTab() {
-  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, businessDatabase, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb, addNotification } = useAppContext();
+  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb, addNotification, getBookedTimesForDate } = useAppContext();
 
   const [searchAddress, setSearchAddress] = useState('');
   const [searchRadius, setSearchRadius] = useState(1000);
@@ -65,9 +66,6 @@ export default function LeadsTab() {
   const [toastMsg, setToastMsg] = useState('');
   const [selectedResult, setSelectedResult] = useState(null);
   const [enrichData, setEnrichData] = useState({});
-  const [leadsView, setLeadsView] = useState('pipeline'); // 'pipeline' or 'database'
-  const [dbSearch, setDbSearch] = useState('');
-  const [selectedDbEntry, setSelectedDbEntry] = useState(null);
 
   // Open business details modal - check if already in database
   const handleViewDetails = (result) => {
@@ -102,17 +100,6 @@ export default function LeadsTab() {
       setSelectedResult({ ...selectedResult, enrichment: enrichData });
     }
   };
-
-  // Filter database entries
-  const filteredDatabase = useMemo(() => {
-    if (!dbSearch.trim()) return businessDatabase;
-    const search = dbSearch.toLowerCase();
-    return businessDatabase.filter((b) =>
-      b.name?.toLowerCase().includes(search) ||
-      b.address?.toLowerCase().includes(search) ||
-      b.type?.toLowerCase().includes(search)
-    );
-  }, [businessDatabase, dbSearch]);
 
   // Handle lead status change - archive "not-interested" to database, send "converted" to pipeline
   const handleLeadStatusChange = (lead, newStatus) => {
@@ -209,7 +196,22 @@ export default function LeadsTab() {
 
   // Send to Follow-Ups (creates appointment with follow-up)
   const handleSendToFollowUp = (lead) => {
-    const today = new Date().toISOString().split('T')[0];
+    const allSlots = TIME_SLOTS;
+    let scheduledDate = new Date().toISOString().split('T')[0];
+    let scheduledTime = '';
+    // Find first available slot, searching up to 7 days out
+    for (let d = 0; d < 7 && !scheduledTime; d++) {
+      const checkDate = new Date();
+      checkDate.setDate(checkDate.getDate() + d);
+      const dateStr = checkDate.toISOString().split('T')[0];
+      const booked = getBookedTimesForDate(dateStr);
+      const available = allSlots.find((s) => !booked.includes(s));
+      if (available) {
+        scheduledDate = dateStr;
+        scheduledTime = available;
+      }
+    }
+    if (!scheduledTime) scheduledTime = '9:00 AM'; // Fallback if all 63 slots full
     // Convert lead notes to follow-up notes format
     const leadNotesFormatted = (lead.notes || []).map((n) => ({
       id: n.id,
@@ -221,8 +223,8 @@ export default function LeadsTab() {
       name: lead.businessName,
       email: lead.email || '',
       phone: lead.phone || '',
-      date: today,
-      time: '09:00',
+      date: scheduledDate,
+      time: scheduledTime,
       service: lead.type || '',
       message: `Lead from prospecting: ${lead.address || ''}`,
       status: 'pending',
@@ -230,7 +232,7 @@ export default function LeadsTab() {
       followUp: {
         note: `Contacted lead - ${lead.notes?.length > 0 ? lead.notes[0].text : 'Needs follow-up'}`,
         priority: 'normal',
-        followUpDate: today,
+        followUpDate: scheduledDate,
         status: 'pending',
         createdAt: new Date().toISOString(),
         notes: [], // Start empty - additional notes added during follow-up
@@ -440,10 +442,6 @@ export default function LeadsTab() {
             <span className="leads-stat-value">{leads.length}</span>
             <span className="leads-stat-label">Leads</span>
           </div>
-          <div className="leads-stat-chip">
-            <span className="leads-stat-value">{businessDatabase.length}</span>
-            <span className="leads-stat-label">Database</span>
-          </div>
           {LEAD_STATUSES.slice(0, 4).map((s) => (
             <div key={s.value} className="leads-stat-chip">
               <span className="leads-status-dot" style={{ background: s.color }} />
@@ -451,14 +449,6 @@ export default function LeadsTab() {
               <span className="leads-stat-label">{s.label}</span>
             </div>
           ))}
-        </div>
-        <div className="leads-view-toggle">
-          <button className={`view-btn ${leadsView === 'pipeline' ? 'active' : ''}`} onClick={() => setLeadsView('pipeline')}>
-            <Search size={14} /> Pipeline
-          </button>
-          <button className={`view-btn ${leadsView === 'database' ? 'active' : ''}`} onClick={() => setLeadsView('database')}>
-            <Building2 size={14} /> Database
-          </button>
         </div>
       </div>
 
@@ -635,137 +625,6 @@ export default function LeadsTab() {
         </div>
       )}
 
-      {leadsView === 'database' ? (
-        <div className="business-database">
-          <div className="db-search-bar">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Search database by name, address, or type..."
-              value={dbSearch}
-              onChange={(e) => setDbSearch(e.target.value)}
-            />
-            <span className="db-count">{filteredDatabase.length} businesses</span>
-          </div>
-
-          {filteredDatabase.length === 0 ? (
-            <div className="db-empty">
-              <Building2 size={48} />
-              <h3>{businessDatabase.length === 0 ? 'No businesses saved yet' : 'No matching businesses'}</h3>
-              <p>{businessDatabase.length === 0 ? 'Research businesses and save their intel to build your database' : 'Try a different search term'}</p>
-            </div>
-          ) : (
-            <div className="db-grid">
-              {filteredDatabase.map((biz) => (
-                <div key={biz.id} className="db-card" onClick={() => setSelectedDbEntry(biz)}>
-                  <div className="db-card-header">
-                    <Building2 size={18} />
-                    <div>
-                      <h4>{biz.name}</h4>
-                      <span className="db-type">{biz.type || 'Business'}</span>
-                    </div>
-                  </div>
-                  <div className="db-card-body">
-                    {biz.address && <p><MapPin size={12} /> {biz.address}</p>}
-                    {biz.phone && <p><Phone size={12} /> {biz.phone}</p>}
-                    {biz.enrichment?.revenue && <p><DollarSign size={12} /> {biz.enrichment.revenue}</p>}
-                    {biz.enrichment?.employees && <p><Users size={12} /> {biz.enrichment.employees} employees</p>}
-                    {biz.enrichment?.googleRating && <p>⭐ {biz.enrichment.googleRating} ({biz.enrichment.googleReviews || 0} reviews)</p>}
-                  </div>
-                  <div className="db-card-footer">
-                    <span>Updated {new Date(biz.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Database Entry Detail Modal */}
-          {selectedDbEntry && (
-            <div className="business-modal-overlay" onClick={() => setSelectedDbEntry(null)}>
-              <div className="business-modal" onClick={(e) => e.stopPropagation()}>
-                <button className="business-modal-close" onClick={() => setSelectedDbEntry(null)} aria-label="Close"><X size={20} /></button>
-
-                <div className="business-modal-header">
-                  <div className="business-modal-icon"><Building2 size={28} /></div>
-                  <div>
-                    <h2>{selectedDbEntry.name}</h2>
-                    <span className="business-type-badge">{selectedDbEntry.type || 'Business'}</span>
-                  </div>
-                </div>
-
-                <div className="business-modal-content">
-                  <div className="business-section">
-                    <h4>Contact Info</h4>
-                    <div className="business-info-grid">
-                      {selectedDbEntry.address && <div className="business-info-item"><MapPin size={14} /><span>{selectedDbEntry.address}</span></div>}
-                      {selectedDbEntry.phone && <div className="business-info-item"><Phone size={14} /><a href={`tel:${selectedDbEntry.phone}`}>{selectedDbEntry.phone}</a></div>}
-                      {selectedDbEntry.website && <div className="business-info-item"><Globe size={14} /><a href={selectedDbEntry.website} target="_blank" rel="noopener noreferrer">{selectedDbEntry.website}</a></div>}
-                      {selectedDbEntry.enrichment?.directEmail && <div className="business-info-item"><Mail size={14} /><a href={`mailto:${selectedDbEntry.enrichment.directEmail}`}>{selectedDbEntry.enrichment.directEmail}</a></div>}
-                    </div>
-                  </div>
-
-                  {selectedDbEntry.enrichment && Object.keys(selectedDbEntry.enrichment).length > 0 && (
-                    <div className="business-section">
-                      <h4>Business Intel</h4>
-                      <div className="db-intel-grid">
-                        {selectedDbEntry.enrichment.revenue && <div className="intel-item"><span className="intel-label">Revenue</span><span className="intel-value">{selectedDbEntry.enrichment.revenue}</span></div>}
-                        {selectedDbEntry.enrichment.employees && <div className="intel-item"><span className="intel-label">Employees</span><span className="intel-value">{selectedDbEntry.enrichment.employees}</span></div>}
-                        {selectedDbEntry.enrichment.yearsInBusiness && <div className="intel-item"><span className="intel-label">Years in Business</span><span className="intel-value">{selectedDbEntry.enrichment.yearsInBusiness}</span></div>}
-                        {selectedDbEntry.enrichment.googleRating && <div className="intel-item"><span className="intel-label">Google Rating</span><span className="intel-value">⭐ {selectedDbEntry.enrichment.googleRating} ({selectedDbEntry.enrichment.googleReviews || 0})</span></div>}
-                        {selectedDbEntry.enrichment.yelpRating && <div className="intel-item"><span className="intel-label">Yelp Rating</span><span className="intel-value">⭐ {selectedDbEntry.enrichment.yelpRating}</span></div>}
-                        {selectedDbEntry.enrichment.decisionMaker && <div className="intel-item"><span className="intel-label">Decision Maker</span><span className="intel-value">{selectedDbEntry.enrichment.decisionMaker}</span></div>}
-                      </div>
-                      {selectedDbEntry.enrichment.notes && (
-                        <div className="intel-notes">
-                          <span className="intel-label">Research Notes</span>
-                          <p>{selectedDbEntry.enrichment.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="business-section">
-                    <h4>Record Info</h4>
-                    <div className="db-meta">
-                      <span>Added: {new Date(selectedDbEntry.createdAt).toLocaleString()}</span>
-                      <span>Updated: {new Date(selectedDbEntry.updatedAt).toLocaleString()}</span>
-                      <span>Source: {selectedDbEntry.source === 'osm' ? 'OpenStreetMap' : 'Manual'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="business-modal-footer">
-                  <button className="btn btn-outline-danger" onClick={() => { deleteFromBusinessDb(selectedDbEntry.id); setSelectedDbEntry(null); }}>
-                    <Trash2 size={14} /> Delete
-                  </button>
-                  <button className="btn btn-primary" onClick={() => {
-                    const saved = leads.some((l) => l.businessName.toLowerCase() === selectedDbEntry.name.toLowerCase());
-                    if (!saved) {
-                      addLead({
-                        businessName: selectedDbEntry.name,
-                        address: selectedDbEntry.address,
-                        phone: selectedDbEntry.phone,
-                        website: selectedDbEntry.website,
-                        type: selectedDbEntry.type,
-                        source: 'database',
-                        coordinates: selectedDbEntry.coordinates,
-                        enrichment: selectedDbEntry.enrichment,
-                      });
-                      setToastMsg('Added to leads pipeline!');
-                      setTimeout(() => setToastMsg(''), 3000);
-                    }
-                    setSelectedDbEntry(null);
-                  }}>
-                    <Plus size={14} /> Add to Pipeline
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-      <>
       {/* Search Section */}
       <div className="leads-search-card">
         <h3><Search size={18} /> Business Search</h3>
@@ -1060,8 +919,6 @@ export default function LeadsTab() {
           </div>
         )}
       </div>
-      </>
-      )}
     </div>
   );
 }

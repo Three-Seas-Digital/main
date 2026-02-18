@@ -1,4 +1,4 @@
-import { useEffect, useRef, useLayoutEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useRef, useLayoutEffect, useState, useCallback, lazy, Suspense, Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -80,93 +80,90 @@ function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {})
 
 /* ── Video Hero (static, not pinned) ── */
 function VideoHero() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const videoARef = useRef(null);
+  const videoBRef = useRef(null);
 
-  // Smooth crossfade loop: capture a frame well before the end,
-  // slowly fade the canvas over the video, hold through the loop
-  // restart, then slowly fade it back out.
+  // Dual-video ping-pong: two identical <video> elements alternate.
+  // When the active one nears its end, the standby one starts from 0
+  // and crossfades in. No native loop, no seek stutter, no canvas.
   useEffect(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    const vA = videoARef.current;
+    const vB = videoBRef.current;
+    if (!vA || !vB) return;
+
+    const CROSSFADE = 2.4; // seconds — overlap window
+    const FPS = 1 / 60;
+    const SPEED = 1 / CROSSFADE; // opacity change per second
 
     let raf;
-    let phase = 'watching'; // watching | snapped | covering | fading
+    let active = vA;       // currently visible
+    let standby = vB;      // waiting off-screen
+    let fading = false;    // true during crossfade
+    let activeOpacity = 1;
+    let standbyOpacity = 0;
+
+    // Preload standby so it's ready instantly
+    standby.preload = 'auto';
+    standby.currentTime = 0;
 
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      if (!video.duration) return;
+      if (!active.duration) return;
 
-      const remaining = video.duration - video.currentTime;
-      const t = video.currentTime;
+      const remaining = active.duration - active.currentTime;
 
-      switch (phase) {
-        case 'watching':
-          // 3s before end: capture a clean mid-motion frame
-          if (remaining < 3.0 && remaining > 2.0) {
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            // Use slow fade-in transition
-            canvas.style.transition = 'opacity 2s ease-in';
-            phase = 'snapped';
-          }
-          break;
+      // Start crossfade when active approaches end
+      if (!fading && remaining < CROSSFADE && remaining > 0.05) {
+        fading = true;
+        standby.currentTime = 0;
+        standby.play().catch(() => {});
+      }
 
-        case 'snapped':
-          // 1.5s before end: start fading canvas in
-          if (remaining < 1.5) {
-            canvas.style.opacity = '1';
-            phase = 'covering';
-          }
-          break;
+      if (fading) {
+        activeOpacity = Math.max(0, activeOpacity - SPEED * FPS);
+        standbyOpacity = Math.min(1, standbyOpacity + SPEED * FPS);
+        active.style.opacity = activeOpacity;
+        standby.style.opacity = standbyOpacity;
 
-        case 'covering':
-          // After loop restarts, hold canvas until new loop has settled
-          if (t > 0 && t < 3.0 && remaining > 5.0) {
-            // New loop is playing — wait a beat then start fading out
-            if (t > 0.8) {
-              canvas.style.transition = 'opacity 2s ease-out';
-              canvas.style.opacity = '0';
-              phase = 'fading';
-            }
-          }
-          break;
+        // Crossfade complete — swap roles
+        if (standbyOpacity >= 1) {
+          active.pause();
+          active.style.opacity = '0';
 
-        case 'fading':
-          // Wait for fade-out to finish, then reset
-          if (t > 3.5) {
-            phase = 'watching';
-          }
-          break;
+          // Swap
+          const tmp = active;
+          active = standby;
+          standby = tmp;
+          activeOpacity = 1;
+          standbyOpacity = 0;
+          fading = false;
+
+          // Pre-seek standby for next cycle
+          standby.currentTime = 0;
+        }
       }
     };
 
-    const start = () => { raf = requestAnimationFrame(tick); };
-    video.addEventListener('playing', start);
-    if (!video.paused) start();
+    // Kick off
+    vA.play().catch(() => {});
+    raf = requestAnimationFrame(tick);
 
-    return () => {
-      cancelAnimationFrame(raf);
-      video.removeEventListener('playing', start);
-    };
+    return () => cancelAnimationFrame(raf);
   }, []);
+
+  const videoProps = {
+    className: 'hero-video',
+    src: '/images/hero3.mp4',
+    muted: true,
+    playsInline: true,
+    preload: 'auto',
+  };
 
   return (
     <section className="video-hero">
       <div className="hero-video-wrap">
-        <video
-          ref={videoRef}
-          className="hero-video"
-          src="/images/hero3.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-        <canvas ref={canvasRef} className="hero-canvas-cover" />
+        <video ref={videoARef} {...videoProps} autoPlay />
+        <video ref={videoBRef} {...videoProps} style={{ opacity: 0 }} />
         <div className="hero-video-overlay" />
       </div>
       <div className="hero-hook">
@@ -177,7 +174,7 @@ function VideoHero() {
           <span className="hero-hook-accent">wish they had.</span>
         </h1>
         <p className="hero-hook-sub">
-          Strategy. Engineering. Design. — One team, zero excuses.
+          Strategy. Engineering. Design. — <em className="desc-accent">One team, zero excuses.</em>
         </p>
       </div>
     </section>
@@ -249,6 +246,7 @@ function NavigateSection() {
   return (
     <section ref={sectionRef} className="section-pinned" style={{ zIndex: 10 }}>
       <div ref={bgRef} className="editorial-bg" style={{ backgroundImage: 'url(/images/lighthouse2.jpeg)', backgroundPosition: 'center top' }}>
+        <LighthouseBeam />
         <div className="editorial-bg-overlay" />
       </div>
       <div ref={leftRef} className="editorial-left glass-panel">
@@ -264,7 +262,7 @@ function NavigateSection() {
         </div>
 
         <p className="editorial-desc">
-          Strategy, engineering, and design — built for businesses that are ready to grow.
+          Strategy, engineering, and design — built for businesses that are <em className="desc-accent">ready to grow.</em>
         </p>
 
         <div className="editorial-actions">
@@ -297,6 +295,136 @@ function NavigateSection() {
       </div>
     </section>
   );
+}
+
+/* ── Lighthouse Beam WebGL ── */
+const BEAM_VERT = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+
+const BEAM_FRAG = `
+precision mediump float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_origin;
+varying vec2 v_uv;
+
+void main() {
+  vec2 uv = v_uv;
+  float aspect = u_resolution.x / u_resolution.y;
+  uv.x *= aspect;
+
+  // Origin in aspect-corrected space
+  vec2 origin = vec2(u_origin.x * aspect, u_origin.y);
+
+  vec2 dir = uv - origin;
+  float dist = length(dir);
+  float angle = atan(dir.x, dir.y);
+
+  // Rotating beam — two opposing cones
+  float beamAngle = u_time * 0.1;
+  float cone1 = cos(angle - beamAngle);
+  float cone2 = cos(angle - beamAngle + 3.14159);
+
+  // Narrow the beam cone (lower power = wider beam)
+  float beam1 = pow(max(0.0, cone1), 2.0);
+  float beam2 = pow(max(0.0, cone2), 2.0);
+  float beam = max(beam1, beam2);
+
+  // Distance falloff — light fades with distance
+  float falloff = 1.0 / (1.0 + dist * 2.2);
+
+  // Atmospheric scattering — soft glow around origin
+  float glow = exp(-dist * 3.0) * 0.6;
+
+  // Fog/haze interaction — beam picks up more near the bottom
+  float haze = smoothstep(0.9, 0.0, uv.y) * 0.3;
+
+  // Subtle flicker
+  float flicker = 0.92 + 0.08 * sin(u_time * 3.7 + sin(u_time * 7.3) * 0.5);
+
+  // Combine
+  float intensity = (beam * falloff + glow + beam * haze) * flicker;
+
+  // Warm white light with slight gold tint
+  vec3 lightColor = vec3(1.0, 0.95, 0.8);
+  vec3 color = lightColor * intensity * 0.35;
+
+  // God rays — streaks radiating outward
+  float rays = 0.0;
+  for (float i = 0.0; i < 6.0; i++) {
+    float rayAngle = beamAngle + i * 1.0472; // 60deg spacing
+    float rayAlign = pow(max(0.0, cos(angle - rayAngle)), 5.0);
+    rays += rayAlign * falloff * 0.25;
+  }
+  color += lightColor * rays;
+
+  float alpha = clamp(intensity * 0.6 + rays * 0.4, 0.0, 1.0);
+  gl_FragColor = vec4(color, alpha);
+}`;
+
+function LighthouseBeam() {
+  const canvasRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+    if (!gl) return;
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, BEAM_VERT); gl.compileShader(vs);
+    if (!checkShader(gl, vs, 'beam-vert')) return;
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, BEAM_FRAG); gl.compileShader(fs);
+    if (!checkShader(gl, fs, 'beam-frag')) return;
+    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!checkProgram(gl, prog)) return;
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'a_position');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    const uTime = gl.getUniformLocation(prog, 'u_time');
+    const uRes = gl.getUniformLocation(prog, 'u_resolution');
+    const uOrigin = gl.getUniformLocation(prog, 'u_origin');
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w; canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+    }
+
+    let t0 = performance.now();
+    const render = (now) => {
+      resize();
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(uTime, (now - t0) / 1000);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.uniform2f(uOrigin, 0.5, 0.75);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      rafRef.current = requestAnimationFrame(render);
+    };
+    rafRef.current = requestAnimationFrame(render);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  return <canvas ref={canvasRef} className="lighthouse-beam-canvas" />;
 }
 
 /* ── Typing Terminal Background ── */
@@ -452,7 +580,7 @@ function TypingTerminal() {
       return () => clearTimeout(reset);
     }
     const line = TERMINAL_LINES[lineIdx];
-    const fullText = line.prompt ? line.text : line.text;
+    const fullText = line.text;
     if (line.text === '') {
       const t = setTimeout(() => { setLines(p => [...p, { ...line, typed: '' }]); setLineIdx(i => i + 1); setCurrentChar(0); }, 200);
       return () => clearTimeout(t);
@@ -460,7 +588,6 @@ function TypingTerminal() {
     if (currentChar <= fullText.length) {
       const speed = line.prompt ? 35 + Math.random() * 25 : 8 + Math.random() * 12;
       const t = setTimeout(() => {
-        const raw = fullText.slice(0, currentChar);
         if (currentChar === fullText.length) {
           setLines(p => [...p, { ...line, typed: fullText }]);
           setLineIdx(i => i + 1);
@@ -760,156 +887,661 @@ function AnalyticsDashboard() {
   );
 }
 
-/* ── Brain WebGL Background ── */
-const BRAIN_VERT = `
-attribute vec2 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_texCoord;
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
+/* ── Analytics Triptych — 3 chart-heavy dashboards ── */
 
-const BRAIN_FRAG = `
+/* -- Seed data generators -- */
+function genCandles(n) {
+  const c = [];
+  let p = 142;
+  for (let i = 0; i < n; i++) {
+    const open = p;
+    const close = open + (Math.random() - 0.48) * 8;
+    const high = Math.max(open, close) + Math.random() * 4;
+    const low = Math.min(open, close) - Math.random() * 4;
+    c.push({ open, close, high, low });
+    p = close;
+  }
+  return c;
+}
+function genScatter(n) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    pts.push({ x: 5 + Math.random() * 90, y: 10 + Math.random() * 75, r: 2 + Math.random() * 4 });
+  }
+  return pts;
+}
+function genHisto(n) {
+  const bins = [];
+  for (let i = 0; i < n; i++) {
+    bins.push(5 + Math.pow(Math.sin(i * 0.5 + 1) * 0.5 + 0.5, 0.7) * 40 + Math.random() * 10);
+  }
+  return bins;
+}
+
+const CANDLE_DATA = genCandles(20);
+const SCATTER_DATA = genScatter(35);
+const HISTO_DATA = genHisto(14);
+
+const TICKER_ITEMS = [
+  { sym: 'AAPL', price: 187.42, delta: 2.14 },
+  { sym: 'GOOGL', price: 142.68, delta: -0.87 },
+  { sym: 'MSFT', price: 378.91, delta: 4.32 },
+  { sym: 'AMZN', price: 178.25, delta: 1.56 },
+  { sym: 'NVDA', price: 824.17, delta: 12.83 },
+  { sym: 'META', price: 502.30, delta: -3.21 },
+  { sym: 'TSLA', price: 248.62, delta: 5.74 },
+  { sym: 'JPM', price: 196.85, delta: 0.93 },
+];
+
+const COMBO_BARS = [
+  { label: 'Jan', bar: 28, line: 32 },
+  { label: 'Feb', bar: 35, line: 30 },
+  { label: 'Mar', bar: 22, line: 38 },
+  { label: 'Apr', bar: 40, line: 42 },
+  { label: 'May', bar: 32, line: 36 },
+  { label: 'Jun', bar: 45, line: 48 },
+  { label: 'Jul', bar: 38, line: 44 },
+  { label: 'Aug', bar: 42, line: 40 },
+];
+
+const PIE_SEGS = [
+  { label: 'Organic', value: 34, color: '#4ade80' },
+  { label: 'Paid', value: 26, color: '#22d3ee' },
+  { label: 'Social', value: 18, color: '#facc15' },
+  { label: 'Email', value: 14, color: '#a78bfa' },
+  { label: 'Direct', value: 8, color: '#f472b6' },
+];
+
+/* ── Panel 1: Candlestick + Ticker Tape + Pie ── */
+function ChartPanel1() {
+  const svgRef = useRef(null);
+  const tickerRef = useRef(null);
+  const pieRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    const ticker = tickerRef.current;
+    const pie = pieRef.current;
+    if (!svg || !ticker || !pie) return;
+    const candles = svg.querySelectorAll('.tri-candle');
+    const wicks = svg.querySelectorAll('.tri-wick');
+    const tPrices = ticker.querySelectorAll('.tri-tk-price');
+    const tDeltas = ticker.querySelectorAll('.tri-tk-delta');
+    const pieSegs = pie.querySelectorAll('.tri-pie-seg');
+    let t0 = performance.now();
+
+    const animate = (now) => {
+      const elapsed = (now - t0) / 1000;
+      // Candles
+      CANDLE_DATA.forEach((c, i) => {
+        const wave = Math.sin(elapsed * 0.5 + i * 0.7) * 3;
+        const o = c.open + wave;
+        const cl = c.close + wave * 0.8;
+        const h = c.high + wave * 0.6;
+        const l = c.low + wave * 0.4;
+        const minP = 120, maxP = 175, H = 140;
+        const yTop = ((maxP - Math.max(o, cl)) / (maxP - minP)) * H;
+        const yBot = ((maxP - Math.min(o, cl)) / (maxP - minP)) * H;
+        const yH = ((maxP - h) / (maxP - minP)) * H;
+        const yL = ((maxP - l) / (maxP - minP)) * H;
+        const bull = cl >= o;
+        if (candles[i]) {
+          candles[i].setAttribute('y', yTop);
+          candles[i].setAttribute('height', Math.max(1, yBot - yTop));
+          candles[i].setAttribute('fill', bull ? '#4ade80' : '#f472b6');
+          candles[i].setAttribute('opacity', '0.8');
+        }
+        if (wicks[i]) {
+          wicks[i].setAttribute('y1', yH);
+          wicks[i].setAttribute('y2', yL);
+          wicks[i].setAttribute('stroke', bull ? '#4ade80' : '#f472b6');
+        }
+      });
+      // Ticker
+      TICKER_ITEMS.forEach((t, i) => {
+        const w = Math.sin(elapsed * 0.6 + i * 1.3) * (t.price * 0.005);
+        const dw = Math.sin(elapsed * 0.4 + i * 1.8) * 0.8;
+        const p = t.price + w;
+        const d = t.delta + dw;
+        if (tPrices[i]) tPrices[i].textContent = p.toFixed(2);
+        if (tDeltas[i]) {
+          tDeltas[i].textContent = (d >= 0 ? '+' : '') + d.toFixed(2);
+          tDeltas[i].style.color = d >= 0 ? '#4ade80' : '#f472b6';
+        }
+      });
+      // Pie rotation
+      if (pieSegs.length) {
+        const rot = elapsed * 8;
+        pie.querySelector('.tri-pie-group').setAttribute('transform', `rotate(${rot} 50 50)`);
+      }
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const W = 320, CH = 140, bw = W / CANDLE_DATA.length;
+
+  return (
+    <div className="analytics-dash">
+      <div className="dash-header">
+        <div className="dash-header-left">
+          <div className="dash-live-dot" style={{ background: '#4ade80', boxShadow: '0 0 8px rgba(74,222,128,0.5)' }} />
+          <span className="dash-header-title">Market Data</span>
+        </div>
+        <div className="dash-header-pills">
+          <span className="dash-pill">1D</span>
+          <span className="dash-pill dash-pill--active">1W</span>
+          <span className="dash-pill">1M</span>
+        </div>
+      </div>
+      {/* Ticker tape */}
+      <div className="tri-ticker-wrap" ref={tickerRef}>
+        <div className="tri-ticker-tape">
+          {TICKER_ITEMS.map((t, i) => (
+            <div key={i} className="tri-tk-item">
+              <span className="tri-tk-sym">{t.sym}</span>
+              <span className="tri-tk-price">{t.price.toFixed(2)}</span>
+              <span className="tri-tk-delta" style={{ color: t.delta >= 0 ? '#4ade80' : '#f472b6' }}>
+                {t.delta >= 0 ? '+' : ''}{t.delta.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Candlestick chart */}
+      <div className="dash-chart-card" style={{ flex: 1 }}>
+        <div className="dash-chart-head"><span>Candlestick</span></div>
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${CH}`} className="tri-candle-svg" preserveAspectRatio="none">
+          {[0.25, 0.5, 0.75].map(f => (
+            <line key={f} x1="0" y1={CH * f} x2={W} y2={CH * f} stroke="rgba(255,255,255,0.04)" />
+          ))}
+          {CANDLE_DATA.map((c, i) => {
+            const x = i * bw + bw * 0.15;
+            const cx = i * bw + bw * 0.5;
+            return (
+              <g key={i}>
+                <line className="tri-wick" x1={cx} x2={cx} y1="0" y2={CH} stroke="#4ade80" strokeWidth="1" opacity="0.4" />
+                <rect className="tri-candle" x={x} width={bw * 0.7} y="0" height="10" rx="1" fill="#4ade80" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      {/* Pie chart */}
+      <div className="dash-chart-card">
+        <div className="dash-chart-head"><span>Channels</span></div>
+        <div className="tri-pie-row">
+          <svg ref={pieRef} viewBox="0 0 100 100" className="tri-pie-svg">
+            <g className="tri-pie-group">
+              {(() => {
+                const total = PIE_SEGS.reduce((s, v) => s + v.value, 0);
+                let cum = 0;
+                return PIE_SEGS.map((seg, i) => {
+                  const pct = seg.value / total;
+                  const startAngle = cum * 2 * Math.PI - Math.PI / 2;
+                  cum += pct;
+                  const endAngle = cum * 2 * Math.PI - Math.PI / 2;
+                  const large = pct > 0.5 ? 1 : 0;
+                  const x1 = 50 + 40 * Math.cos(startAngle);
+                  const y1 = 50 + 40 * Math.sin(startAngle);
+                  const x2 = 50 + 40 * Math.cos(endAngle);
+                  const y2 = 50 + 40 * Math.sin(endAngle);
+                  return <path key={i} className="tri-pie-seg" d={`M50,50 L${x1},${y1} A40,40 0 ${large} 1 ${x2},${y2} Z`} fill={seg.color} opacity="0.75" />;
+                });
+              })()}
+            </g>
+          </svg>
+          <div className="tri-pie-labels">
+            {PIE_SEGS.map((s, i) => (
+              <span key={i}><span className="dash-legend-dot" style={{ background: s.color }} />{s.label}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Panel 2: Combo Bar+Line + Histogram + Scatter ── */
+function ChartPanel2() {
+  const comboRef = useRef(null);
+  const histoRef = useRef(null);
+  const scatterRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const combo = comboRef.current;
+    const histo = histoRef.current;
+    const scatter = scatterRef.current;
+    if (!combo || !histo || !scatter) return;
+    const bars = combo.querySelectorAll('.tri-combo-bar');
+    const linePts = combo.querySelector('.tri-combo-line');
+    const histoBars = histo.querySelectorAll('.tri-histo-bar');
+    const dots = scatter.querySelectorAll('.tri-scatter-dot');
+    let t0 = performance.now();
+
+    const animate = (now) => {
+      const elapsed = (now - t0) / 1000;
+      const W = 320, H = 100;
+      // Combo bars
+      COMBO_BARS.forEach((b, i) => {
+        const wave = Math.sin(elapsed * 0.5 + i * 0.9) * 5;
+        const h = Math.max(3, Math.min(50, b.bar + wave));
+        if (bars[i]) bars[i].setAttribute('height', (h / 50) * H);
+        if (bars[i]) bars[i].setAttribute('y', H - (h / 50) * H);
+      });
+      // Combo line overlay
+      if (linePts) {
+        const pts = COMBO_BARS.map((b, i) => {
+          const x = (i / (COMBO_BARS.length - 1)) * W;
+          const wave = Math.sin(elapsed * 0.6 + i * 0.8) * 5;
+          const y = H - ((b.line + wave) / 55) * H;
+          return `${x},${y}`;
+        }).join(' ');
+        linePts.setAttribute('points', pts);
+      }
+      // Histogram
+      HISTO_DATA.forEach((v, i) => {
+        const wave = Math.sin(elapsed * 0.4 + i * 0.6) * 4;
+        const h = Math.max(2, v + wave);
+        if (histoBars[i]) {
+          histoBars[i].setAttribute('height', (h / 55) * 80);
+          histoBars[i].setAttribute('y', 80 - (h / 55) * 80);
+        }
+      });
+      // Scatter dots drift
+      SCATTER_DATA.forEach((p, i) => {
+        const dx = Math.sin(elapsed * 0.3 + i * 0.9) * 2;
+        const dy = Math.cos(elapsed * 0.4 + i * 1.1) * 2;
+        if (dots[i]) {
+          dots[i].setAttribute('cx', `${p.x + dx}%`);
+          dots[i].setAttribute('cy', `${p.y + dy}%`);
+          dots[i].setAttribute('opacity', 0.4 + Math.sin(elapsed * 0.5 + i) * 0.25);
+        }
+      });
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const W = 320, H = 100;
+  const bw = W / COMBO_BARS.length;
+  const hw = 280 / HISTO_DATA.length;
+  const SCATTER_COLORS = ['#4ade80', '#22d3ee', '#facc15', '#a78bfa', '#f472b6'];
+
+  return (
+    <div className="analytics-dash">
+      <div className="dash-header">
+        <div className="dash-header-left">
+          <div className="dash-live-dot" style={{ background: '#facc15', boxShadow: '0 0 8px rgba(250,204,21,0.5)' }} />
+          <span className="dash-header-title">Performance Mix</span>
+        </div>
+        <div className="dash-header-pills">
+          <span className="dash-pill">MTD</span>
+          <span className="dash-pill dash-pill--active">QTD</span>
+          <span className="dash-pill">YTD</span>
+        </div>
+      </div>
+      {/* Combo bar + line */}
+      <div className="dash-chart-card" style={{ flex: 1 }}>
+        <div className="dash-chart-head">
+          <span>Revenue vs Target</span>
+          <div className="dash-chart-legend">
+            <span className="dash-legend-item"><span className="dash-legend-dot" style={{ background: '#22d3ee' }} />Revenue</span>
+            <span className="dash-legend-item"><span className="dash-legend-dot" style={{ background: '#facc15' }} />Target</span>
+          </div>
+        </div>
+        <svg ref={comboRef} viewBox={`0 0 ${W} ${H}`} className="tri-combo-svg" preserveAspectRatio="none">
+          {[0.25, 0.5, 0.75].map(f => (
+            <line key={f} x1="0" y1={H * f} x2={W} y2={H * f} stroke="rgba(255,255,255,0.04)" />
+          ))}
+          {COMBO_BARS.map((b, i) => (
+            <rect key={i} className="tri-combo-bar" x={i * bw + bw * 0.15} width={bw * 0.7} y={H - (b.bar / 50) * H} height={(b.bar / 50) * H} fill="#22d3ee" opacity="0.6" rx="2" />
+          ))}
+          <polyline className="tri-combo-line" points={COMBO_BARS.map((b, i) => `${(i / (COMBO_BARS.length - 1)) * W},${H - (b.line / 55) * H}`).join(' ')}
+            fill="none" stroke="#facc15" strokeWidth="2.5" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(250,204,21,0.4))' }} />
+        </svg>
+      </div>
+      {/* Scatter plot */}
+      <div className="dash-chart-card">
+        <div className="dash-chart-head"><span>Scatter — Cost vs ROI</span></div>
+        <svg ref={scatterRef} viewBox="0 0 100 100" className="tri-scatter-svg" preserveAspectRatio="xMidYMid meet">
+          <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(255,255,255,0.04)" />
+          <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.04)" />
+          {SCATTER_DATA.map((p, i) => (
+            <circle key={i} className="tri-scatter-dot" cx={`${p.x}%`} cy={`${p.y}%`} r={p.r}
+              fill={SCATTER_COLORS[i % SCATTER_COLORS.length]} opacity="0.6" />
+          ))}
+        </svg>
+      </div>
+      {/* Histogram */}
+      <div className="dash-chart-card">
+        <div className="dash-chart-head"><span>Distribution</span></div>
+        <svg ref={histoRef} viewBox={`0 0 280 80`} className="tri-histo-svg" preserveAspectRatio="none">
+          {HISTO_DATA.map((v, i) => (
+            <rect key={i} className="tri-histo-bar" x={i * hw + 1} width={hw - 2} y={80 - (v / 55) * 80} height={(v / 55) * 80}
+              fill="#a78bfa" opacity="0.65" rx="1" />
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Panel 3: Horizontal Bars + Donut + Area Lines + Gauges ── */
+function ChartPanel3() {
+  const barsRef = useRef(null);
+  const gaugesRef = useRef(null);
+  const rafRef = useRef(null);
+
+  return (
+    <div className="analytics-dash">
+      <div className="dash-header">
+        <div className="dash-header-left">
+          <div className="dash-live-dot" style={{ background: '#a78bfa', boxShadow: '0 0 8px rgba(167,139,250,0.5)' }} />
+          <span className="dash-header-title">Campaign Analytics</span>
+        </div>
+        <div className="dash-header-pills">
+          <span className="dash-pill">Week</span>
+          <span className="dash-pill dash-pill--active">Month</span>
+        </div>
+      </div>
+      {/* KPI row */}
+      <div className="dash-kpi-row">
+        {DASH_KPIS.map((kpi, i) => (
+          <div key={i} className="dash-kpi" style={{ '--kpi-color': kpi.color }}>
+            <span className="dash-kpi-label">{kpi.label}</span>
+            <span className="dash-kpi-value">
+              <AnimatedCounter value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} duration={1800 + i * 200} />
+            </span>
+            <span className="dash-kpi-delta" style={{ color: '#4ade80' }}>+{(3 + i * 2.1).toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+      {/* Line + Donut row */}
+      <div className="dash-charts-row">
+        <div className="dash-chart-card dash-chart-card--wide">
+          <div className="dash-chart-head">
+            <span>Trends</span>
+            <div className="dash-chart-legend">
+              {DASH_LINE_SETS.map((s, i) => (
+                <span key={i} className="dash-legend-item"><span className="dash-legend-dot" style={{ background: s.color }} />{s.label}</span>
+              ))}
+            </div>
+          </div>
+          <MiniLineChart datasets={DASH_LINE_SETS} width={360} height={110} />
+        </div>
+        <div className="dash-chart-card">
+          <div className="dash-chart-head"><span>Sources</span></div>
+          <DonutChart segments={[
+            { value: 42, color: '#4ade80' },
+            { value: 28, color: '#22d3ee' },
+            { value: 18, color: '#facc15' },
+            { value: 12, color: '#a78bfa' },
+          ]} />
+          <div className="dash-donut-labels">
+            <span><span className="dash-legend-dot" style={{ background: '#4ade80' }} />Organic</span>
+            <span><span className="dash-legend-dot" style={{ background: '#22d3ee' }} />Paid</span>
+            <span><span className="dash-legend-dot" style={{ background: '#facc15' }} />Social</span>
+            <span><span className="dash-legend-dot" style={{ background: '#a78bfa' }} />Other</span>
+          </div>
+        </div>
+      </div>
+      {/* Horizontal bars */}
+      <BarSection />
+    </div>
+  );
+}
+
+function BarSection() {
+  const barsRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const container = barsRef.current;
+    if (!container) return;
+    const fills = container.querySelectorAll('.dash-bar-fill');
+    const vals = container.querySelectorAll('.dash-bar-val');
+    let t0 = performance.now();
+    const animate = (now) => {
+      const elapsed = (now - t0) / 1000;
+      DASH_BAR_DATA.forEach((bar, i) => {
+        const wave = Math.sin(elapsed * 0.5 + i * 1.2) * 5 + Math.sin(elapsed * 0.8 + i * 2.3) * 3;
+        const live = Math.max(4, Math.min(44, bar.value + wave));
+        if (fills[i]) fills[i].style.width = `${(live / 45) * 100}%`;
+        if (vals[i]) vals[i].textContent = `${Math.round(live)}%`;
+      });
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  return (
+    <div className="dash-bar-section" ref={barsRef}>
+      <div className="dash-chart-head"><span>Channel Performance</span></div>
+      <div className="dash-bars">
+        {DASH_BAR_DATA.map((bar, i) => (
+          <div key={i} className="dash-bar-item">
+            <span className="dash-bar-label">{bar.label}</span>
+            <div className="dash-bar-track">
+              <div className="dash-bar-fill" style={{ width: `${(bar.value / 45) * 100}%`, '--bar-color': BAR_COLORS[i] }} />
+            </div>
+            <span className="dash-bar-val">{bar.value}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsTriptych() {
+  return (
+    <div className="analytics-triptych">
+      <div className="triptych-col triptych-col--1">
+        <ChartPanel1 />
+      </div>
+      <div className="triptych-col triptych-col--2">
+        <ChartPanel2 />
+      </div>
+      <div className="triptych-col triptych-col--3">
+        <ChartPanel3 />
+      </div>
+    </div>
+  );
+}
+
+/* ── Shared WebGL constants ── */
+const MAX_DPR = 1.5;
+
+function checkShader(gl, shader, label) {
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.warn(`Shader compile error (${label}):`, gl.getShaderInfoLog(shader));
+    return false;
+  }
+  return true;
+}
+
+function checkProgram(gl, program) {
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.warn('Program link error:', gl.getProgramInfoLog(program));
+    return false;
+  }
+  return true;
+}
+
+/* ── Animated 3D Blob (WebGL) ── */
+const BLOB_VERT = `
+attribute vec2 a_position;
+void main() { gl_Position = vec4(a_position, 0.0, 1.0); }`;
+
+const BLOB_FRAG = `
 precision mediump float;
-uniform sampler2D u_image;
 uniform float u_time;
 uniform vec2 u_resolution;
-varying vec2 v_uv;
+
+// Fast value noise (single octave)
+vec4 perm(vec4 x) { x = ((x * 34.0) + 1.0) * x; return x - floor(x * (1.0/289.0)) * 289.0; }
+float noise(vec3 p) {
+  vec3 a = floor(p);
+  vec3 d = p - a;
+  d = d * d * (3.0 - 2.0 * d);
+  vec4 b = a.xxyy + vec4(0.0,1.0,0.0,1.0);
+  vec4 k1 = perm(b.xyxy);
+  vec4 k2 = perm(k1.xyxy + b.zzww);
+  vec4 c = k2 + a.zzzz;
+  vec4 k3 = perm(c);
+  vec4 k4 = perm(c + 1.0);
+  vec4 o3 = fract(k4 * (1.0/41.0)) * d.z + fract(k3 * (1.0/41.0)) * (1.0 - d.z);
+  vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
+  return o4.y * d.y + o4.x * (1.0 - d.y);
+}
+
+// SDF: sphere + 2 noise layers (was 3)
+float blobSDF(vec3 p, float t) {
+  float n = noise(p * 2.0 + t * 0.15) * 0.35;
+  n += noise(p * 3.5 - t * 0.2) * 0.18;
+  return length(p) - 0.9 - n;
+}
+
+// Normal via central differences — uses larger epsilon for fewer artifacts + cheaper
+vec3 calcNormal(vec3 p, float t) {
+  vec2 e = vec2(0.005, 0.0);
+  return normalize(vec3(
+    blobSDF(p + e.xyy, t) - blobSDF(p - e.xyy, t),
+    blobSDF(p + e.yxy, t) - blobSDF(p - e.yxy, t),
+    blobSDF(p + e.yyx, t) - blobSDF(p - e.yyx, t)
+  ));
+}
 
 void main() {
-  // Crop to brain center — zoom 2.2x into center of image
-  vec2 uv = v_uv * 0.45 + vec2(0.28, 0.2);
+  vec2 uv = (gl_FragCoord.xy - u_resolution * 0.5) / min(u_resolution.x, u_resolution.y);
+  float t = u_time;
 
-  // Ripple distortion from center
-  vec2 center = vec2(0.5, 0.42);
-  float dist = distance(uv, center);
-  float ripple = sin(dist * 18.0 - u_time * 1.8) * 0.008 * smoothstep(0.6, 0.0, dist);
-  float ripple2 = sin(dist * 12.0 + u_time * 1.2) * 0.005;
-  uv += (uv - center) * (ripple + ripple2);
+  // Very slow orbit — pulled back for half-size blob
+  float camAngle = t * 0.06;
+  vec3 ro = vec3(sin(camAngle) * 5.6, sin(t * 0.04) * 0.3, cos(camAngle) * 5.6);
+  vec3 fwd = normalize(-ro);
+  vec3 right = normalize(cross(fwd, vec3(0,1,0)));
+  vec3 up = cross(right, fwd);
+  vec3 rd = normalize(fwd + uv.x * right + uv.y * up);
 
-  // Chromatic aberration
-  float aberration = 0.003 + sin(u_time * 0.5) * 0.001;
-  float r = texture2D(u_image, uv + vec2(aberration, 0.0)).r;
-  float g = texture2D(u_image, uv).g;
-  float b = texture2D(u_image, uv - vec2(aberration, 0.0)).b;
-  vec3 color = vec3(r, g, b);
+  // March — 48 steps (was 64), larger step multiplier
+  float dist = 0.0;
+  float hit = 0.0;
+  for (int i = 0; i < 48; i++) {
+    float d = blobSDF(ro + rd * dist, t);
+    if (d < 0.005) { hit = 1.0; break; }
+    if (dist > 5.0) break;
+    dist += d * 0.8;
+  }
 
-  // Neural pulse glow — radiates from center
-  float pulse = sin(u_time * 1.5) * 0.5 + 0.5;
-  float glow = smoothstep(0.5, 0.0, dist) * pulse * 0.25;
-  color += vec3(0.1, 0.6, 0.9) * glow;
+  vec3 color = vec3(0.0);
+  float alpha = 0.0;
 
-  // Travelling scan line
-  float scanY = fract(u_time * 0.08);
-  float scan = smoothstep(0.0, 0.01, abs(uv.y - scanY)) ;
-  color *= 0.92 + 0.08 * scan;
-  // Bright line at scan position
-  float scanLine = 1.0 - smoothstep(0.0, 0.006, abs(uv.y - scanY));
-  color += vec3(0.15, 0.7, 1.0) * scanLine * 0.4;
+  if (hit > 0.5) {
+    vec3 p = ro + rd * dist;
+    vec3 n = calcNormal(p, t);
 
-  // Subtle vignette
-  float vig = smoothstep(0.8, 0.3, dist);
-  color *= 0.6 + 0.4 * vig;
+    // Lighting
+    vec3 L = normalize(vec3(0.5, 0.8, 0.6));
+    float diff = max(dot(n, L), 0.0);
+    float spec = pow(max(dot(reflect(-L, n), -rd), 0.0), 24.0);
+    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0);
 
-  // Slight blue-cyan tint
-  color = mix(color, color * vec3(0.7, 0.85, 1.1), 0.3);
+    // Gold/amber material
+    vec3 gold = vec3(0.92, 0.72, 0.20);
+    vec3 amber = vec3(0.85, 0.45, 0.12);
+    vec3 baseColor = mix(gold, amber, noise(p * 1.5 + t * 0.08));
 
-  gl_FragColor = vec4(color, 1.0);
+    color = baseColor * (0.18 + diff * 0.62);
+    color += vec3(1.0, 0.92, 0.7) * spec * 0.55;
+    color += gold * rim * 0.35;
+    color += amber * max(dot(n, -rd), 0.0) * 0.15;
+
+    alpha = 0.95;
+  }
+
+  // Ambient glow
+  float glow = exp(-dot(uv, uv) * 5.0) * 0.15;
+  color += vec3(0.9, 0.7, 0.2) * glow;
+  alpha = max(alpha, glow * 0.8);
+
+  gl_FragColor = vec4(color, alpha);
 }`;
 
-function BrainWebGL() {
+function AnimatedBlob() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
-  const glRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const gl = canvas.getContext('webgl', { alpha: false, antialias: false });
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
     if (!gl) return;
-    glRef.current = gl;
 
-    // Compile shaders
-    function createShader(type, source) {
-      const s = gl.createShader(type);
-      gl.shaderSource(s, source);
-      gl.compileShader(s);
-      return s;
-    }
-    const vs = createShader(gl.VERTEX_SHADER, BRAIN_VERT);
-    const fs = createShader(gl.FRAGMENT_SHADER, BRAIN_FRAG);
-    const program = gl.createProgram();
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    gl.useProgram(program);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    // Full-screen quad
-    const posBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-    const aPos = gl.getAttribLocation(program, 'a_position');
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, BLOB_VERT); gl.compileShader(vs);
+    if (!checkShader(gl, vs, 'blob-vert')) return;
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, BLOB_FRAG); gl.compileShader(fs);
+    if (!checkShader(gl, fs, 'blob-frag')) return;
+    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!checkProgram(gl, prog)) return;
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'a_position');
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-    const texBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, texBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1, 1,1, 0,0, 1,0]), gl.STATIC_DRAW);
-    const aTex = gl.getAttribLocation(program, 'a_texCoord');
-    gl.enableVertexAttribArray(aTex);
-    gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 0, 0);
+    const uTime = gl.getUniformLocation(prog, 'u_time');
+    const uRes = gl.getUniformLocation(prog, 'u_resolution');
 
-    const uTime = gl.getUniformLocation(program, 'u_time');
-    const uRes = gl.getUniformLocation(program, 'u_resolution');
-
-    // Load brain image as texture
-    const texture = gl.createTexture();
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      startLoop();
-    };
-    img.src = '/images/brain.jpeg';
-
-    // Resize
+    // Render at reduced resolution for performance (0.5x pixel density)
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      const w = canvas.clientWidth * dpr;
-      const h = canvas.clientHeight * dpr;
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR) * 0.5;
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
       if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = w; canvas.height = h;
         gl.viewport(0, 0, w, h);
       }
     }
 
-    let t0 = performance.now();
-    function startLoop() {
-      const render = (now) => {
-        resize();
-        const elapsed = (now - t0) / 1000;
-        gl.uniform1f(uTime, elapsed);
-        gl.uniform2f(uRes, canvas.width, canvas.height);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        rafRef.current = requestAnimationFrame(render);
-      };
-      rafRef.current = requestAnimationFrame(render);
-    }
+    // Only render when visible
+    let visible = false;
+    const obs = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      if (visible && !rafRef.current) rafRef.current = requestAnimationFrame(render);
+    }, { threshold: 0.05 });
+    obs.observe(canvas);
 
+    let t0 = performance.now();
+    const render = (now) => {
+      if (!visible) { rafRef.current = null; return; }
+      resize();
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(uTime, (now - t0) / 1000);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      rafRef.current = requestAnimationFrame(render);
+    };
+    rafRef.current = requestAnimationFrame(render);
     return () => {
+      obs.disconnect();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="brain-webgl-canvas" />;
+  return <canvas ref={canvasRef} className="blob-canvas" />;
 }
 
 /* ── Particle Network (WebGL) ── */
@@ -957,15 +1589,19 @@ function ParticleNetwork() {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
-    function makeProgram(vs, fs) {
-      const v = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(v, vs); gl.compileShader(v);
-      const f = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(f, fs); gl.compileShader(f);
+    function makeProgram(vsSrc, fsSrc) {
+      const v = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(v, vsSrc); gl.compileShader(v);
+      if (!checkShader(gl, v, 'particle-vert')) return null;
+      const f = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(f, fsSrc); gl.compileShader(f);
+      if (!checkShader(gl, f, 'particle-frag')) return null;
       const p = gl.createProgram(); gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
+      if (!checkProgram(gl, p)) return null;
       return p;
     }
 
     const pointProg = makeProgram(PARTICLE_VERT, PARTICLE_FRAG);
     const lineProg = makeProgram(LINE_VERT, LINE_FRAG);
+    if (!pointProg || !lineProg) return;
 
     const COUNT = 80;
     const particles = [];
@@ -982,7 +1618,7 @@ function ParticleNetwork() {
     const connectDist = 0.28;
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, 2);
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
       const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
     }
@@ -1029,7 +1665,7 @@ function ParticleNetwork() {
       const aPos = gl.getAttribLocation(pointProg, 'a_position');
       gl.enableVertexAttribArray(aPos);
       gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-      gl.uniform1f(gl.getUniformLocation(pointProg, 'u_pointSize'), 3.0 * Math.min(window.devicePixelRatio, 2));
+      gl.uniform1f(gl.getUniformLocation(pointProg, 'u_pointSize'), 3.0 * Math.min(window.devicePixelRatio, MAX_DPR));
       gl.uniform4f(gl.getUniformLocation(pointProg, 'u_color'), 0.13, 0.83, 0.93, 0.7);
       gl.drawArrays(gl.POINTS, 0, COUNT);
 
@@ -1101,8 +1737,11 @@ function FluidSimulation() {
     if (!gl) return;
 
     const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, FLUID_VERT); gl.compileShader(vs);
+    if (!checkShader(gl, vs, 'fluid-vert')) return;
     const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, FLUID_FRAG); gl.compileShader(fs);
+    if (!checkShader(gl, fs, 'fluid-frag')) return;
     const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!checkProgram(gl, prog)) return;
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
@@ -1123,7 +1762,7 @@ function FluidSimulation() {
     const uRes = gl.getUniformLocation(prog, 'u_resolution');
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, 1.5);
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
       const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
     }
@@ -1144,108 +1783,169 @@ function FluidSimulation() {
 }
 
 /* ── Audio Visualizer Bars (WebGL) ── */
-const VIS_VERT = `
-attribute vec2 a_position;
-void main() {
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
+/* ── 3D Polyhedra geometry ── */
+const TETRA_V = [[0,1,0],[0.943,-0.333,0],[-0.471,-0.333,0.816],[-0.471,-0.333,-0.816]];
+const TETRA_E = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+const OCTA_V = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+const OCTA_E = [[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,4],[2,5],[3,4],[3,5]];
+const PHI = (1 + Math.sqrt(5)) / 2;
+const ICO_V = [[-1,PHI,0],[1,PHI,0],[-1,-PHI,0],[1,-PHI,0],[0,-1,PHI],[0,1,PHI],[0,-1,-PHI],[0,1,-PHI],[PHI,0,-1],[PHI,0,1],[-PHI,0,-1],[-PHI,0,1]].map(v => { const l = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); return [v[0]/l,v[1]/l,v[2]/l]; });
+const ICO_E = [[0,1],[0,5],[0,7],[0,10],[0,11],[1,5],[1,7],[1,8],[1,9],[2,3],[2,4],[2,6],[2,10],[2,11],[3,4],[3,6],[3,8],[3,9],[4,5],[4,9],[4,11],[5,9],[5,11],[6,7],[6,8],[6,10],[7,8],[7,10],[8,9],[9,3]];
 
-const VIS_FRAG = `
-precision mediump float;
-uniform float u_time;
-uniform vec2 u_resolution;
+const SHAPES = [
+  { verts: TETRA_V, edges: TETRA_E },
+  { verts: OCTA_V, edges: OCTA_E },
+  { verts: ICO_V, edges: ICO_E },
+];
 
-float hash(float n) { return fract(sin(n) * 43758.5453); }
+function buildPolyhedra() {
+  const items = [];
+  for (let i = 0; i < 14; i++) {
+    const shape = SHAPES[i % 3];
+    items.push({
+      verts: shape.verts,
+      edges: shape.edges,
+      x: (Math.random() - 0.5) * 1.6,
+      y: (Math.random() - 0.5) * 1.0,
+      z: 2 + Math.random() * 3,
+      z0: 2 + Math.random() * 3,
+      scale: 0.08 + Math.random() * 0.14,
+      rx: Math.random() * Math.PI * 2,
+      ry: Math.random() * Math.PI * 2,
+      rz: Math.random() * Math.PI * 2,
+      sx: (0.15 + Math.random() * 0.25) * (Math.random() > 0.5 ? 1 : -1),
+      sy: (0.1 + Math.random() * 0.2) * (Math.random() > 0.5 ? 1 : -1),
+      sz: (0.08 + Math.random() * 0.15) * (Math.random() > 0.5 ? 1 : -1),
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.2,
+      zPhase: Math.random() * Math.PI * 2,
+      hue: Math.random(),
+    });
+  }
+  return items;
+}
 
-void main() {
-  vec2 uv = gl_FragCoord.xy / u_resolution;
-  float barCount = 48.0;
-  float barIdx = floor(uv.x * barCount);
-  float barCenter = (barIdx + 0.5) / barCount;
-  float barWidth = 0.6 / barCount;
-
-  // Generate fake audio levels — layered sine waves
-  float level = 0.0;
-  level += sin(u_time * 1.2 + barIdx * 0.4) * 0.2;
-  level += sin(u_time * 2.1 + barIdx * 0.25) * 0.15;
-  level += sin(u_time * 0.7 + barIdx * 0.6) * 0.18;
-  level += sin(u_time * 3.3 + barIdx * 0.15) * 0.08;
-  level += hash(barIdx) * 0.12;
-  level = level * 0.5 + 0.35;
-  level = clamp(level, 0.05, 0.95);
-
-  // Bar shape
-  float inBar = step(abs(uv.x - barCenter), barWidth);
-  float inHeight = step(uv.y, level) * inBar;
-
-  // Color gradient — cyan at bottom to gold at top
-  vec3 barColor = mix(
-    vec3(0.13, 0.83, 0.93),
-    vec3(0.78, 0.64, 0.24),
-    uv.y
-  );
-
-  // Glow at bar tops
-  float topGlow = exp(-abs(uv.y - level) * 30.0) * inBar * 0.5;
-  vec3 glowColor = vec3(1.0, 0.95, 0.8);
-
-  // Reflection below
-  float reflection = step(uv.y, 0.02) * inBar * level * 0.15;
-
-  vec3 color = barColor * inHeight * 0.6;
-  color += glowColor * topGlow;
-  color += barColor * reflection;
-
-  // Fade edges
-  float fade = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x);
-  color *= fade;
-
-  float alpha = max(inHeight * 0.7, max(topGlow * 0.8, reflection));
-  gl_FragColor = vec4(color, alpha * fade);
-}`;
-
-function AudioVisualizer() {
+function PolyhedraField() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
+  const polyRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
-    if (!gl) return;
-
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, VIS_VERT); gl.compileShader(vs);
-    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, VIS_FRAG); gl.compileShader(fs);
-    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
-    gl.useProgram(prog);
-
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-    const aPos = gl.getAttribLocation(prog, 'a_position');
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-    const uTime = gl.getUniformLocation(prog, 'u_time');
-    const uRes = gl.getUniformLocation(prog, 'u_resolution');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    if (!polyRef.current) polyRef.current = buildPolyhedra();
+    const polys = polyRef.current;
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, 2);
-      const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
+      const w = canvas.clientWidth * dpr;
+      const h = canvas.clientHeight * dpr;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
+
+    function rotX(v, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return [v[0], v[1]*c - v[2]*s, v[1]*s + v[2]*c];
+    }
+    function rotY(v, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return [v[0]*c + v[2]*s, v[1], -v[0]*s + v[2]*c];
+    }
+    function rotZ(v, a) {
+      const c = Math.cos(a), s = Math.sin(a);
+      return [v[0]*c - v[1]*s, v[0]*s + v[1]*c, v[2]];
+    }
+
+    function project(v, w, h, fov) {
+      const f = fov / Math.max(v[2], 0.1);
+      return [w / 2 + v[0] * f, h / 2 - v[1] * f, 1 / Math.max(v[2], 0.1)];
     }
 
     let t0 = performance.now();
+    let lastT = 0;
+    const BOUNDS_X = 1.2, BOUNDS_Y = 0.8;
     const render = (now) => {
       resize();
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(uTime, (now - t0) / 1000);
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      const w = canvas.width, h = canvas.height;
+      const t = (now - t0) / 1000;
+      const dt = Math.min(t - lastT, 0.05);
+      lastT = t;
+      ctx.clearRect(0, 0, w, h);
+      const fov = Math.min(w, h) * 0.9;
+
+      // Physics update — move, bounce off edges
+      for (const p of polys) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        // Bounce off horizontal bounds
+        if (p.x > BOUNDS_X) { p.x = BOUNDS_X; p.vx *= -1; p.sx *= -1; }
+        if (p.x < -BOUNDS_X) { p.x = -BOUNDS_X; p.vx *= -1; p.sx *= -1; }
+        // Bounce off vertical bounds
+        if (p.y > BOUNDS_Y) { p.y = BOUNDS_Y; p.vy *= -1; p.sy *= -1; }
+        if (p.y < -BOUNDS_Y) { p.y = -BOUNDS_Y; p.vy *= -1; p.sy *= -1; }
+        // Bob in z
+        p.z = p.z0 + Math.sin(t * 0.5 + p.zPhase) * 0.6;
+      }
+
+      // Sort by z for back-to-front
+      polys.sort((a, b) => b.z - a.z);
+
+      for (const p of polys) {
+        // Rotate
+        const ax = p.rx + t * p.sx;
+        const ay = p.ry + t * p.sy;
+        const az = p.rz + t * p.sz;
+
+        const px = p.x;
+        const py = p.y;
+
+        // Transform vertices
+        const projected = p.verts.map(v => {
+          let r = [v[0] * p.scale, v[1] * p.scale, v[2] * p.scale];
+          r = rotX(r, ax);
+          r = rotY(r, ay);
+          r = rotZ(r, az);
+          r = [r[0] + px, r[1] + py, r[2] + p.z];
+          return project(r, w, h, fov);
+        });
+
+        // Depth-based opacity and glow
+        const depthAlpha = Math.max(0.15, Math.min(1, 1.2 - p.z / 5));
+        const pulse = 0.6 + 0.4 * Math.sin(t * 0.8 + p.hue * Math.PI * 2);
+
+        // Gold/amber palette based on shape hue
+        const gR = Math.round(210 + p.hue * 40);
+        const gG = Math.round(155 + p.hue * 50);
+        const gB = Math.round(40 + p.hue * 20);
+
+        // Draw edges
+        ctx.lineWidth = Math.max(1, 2.5 * depthAlpha);
+        ctx.strokeStyle = `rgba(${gR},${gG},${gB},${(depthAlpha * pulse * 0.9).toFixed(3)})`;
+        ctx.shadowColor = `rgba(${gR},${gG},${gB},${(depthAlpha * 0.5).toFixed(3)})`;
+        ctx.shadowBlur = 8 * depthAlpha;
+        ctx.beginPath();
+        for (const [a, b] of p.edges) {
+          ctx.moveTo(projected[a][0], projected[a][1]);
+          ctx.lineTo(projected[b][0], projected[b][1]);
+        }
+        ctx.stroke();
+
+        // Draw vertices as bright dots
+        ctx.shadowBlur = 12 * depthAlpha;
+        ctx.fillStyle = `rgba(255,240,200,${(depthAlpha * pulse * 0.8).toFixed(3)})`;
+        for (const pt of projected) {
+          const r = Math.max(1.5, 3 * pt[2] * depthAlpha);
+          ctx.beginPath();
+          ctx.arc(pt[0], pt[1], r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
       rafRef.current = requestAnimationFrame(render);
     };
     rafRef.current = requestAnimationFrame(render);
@@ -1370,7 +2070,7 @@ function ContactCTA() {
   return (
     <section ref={sectionRef} className="contact-cta-section" style={{ zIndex: 70 }}>
       <div className="contact-cta-bg">
-        <AudioVisualizer />
+        <PolyhedraField />
       </div>
       <div className="contact-cta-grid">
         <div ref={leftRef} className="glass-panel contact-cta-left">
@@ -1383,7 +2083,7 @@ function ContactCTA() {
             </h2>
           </div>
           <p className="editorial-desc">
-            Tell us what you're building. We'll reply within 2 business days.
+            Tell us what you're building. We'll reply within <em className="desc-accent">2 business days.</em>
           </p>
           <Link to="/contact" className="btn btn-primary editorial-btn">
             Book a consultation <ArrowRight size={18} />
@@ -1424,7 +2124,7 @@ const SECTIONS = [
     label: 'CAPABILITIES',
     headline: 'FULL-STACK',
     outlineWords: ['DELIVERY'],
-    desc: 'From data pipelines to customer-facing products, we design systems that scale.',
+    desc: <>From data pipelines to customer-facing products, we design <em className="desc-accent">systems that scale.</em></>,
     cta: 'Meet the team',
     ctaHref: '/about',
     rightTitle: 'What we do',
@@ -1444,7 +2144,7 @@ const SECTIONS = [
     label: 'ANALYTICS',
     headline: 'MEASURE',
     outlineWords: ['WHAT', 'MATTERS'],
-    desc: 'Clean reporting, attribution models, and dashboards your team will actually use.',
+    desc: <>Clean reporting, attribution models, and dashboards your team will <em className="desc-accent">actually use.</em></>,
     cta: 'Request a data audit',
     ctaHref: '/contact',
     rightTitle: 'Data stack',
@@ -1456,7 +2156,7 @@ const SECTIONS = [
     ],
     rightLink: 'See case studies',
     rightLinkHref: '/portfolio',
-    bgComponent: <AnalyticsDashboard />,
+    bgComponent: <AnalyticsTriptych />,
   },
   {
     id: 'work',
@@ -1464,7 +2164,7 @@ const SECTIONS = [
     label: 'WEB DEVELOPMENT',
     headline: 'FAST',
     outlineWords: ['AND', 'FINISHED'],
-    desc: 'Production-ready frontends, robust backends, and CI/CD that keeps releases boring (in a good way).',
+    desc: <>Production-ready frontends, robust backends, and CI/CD that keeps releases <em className="desc-accent">boring</em> (in a good way).</>,
     cta: 'View tech stack',
     ctaHref: '/portfolio',
     rightTitle: 'Build standards',
@@ -1476,7 +2176,7 @@ const SECTIONS = [
     ],
     rightLink: 'Read engineering notes',
     rightLinkHref: '/about',
-    bgImage: '/images/sirius.jpeg',
+    bgComponent: <AnimatedBlob />,
   },
   {
     id: 'insights',
@@ -1484,7 +2184,7 @@ const SECTIONS = [
     label: 'AI INTEGRATION',
     headline: 'AUTOMATE',
     outlineWords: ['THE', 'WORKFLOW'],
-    desc: 'Agents, prompts, and pipelines that connect to your data — securely and measurably.',
+    desc: <>Agents, prompts, and pipelines that connect to your data — <em className="desc-accent">securely and measurably.</em></>,
     cta: 'Explore AI solutions',
     ctaHref: '/contact',
     rightTitle: 'AI delivery',
@@ -1504,7 +2204,7 @@ const SECTIONS = [
     label: 'CONSULTING',
     headline: 'ALIGN',
     outlineWords: ['THE', 'TEAM'],
-    desc: 'Roadmaps, rituals, and decision-making frameworks that keep delivery predictable.',
+    desc: <>Roadmaps, rituals, and decision-making frameworks that keep delivery <em className="desc-accent">predictable.</em></>,
     cta: 'Book a discovery call',
     ctaHref: '/contact',
     rightTitle: 'Advisory',

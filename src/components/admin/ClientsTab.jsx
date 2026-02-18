@@ -5,7 +5,7 @@ import {
   UserPlus, UserCheck, Edit3, Eye, Plus, X, Tag, FileText,
   ArrowRight, ChevronLeft, ChevronUp, ChevronDown, Briefcase, Send, FolderKanban, Flag,
   DollarSign, Receipt, CreditCard, MapPin,
-  RefreshCw, Download, Upload, PhoneForwarded,
+  RefreshCw, Download, Upload, PhoneForwarded, Lock,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { StatusBadge, FollowUpBadge, TierBadge, formatDisplayDate } from './adminUtils';
@@ -20,6 +20,7 @@ export default function ClientsTab({ onClientViewed }) {
     addInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
     updateClientTier, payments, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES,
     addClientDocument, deleteClientDocument, DOCUMENT_TYPES,
+    changeClientPassword,
   } = useAppContext();
   const canManage = hasPermission('manage_clients');
   const canDelete = hasPermission('delete_clients');
@@ -59,6 +60,10 @@ export default function ClientsTab({ onClientViewed }) {
   const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
   const [deleteNoteConfirm, setDeleteNoteConfirm] = useState(null);
   const [deleteInvoiceConfirm, setDeleteInvoiceConfirm] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' });
+  const [tempPasswordVisible, setTempPasswordVisible] = useState(false);
 
   // Select and mark client as viewed
   const handleSelectClient = (clientId) => {
@@ -138,6 +143,7 @@ export default function ClientsTab({ onClientViewed }) {
     if (selectedClient === id) setSelectedClient(null);
   };
 
+
   const handleRestoreClient = (id) => {
     restoreClient(id);
   };
@@ -160,11 +166,24 @@ export default function ClientsTab({ onClientViewed }) {
     });
     setEditingClient(true);
     setEditSuccess('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordMsg({ type: '', text: '' });
+    setTempPasswordVisible(false);
   };
 
   const handleSaveClientEdit = (e) => {
     e.preventDefault();
     if (!editForm.name.trim()) return;
+
+    // Handle password change if fields are filled
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) { setPasswordMsg({ type: 'error', text: 'Password must be at least 6 characters' }); return; }
+      if (newPassword !== confirmPassword) { setPasswordMsg({ type: 'error', text: 'Passwords do not match' }); return; }
+      const pwResult = changeClientPassword(client.id, newPassword);
+      if (!pwResult.success) { setPasswordMsg({ type: 'error', text: pwResult.error }); return; }
+    }
+
     updateClient(client.id, {
       name: editForm.name.trim(),
       businessName: editForm.businessName.trim(),
@@ -176,7 +195,10 @@ export default function ClientsTab({ onClientViewed }) {
       dateOfBirth: editForm.dateOfBirth,
     });
     setEditingClient(false);
-    setEditSuccess('Client info updated');
+    setEditSuccess(newPassword ? 'Client info & password updated' : 'Client info updated');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordMsg({ type: '', text: '' });
     setTimeout(() => setEditSuccess(''), 3000);
   };
 
@@ -305,6 +327,38 @@ export default function ClientsTab({ onClientViewed }) {
                       <input type="text" value={editForm.zip} onChange={(e) => setEditForm({ ...editForm, zip: e.target.value })} placeholder="12345" />
                     </div>
                   </div>
+                  <div className="admin-edit-row-group" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="admin-edit-row">
+                      <label><Lock size={14} /> {client.password ? 'New Password' : 'Set Password'}</label>
+                      <input type={tempPasswordVisible ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={client.password ? 'Leave blank to keep current' : 'Set a login password'} />
+                    </div>
+                    <div className="admin-edit-row">
+                      <label>Confirm Password</label>
+                      <input type={tempPasswordVisible ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password" />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
+                      <button type="button" className="btn btn-sm btn-outline" onClick={() => {
+                        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                        const temp = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                        setNewPassword(temp);
+                        setConfirmPassword(temp);
+                        setTempPasswordVisible(true);
+                        setPasswordMsg({ type: 'info', text: 'Temporary password generated — copy it before saving' });
+                      }}>
+                        <RefreshCw size={13} /> Generate Temp Password
+                      </button>
+                      {newPassword && (
+                        <button type="button" className="btn btn-sm btn-outline" onClick={() => { navigator.clipboard.writeText(newPassword); setPasswordMsg({ type: 'success', text: 'Copied to clipboard' }); setTimeout(() => setPasswordMsg({ type: '', text: '' }), 2000); }}>
+                          <Download size={13} /> Copy
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {passwordMsg.text && (
+                    <p style={{ fontSize: '0.82rem', color: passwordMsg.type === 'error' ? '#ef4444' : passwordMsg.type === 'info' ? '#3b82f6' : '#22c55e', margin: '4px 0 0' }}>
+                      {passwordMsg.text}
+                    </p>
+                  )}
                   <div className="admin-edit-actions">
                     <button type="submit" className="btn btn-sm btn-primary">Save</button>
                     <button type="button" className="btn btn-sm btn-outline" onClick={() => setEditingClient(false)}>Cancel</button>

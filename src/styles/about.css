@@ -1,4 +1,19 @@
 /* ===== ABOUT PAGE — Bioluminescent Depths ===== */
+
+/* ── Scroll fade-in animation ── */
+.about-page .section,
+.about-page .cta-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.about-page .section.in-view,
+.about-page .cta-section.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .about-story-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -16,8 +31,17 @@
   text-shadow: 0 0 30px rgba(240, 249, 255, 0.1);
 }
 
+/* Gradient text on section headings (matching Home style) */
+.section-header h2 {
+  background: var(--axion-gradient-text);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .about-story-text p {
-  color: var(--text-secondary);
+  color: var(--text-primary);
   line-height: 1.8;
   margin-bottom: 16px;
   font-weight: 300;
@@ -79,7 +103,7 @@
   -webkit-backdrop-filter: var(--glass-blur);
   padding: 48px 36px;
   border: 1px solid var(--border-cyan);
-  border-radius: 2px;
+  border-radius: var(--radius);
   transition: all var(--transition);
   position: relative;
 }
@@ -171,7 +195,7 @@
   -webkit-backdrop-filter: var(--glass-blur);
   padding: 32px 28px;
   border: 1px solid var(--glass-border);
-  border-radius: 2px;
+  border-radius: var(--radius);
   transition: all var(--transition);
   display: flex;
   flex-direction: column;
@@ -216,6 +240,17 @@
 /* Process Section */
 .process-section {
   padding: 120px 0;
+  position: relative;
+}
+
+.process-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200, 164, 62, 0.25), transparent);
 }
 
 .process-steps {
@@ -235,7 +270,7 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
-  border-radius: 2px;
+  border-radius: var(--radius);
   transition: all var(--transition);
 }
 
@@ -272,10 +307,6 @@
   line-height: 1.6;
   font-weight: 300;
   margin: 0;
-}
-
-.process-connector {
-  display: none;
 }
 
 @media (max-width: 968px) {
@@ -353,7 +384,15 @@
 
 /* Values section — strong backdrop like home sections */
 :root.light-theme .values-section {
-  background: #d8d8e0;
+  background: rgba(240, 240, 245, 0.95);
+}
+
+/* Light theme: disable gradient text (needs dark bg) */
+:root.light-theme .section-header h2 {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
 }
 :root.light-theme .values-section::before {
   background: linear-gradient(90deg, transparent, rgba(154, 122, 30, 0.3), transparent);

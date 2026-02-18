@@ -363,12 +363,13 @@
 }
 
 .info-card strong {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: var(--sirius-white);
 }
 
 .info-card span {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
 }
 
@@ -428,11 +429,11 @@
 :root.light-theme .calendar-day:hover {
   background: rgba(154, 122, 30, 0.1);
 }
-:root.light-theme .time-slot {
+:root.light-theme .time-btn {
   border-color: rgba(0, 0, 0, 0.1);
   background: #fff;
 }
-:root.light-theme .time-slot:hover {
+:root.light-theme .time-btn:hover:not(.booked) {
   background: rgba(154, 122, 30, 0.08);
   border-color: var(--accent-gold);
 }

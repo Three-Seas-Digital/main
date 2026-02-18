@@ -70,6 +70,7 @@ export function SalesProvider({ children }) {
       notes: [],
       source: data.source || 'manual',
       coordinates: data.coordinates || null,
+      enrichment: data.enrichment || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

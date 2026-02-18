@@ -127,7 +127,7 @@
 
 /* ===== LIGHT THEME — Footer ===== */
 :root.light-theme .footer {
-  background: #d8d8e0;
+  background: rgba(245, 245, 248, 0.98);
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 :root.light-theme .footer::before {

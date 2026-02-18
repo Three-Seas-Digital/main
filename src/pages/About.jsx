@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Clock, CheckCircle, BarChart3, Target, Lock, Database, Cog, TrendingUp, Zap } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
@@ -83,9 +83,28 @@ const processSteps = [
 ];
 
 export default function About() {
+  const pageRef = useRef(null);
   useEffect(() => { document.title = 'Philosophy & Methodology — Three Seas Digital'; }, []);
+
+  // Fade-in-on-scroll for sections
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const sections = page.querySelectorAll('.section, .cta-section');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add('in-view');
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    );
+    sections.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="page">
+    <div className="page about-page" ref={pageRef}>
       {/* Hero */}
       <section className="page-hero">
         <div className="page-hero-bg">
@@ -190,7 +209,6 @@ export default function About() {
                 <div className="process-step-number">{step.number}</div>
                 <h3>{step.title}</h3>
                 <p>{step.desc}</p>
-                {i < processSteps.length - 1 && <div className="process-connector" />}
               </div>
             ))}
           </div>

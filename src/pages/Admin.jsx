@@ -34,6 +34,7 @@ const ProfitTab = lazy(() => import('../components/admin/ProfitTab'));
 const TaxesTab = lazy(() => import('../components/admin/TaxesTab'));
 const AnalyticsTab = lazy(() => import('../components/admin/AnalyticsTab'));
 const LeadsTab = lazy(() => import('../components/admin/LeadsTab'));
+const BusinessDatabaseTab = lazy(() => import('../components/admin/BusinessDatabaseTab'));
 const ResearchTab = lazy(() => import('../components/admin/ResearchTab'));
 const ArchivedTab = lazy(() => import('../components/admin/ArchivedTab'));
 const OnboardingTab = lazy(() => import('../components/admin/OnboardingTab'));
@@ -73,12 +74,12 @@ const SIDEBAR_NAV = [
     { id: 'interventions', label: 'Interventions', icon: Crosshair, permission: 'manage_bi' },
     { id: 'execution', label: '30/60/90 Plan', icon: Target, permission: 'manage_bi' },
   ]},
+  { id: 'business-db', label: 'Business Database', icon: Database, type: 'standalone', permission: 'view_sales' },
   { id: 'appointments', label: 'Appointments', icon: CalendarIcon, type: 'standalone', permission: 'view_appointments' },
   { id: 'sales-group', label: 'Sales', icon: Briefcase, type: 'group', permission: 'view_sales', items: [
     { id: 'pipeline', label: 'Pipeline', icon: Briefcase, permission: 'view_sales' },
     { id: 'leads', label: 'Leads', icon: MapPin, permission: 'view_sales' },
     { id: 'followups', label: 'Follow-Ups', icon: PhoneForwarded, permission: 'manage_appointments' },
-    { id: 'business-db', label: 'Business Database', icon: Database, permission: 'view_sales' },
   ]},
   { id: 'finance-group', label: 'Finance', icon: DollarSign, type: 'group', permission: 'view_finance', items: [
     { id: 'revenue', label: 'Revenue', icon: DollarSign, permission: 'view_finance' },
@@ -108,7 +109,7 @@ export default function Admin() {
   useEffect(() => { document.title = 'Admin Dashboard — Three Seas Digital'; }, []);
   const {
     appointments, addAppointment, updateAppointmentStatus, deleteAppointment, assignAppointment,
-    currentUser, needsSetup, logout, hasPermission, clients, users, STAFF_COLORS, prospects, leads, marketResearch,
+    currentUser, needsSetup, logout, hasPermission, clients, users, STAFF_COLORS, prospects, leads, marketResearch, businessDatabase,
   } = useAppContext();
   const [selectedDate, setSelectedDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -284,6 +285,7 @@ export default function Admin() {
       case 'appointments': return pendingCount > 0 ? { count: pendingCount, color: 'danger' } : null;
       case 'pipeline': return pipelineCount > 0 ? { count: pipelineCount, color: 'info' } : null;
       case 'leads': return leads.length > 0 ? { count: leads.length, color: 'info' } : null;
+      case 'business-db': return businessDatabase.length > 0 ? { count: businessDatabase.length, color: 'neutral' } : null;
       case 'followups': return followUpCount > 0 ? { count: followUpCount, color: 'warning' } : null;
       case 'research': return marketResearch.length > 0 ? { count: marketResearch.length, color: 'neutral' } : null;
       case 'users': return pendingUserCount > 0 ? { count: pendingUserCount, color: 'danger' } : null;
@@ -684,6 +686,7 @@ export default function Admin() {
         {activeTab === 'taxes' && canViewFinance && <TaxesTab />}
         {activeTab === 'analytics' && canViewFinance && <AnalyticsTab />}
         {activeTab === 'leads' && canViewSales && <LeadsTab />}
+        {activeTab === 'business-db' && canViewSales && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><BusinessDatabaseTab /></Suspense></ErrorBoundary>}
         {activeTab === 'research' && canViewResearch && <ResearchTab />}
         {activeTab === 'archived' && canManageClients && <ArchivedTab />}
         {activeTab === 'tiers' && canManageSettings && <TiersTab />}

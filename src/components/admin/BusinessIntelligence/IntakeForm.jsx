@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Building2, Globe, Target, Save, ChevronDown } from 'lucide-react';
+import { ClipboardList, Building2, Globe, Target, Save, ChevronDown, TrendingUp } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { safeGetItem, safeSetItem, generateId } from '../../../constants';
 import { syncToApi } from '../../../api/apiSync';
 import { intakesApi } from '../../../api/intakes';
-import { INDUSTRY_OPTIONS } from './kpiRegistry';
+import { INDUSTRY_OPTIONS, getIndustryPack, UNIVERSAL_KPIS, TIER_META, generateKpisForClient } from './kpiRegistry';
 
 const INTAKES_KEY = 'threeseas_bi_intakes';
 
@@ -56,7 +56,7 @@ export default function IntakeForm({ biClientId, onBiClientChange }) {
   const [form, setForm] = useState({ ...EMPTY_INTAKE });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
-  const [expanded, setExpanded] = useState({ business: true, digital: true, marketing: false, goals: false, notes: false });
+  const [expanded, setExpanded] = useState({ business: true, digital: true, marketing: false, goals: false, notes: false, kpis: false });
   const activeClients = clients.filter(c => c.status !== 'archived' && c.status !== 'rejected');
 
   useEffect(() => {
@@ -87,6 +87,23 @@ export default function IntakeForm({ biClientId, onBiClientChange }) {
     return Math.round((filled / fields.length) * 100);
   }, [form, selectedClientId]);
 
+  // KPI preview based on selected industry
+  const kpiPreview = useMemo(() => {
+    if (!form.industry || form.industry === 'Other' || !selectedClientId) return null;
+    const pack = getIndustryPack(form.industry) || [];
+    const allKpis = [...pack, ...UNIVERSAL_KPIS];
+    const existing = safeGetItem('threeseas_bi_growth_targets', []);
+    const clientExistingIds = new Set(
+      existing.filter(t => t.clientId === selectedClientId).map(t => t.kpiId).filter(Boolean)
+    );
+    const tiers = { north_star: [], driver: [], guardrail: [], universal: [] };
+    allKpis.forEach(kpi => {
+      const tier = kpi.tier || 'universal';
+      if (tiers[tier]) tiers[tier].push({ ...kpi, exists: clientExistingIds.has(kpi.id) });
+    });
+    return tiers;
+  }, [form.industry, selectedClientId]);
+
   const handleSave = () => {
     if (!selectedClientId) return;
     setSaving(true);
@@ -96,9 +113,17 @@ export default function IntakeForm({ biClientId, onBiClientChange }) {
     intakes[selectedClientId] = data;
     safeSetItem(INTAKES_KEY, JSON.stringify(intakes));
     syncToApi(() => intakesApi.createOrUpdate(selectedClientId, data), 'intake-save');
+
+    // Generate industry-aware KPIs as growth targets
+    let kpiMsg = '';
+    if (form.industry && form.industry !== 'Other') {
+      const created = generateKpisForClient(selectedClientId, form.industry);
+      if (created.length > 0) kpiMsg = ` — ${created.length} KPIs generated`;
+    }
+
     setSaving(false);
-    setSaveMsg('Saved!');
-    setTimeout(() => setSaveMsg(''), 3000);
+    setSaveMsg('Saved!' + kpiMsg);
+    setTimeout(() => setSaveMsg(''), 4000);
   };
 
   return (
@@ -128,6 +153,37 @@ export default function IntakeForm({ biClientId, onBiClientChange }) {
             <Txt label="Business Model" value={form.business_model || ''} onChange={e => set('business_model', e.target.value)} ph="e.g., Brick and mortar" />
           </div>
         </Section>
+        {kpiPreview && (
+          <Section k="kpis" title={`KPI Preview (${form.industry})`} icon={<TrendingUp size={16} />} expanded={expanded.kpis} onToggle={toggle}>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 12 }}>
+              These KPIs will be auto-generated as growth targets when you save.
+            </p>
+            {['north_star', 'driver', 'guardrail', 'universal'].map(tier => {
+              const items = kpiPreview[tier];
+              if (!items || items.length === 0) return null;
+              const meta = TIER_META[tier];
+              return (
+                <div key={tier} className="kpi-preview-group">
+                  <div className="kpi-preview-group-header">
+                    <span className="kpi-tier-badge" style={{ background: meta.color + '22', color: meta.color, borderColor: meta.color }}>
+                      {meta.label}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{meta.desc}</span>
+                  </div>
+                  <ul className="kpi-preview-list">
+                    {items.map(kpi => (
+                      <li key={kpi.id} className={kpi.exists ? 'kpi-preview-exists' : ''}>
+                        <span>{kpi.label}</span>
+                        <span className="kpi-preview-unit">{kpi.unit}</span>
+                        {kpi.exists && <span className="kpi-preview-tag">already tracking</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </Section>
+        )}
         <Section k="digital" title="Digital Presence" icon={<Globe size={16} />} expanded={expanded.digital} onToggle={toggle}>
           <div className="bi-form-grid">
             <Txt label="Website URL" value={form.current_website_url || ''} onChange={e => set('current_website_url', e.target.value)} type="url" ph="https://..." />

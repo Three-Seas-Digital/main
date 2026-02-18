@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { safeGetItem } from '../../constants';
+import { TIER_META } from '../../components/admin/BusinessIntelligence/kpiRegistry';
 
 // Status config
 const STATUS_CONFIG = {
@@ -177,6 +178,49 @@ export default function GrowthMetrics() {
     return counts;
   }, [clientTargets]);
 
+  const renderMetricCard = (metric) => (
+    <div key={metric.id} className="portal-growth-card">
+      <div className="portal-growth-card-header">
+        <div className="portal-growth-card-title">
+          <h4>{metric.name}</h4>
+          <StatusBadge status={metric.status} />
+        </div>
+        {metric.unit && (
+          <span className="portal-growth-unit">{metric.unit}</span>
+        )}
+      </div>
+
+      <div className="portal-growth-card-values">
+        <div className="portal-growth-value-group">
+          <span className="portal-growth-value-label">Baseline</span>
+          <span className="portal-growth-value">{metric.baseline ?? '-'}</span>
+        </div>
+        <span className="portal-growth-arrow">→</span>
+        <div className="portal-growth-value-group portal-growth-value-current">
+          <span className="portal-growth-value-label">Current</span>
+          <span className="portal-growth-value">{metric.current ?? '-'}</span>
+        </div>
+        <span className="portal-growth-arrow">→</span>
+        <div className="portal-growth-value-group">
+          <span className="portal-growth-value-label">Target</span>
+          <span className="portal-growth-value">{metric.target ?? '-'}</span>
+        </div>
+      </div>
+
+      <ProgressBar pct={metric.progress} status={metric.status} />
+
+      {metric.snapshots.length >= 2 && (
+        <div className="portal-growth-sparkline-wrapper">
+          <Sparkline
+            data={metric.snapshots.map((s) => s.value)}
+            width={160}
+            height={36}
+          />
+        </div>
+      )}
+    </div>
+  );
+
   if (!clientId) {
     return (
       <div className="portal-empty-state">
@@ -244,48 +288,54 @@ export default function GrowthMetrics() {
         </div>
       ) : (
         <div className="portal-growth-list">
-          {sortedMetrics.map((metric) => (
-            <div key={metric.id} className="portal-growth-card">
-              <div className="portal-growth-card-header">
-                <div className="portal-growth-card-title">
-                  <h4>{metric.name}</h4>
-                  <StatusBadge status={metric.status} />
-                </div>
-                {metric.unit && (
-                  <span className="portal-growth-unit">{metric.unit}</span>
+          {(() => {
+            // Group by tier if tier data exists, otherwise render flat
+            const hasTiers = sortedMetrics.some(m => m.tier);
+            if (!hasTiers) return sortedMetrics.map(renderMetricCard);
+
+            const tierOrder = ['north_star', 'driver', 'guardrail', 'universal', 'custom'];
+            const grouped = {};
+            const ungrouped = [];
+            sortedMetrics.forEach(m => {
+              if (m.tier && TIER_META[m.tier]) {
+                if (!grouped[m.tier]) grouped[m.tier] = [];
+                grouped[m.tier].push(m);
+              } else {
+                ungrouped.push(m);
+              }
+            });
+
+            return (
+              <>
+                {tierOrder.map(tier => {
+                  const items = grouped[tier];
+                  if (!items || items.length === 0) return null;
+                  const meta = TIER_META[tier];
+                  return (
+                    <div key={tier} className="portal-growth-tier-group">
+                      <div className="portal-growth-tier-header">
+                        <span className="kpi-tier-badge" style={{ background: meta.color + '22', color: meta.color, borderColor: meta.color }}>
+                          {meta.label}
+                        </span>
+                        <span className="portal-growth-tier-desc">{meta.desc}</span>
+                      </div>
+                      {items.map(renderMetricCard)}
+                    </div>
+                  );
+                })}
+                {ungrouped.length > 0 && (
+                  <div className="portal-growth-tier-group">
+                    <div className="portal-growth-tier-header">
+                      <span className="kpi-tier-badge" style={{ background: '#6b728022', color: '#6b7280', borderColor: '#6b7280' }}>
+                        Other
+                      </span>
+                    </div>
+                    {ungrouped.map(renderMetricCard)}
+                  </div>
                 )}
-              </div>
-
-              <div className="portal-growth-card-values">
-                <div className="portal-growth-value-group">
-                  <span className="portal-growth-value-label">Baseline</span>
-                  <span className="portal-growth-value">{metric.baseline ?? '-'}</span>
-                </div>
-                <span className="portal-growth-arrow">→</span>
-                <div className="portal-growth-value-group portal-growth-value-current">
-                  <span className="portal-growth-value-label">Current</span>
-                  <span className="portal-growth-value">{metric.current ?? '-'}</span>
-                </div>
-                <span className="portal-growth-arrow">→</span>
-                <div className="portal-growth-value-group">
-                  <span className="portal-growth-value-label">Target</span>
-                  <span className="portal-growth-value">{metric.target ?? '-'}</span>
-                </div>
-              </div>
-
-              <ProgressBar pct={metric.progress} status={metric.status} />
-
-              {metric.snapshots.length >= 2 && (
-                <div className="portal-growth-sparkline-wrapper">
-                  <Sparkline
-                    data={metric.snapshots.map((s) => s.value)}
-                    width={160}
-                    height={36}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>
