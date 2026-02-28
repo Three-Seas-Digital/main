@@ -41,6 +41,7 @@ const OnboardingTab = lazy(() => import('../components/admin/OnboardingTab'));
 const TiersTab = lazy(() => import('../components/admin/TiersTab'));
 const ClientsDatabaseTab = lazy(() => import('../components/admin/ClientsDatabaseTab'));
 const KanbanView = lazy(() => import('../components/admin/KanbanView'));
+const TemplatesManagerTab = lazy(() => import('../components/admin/TemplatesManagerTab'));
 
 /* ===== Lazy-loaded Business Intelligence tabs ===== */
 const IntakeForm = lazy(() => import('../components/admin/BusinessIntelligence/IntakeForm'));
@@ -95,6 +96,7 @@ const SIDEBAR_NAV = [
     { id: 'users', label: 'Users & Roles', icon: Shield, permission: 'manage_users' },
     { id: 'email-templates', label: 'Email Templates', icon: Mail, permission: 'manage_settings' },
     { id: 'tiers', label: 'Tiers', icon: Layers, permission: 'manage_settings' },
+    { id: 'templates-mgr', label: 'Templates', icon: FileText, permission: 'manage_settings' },
     { id: 'activity-log', label: 'Activity Log', icon: Activity, permission: 'manage_settings' },
   ]},
 ];
@@ -690,6 +692,7 @@ export default function Admin() {
         {activeTab === 'research' && canViewResearch && <ResearchTab />}
         {activeTab === 'archived' && canManageClients && <ArchivedTab />}
         {activeTab === 'tiers' && canManageSettings && <TiersTab />}
+        {activeTab === 'templates-mgr' && canManageSettings && <TemplatesManagerTab />}
         {activeTab === 'clientsdb' && canViewClients && <ClientsDatabaseTab />}
         </Suspense>
         {/* Business Intelligence tabs (Phase 6A + 6C) — wrapped in ErrorBoundary */}

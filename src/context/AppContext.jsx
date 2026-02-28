@@ -45,6 +45,8 @@ const ACTIVITY_LOG_KEY = 'threeseas_activity_log';
 const TIME_ENTRIES_KEY = 'threeseas_time_entries';
 const EMAIL_TEMPLATES_KEY = 'threeseas_email_templates';
 const NOTIFICATIONS_KEY = 'threeseas_notifications';
+const ADMIN_TEMPLATES_KEY = 'threeseas_admin_templates';
+const BUILTIN_OVERRIDES_KEY = 'threeseas_builtin_overrides';
 
 
 const DEFAULT_EMAIL_TEMPLATES = [
@@ -311,6 +313,56 @@ export function AppProvider({ children }) {
 
   const resetEmailTemplates = () => {
     setEmailTemplates(DEFAULT_EMAIL_TEMPLATES);
+  };
+
+  // Admin Templates — uploaded custom templates managed from admin dashboard
+  const [adminTemplates, setAdminTemplates] = useState(() => safeGetItem(ADMIN_TEMPLATES_KEY, []));
+
+  useEffect(() => {
+    safeSetItem(ADMIN_TEMPLATES_KEY, JSON.stringify(adminTemplates));
+  }, [adminTemplates]);
+
+  const addAdminTemplate = (template) => {
+    const newTemplate = {
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      status: 'active',
+      ...template,
+    };
+    setAdminTemplates((prev) => [...prev, newTemplate]);
+    return newTemplate;
+  };
+
+  const updateAdminTemplate = (id, updates) => {
+    setAdminTemplates((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t))
+    );
+  };
+
+  const deleteAdminTemplate = (id) => {
+    setAdminTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Built-in template overrides — lets admin edit price/status of static templates
+  const [builtInOverrides, setBuiltInOverrides] = useState(() => safeGetItem(BUILTIN_OVERRIDES_KEY, {}));
+
+  useEffect(() => {
+    safeSetItem(BUILTIN_OVERRIDES_KEY, JSON.stringify(builtInOverrides));
+  }, [builtInOverrides]);
+
+  const setBuiltInOverride = (templateId, overrides) => {
+    setBuiltInOverrides((prev) => ({
+      ...prev,
+      [templateId]: { ...(prev[templateId] || {}), ...overrides },
+    }));
+  };
+
+  const clearBuiltInOverride = (templateId) => {
+    setBuiltInOverrides((prev) => {
+      const next = { ...prev };
+      delete next[templateId];
+      return next;
+    });
   };
 
   // Appointments
@@ -1423,7 +1475,9 @@ export function AppProvider({ children }) {
     timeEntries, addTimeEntry, updateTimeEntry, deleteTimeEntry, markTimeEntryBilled,
     emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate, resetEmailTemplates, DEFAULT_EMAIL_TEMPLATES,
     generateRecurringInvoice,
-  }), [appointments, clients, activityLog, notifications, timeEntries, emailTemplates]); // eslint-disable-line react-hooks/exhaustive-deps
+    adminTemplates, addAdminTemplate, updateAdminTemplate, deleteAdminTemplate,
+    builtInOverrides, setBuiltInOverride, clearBuiltInOverride,
+  }), [appointments, clients, activityLog, notifications, timeEntries, emailTemplates, adminTemplates, builtInOverrides]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AppContext.Provider value={value}>

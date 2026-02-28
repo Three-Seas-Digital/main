@@ -22,6 +22,11 @@ const StarterShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => 
 const BusinessShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.BusinessShowcase })));
 const PremiumShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.PremiumShowcase })));
 const EnterpriseShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.EnterpriseShowcase })));
+const Templates = lazy(() => import('./pages/Templates'));
+const TemplatesSignIn = lazy(() => import('./pages/TemplatesSignIn'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const Pricing = lazy(() => import('./pages/Pricing'));
+const Account = lazy(() => import('./pages/Account'));
 
 function PageLoader() {
   return (
@@ -32,6 +37,7 @@ function PageLoader() {
 }
 
 const DEMO_PATHS = ['/portfolio/starter', '/portfolio/business', '/portfolio/premium', '/portfolio/enterprise'];
+const HIDE_NAVBAR_PATHS = ['/templates', '/checkout'];
 
 // Runs initSync once after all providers are mounted.
 // Non-blocking — app renders immediately while sync happens in background.
@@ -50,10 +56,12 @@ function SyncInitializer({ children }) {
 function AppLayout() {
   const location = useLocation();
   const isDemo = DEMO_PATHS.includes(location.pathname);
+  const hideNavbar = HIDE_NAVBAR_PATHS.includes(location.pathname);
+  const hideFooter = isDemo || HIDE_NAVBAR_PATHS.includes(location.pathname);
 
   return (
     <>
-      <Navbar />
+      {!hideNavbar && <Navbar />}
       <main>
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
@@ -65,6 +73,11 @@ function AppLayout() {
               <Route path="/portfolio/business" element={<BusinessShowcase />} />
               <Route path="/portfolio/premium" element={<PremiumShowcase />} />
               <Route path="/portfolio/enterprise" element={<EnterpriseShowcase />} />
+              <Route path="/templates" element={<Templates />} />
+              <Route path="/templates/signin" element={<TemplatesSignIn />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/account" element={<Account />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/services" element={<ClientSignup />} />
               <Route path="/admin" element={<Admin />} />
@@ -74,7 +87,7 @@ function AppLayout() {
           </Suspense>
         </ErrorBoundary>
       </main>
-      {!isDemo && <Footer />}
+      {!hideFooter && <Footer />}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Send, Clock, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
@@ -12,6 +13,10 @@ const timeSlots = [
 ];
 
 export default function Contact() {
+  const [searchParams] = useSearchParams();
+  const templateName = searchParams.get('template');
+  const templateTier = searchParams.get('tier');
+
   useEffect(() => { document.title = 'Contact Us — Three Seas Digital'; }, []);
   const { addAppointment, getBookedTimesForDate } = useAppContext();
   const [selectedDate, setSelectedDate] = useState('');
@@ -21,8 +26,8 @@ export default function Contact() {
     name: '',
     email: '',
     phone: '',
-    service: '',
-    message: '',
+    service: templateName ? 'consulting' : '',
+    message: templateName ? `I'm interested in the ${templateName} (${templateTier || 'Enterprise'}) template. Please reach out to discuss custom pricing and implementation.` : '',
   });
 
   const bookedTimes = selectedDate
@@ -82,6 +87,23 @@ export default function Contact() {
 
       <section className="section">
         <div className="container">
+          {templateName && (
+            <div className="contact-template-banner" style={{
+              background: 'linear-gradient(135deg, rgba(200,164,62,0.1), rgba(200,164,62,0.05))',
+              border: '1px solid rgba(200,164,62,0.25)',
+              borderRadius: '12px',
+              padding: '16px 24px',
+              marginBottom: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              color: '#c8a43e',
+              fontSize: '0.95rem',
+              fontWeight: 600
+            }}>
+              Interested in <strong style={{ color: 'var(--text-bright)', margin: '0 4px' }}>{templateName}</strong> — Enterprise Template
+            </div>
+          )}
           <div className="contact-grid">
             {/* Left: Calendar & Time Picker */}
             <div className="contact-calendar-side">
