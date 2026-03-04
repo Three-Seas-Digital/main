@@ -3,6 +3,7 @@ import { DollarSign, TrendingUp, Users, Globe, Save, Trash2, Edit3, Printer, Che
 import { useAppContext } from '../../../context/AppContext';
 import { safeGetItem, safeSetItem, generateId, escapeHtml } from '../../../constants';
 import { syncToApi } from '../../../api/apiSync';
+import { clientFinancialsApi } from '../../../api/clientFinancials';
 import {
   ComposedChart, Bar, Line, LineChart, PieChart, Pie, Cell,
   ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -178,7 +179,26 @@ export default function ClientFinancials({ biClientId, onBiClientChange }) {
     }
     safeSetItem(STORAGE_KEY, JSON.stringify(data));
     setDataVersion(v => v + 1);
-    syncToApi(() => Promise.resolve(), 'client-financials-save');
+    // Sync to DB — map form fields to server schema
+    const [yr, mo] = form.month.split('-').map(Number);
+    const payload = {
+      period_year: yr, period_month: mo,
+      gross_revenue: Number(form.revenue) || 0,
+      total_expenses: Number(form.expenses) || 0,
+      total_marketing_spend: Number(form.adSpend) || 0,
+      new_customers: Number(form.newCustomers) || 0,
+      net_profit: (Number(form.revenue) || 0) - (Number(form.expenses) || 0),
+      gross_profit: (Number(form.revenue) || 0) - (Number(form.expenses) || 0),
+      notes: form.notes || null,
+      source: 'manual',
+      data_completeness: 'partial',
+    };
+    syncToApi(() => {
+      if (editingId && entry.serverId) {
+        return clientFinancialsApi.update(selectedClientId, entry.serverId, payload);
+      }
+      return clientFinancialsApi.create(selectedClientId, payload);
+    }, 'client-financials-save');
     setForm({ ...EMPTY_ENTRY });
     setEditingId(null);
     setSaving(false);

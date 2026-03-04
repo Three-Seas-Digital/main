@@ -112,7 +112,7 @@ export default function ServiceRequests() {
     setShowForm(false);
 
     syncToApi(
-      () => fetch('/api/service-requests', {
+      () => fetch('/api/portal/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newRequest),

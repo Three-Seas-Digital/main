@@ -1,10 +1,14 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Edit3, Eye, X, Check, Upload, DollarSign,
-  Search, Image, ExternalLink, ChevronDown, AlertCircle, RotateCcw
+  Search, Image, ExternalLink, ChevronDown, AlertCircle, RotateCcw,
+  FileArchive, Cloud, CloudOff, Settings
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { useAppContext } from '../../context/AppContext';
 import { ALL_TEMPLATES, TEMPLATE_TIERS } from '../../data/templates';
+import { storeTemplateZip, deleteTemplateZip, storeTemplateImage, deleteTemplateImage, getTemplateImage, syncMetadataToR2 } from '../../utils/templateStorage';
+import { getR2Config, setR2Config, isR2Enabled } from '../../config/r2Config';
 
 const TIER_OPTIONS = [
   { value: 'Starter', color: '#6b7280' },
@@ -37,10 +41,17 @@ const EMPTY_FORM = {
   previewUrl: '',
   status: 'active',
   image: null,
+  imageBlob: null,
   imageName: '',
+  hasImage: false,
+  zipFile: null,
+  zipFileName: '',
+  zipSize: 0,
+  hasZip: false,
 };
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_ZIP_SIZE = 20 * 1024 * 1024; // 20MB
 
 export default function TemplatesManagerTab() {
   const {
@@ -51,6 +62,7 @@ export default function TemplatesManagerTab() {
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [editSource, setEditSource] = useState(null); // 'built-in' or 'custom'
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTier, setFilterTier] = useState('all');
@@ -60,7 +72,59 @@ export default function TemplatesManagerTab() {
   const [editPriceId, setEditPriceId] = useState(null);
   const [editPriceValue, setEditPriceValue] = useState('');
   const [imageError, setImageError] = useState('');
+  const [zipError, setZipError] = useState('');
+  const [zipValidating, setZipValidating] = useState(false);
   const fileInputRef = useRef(null);
+  const zipInputRef = useRef(null);
+
+  // R2 Cloud Storage settings
+  const [showR2Settings, setShowR2Settings] = useState(false);
+  const [r2Form, setR2Form] = useState(() => getR2Config());
+  const [r2Saved, setR2Saved] = useState(false);
+  const [r2Testing, setR2Testing] = useState(false);
+  const [r2TestResult, setR2TestResult] = useState(null);
+  const [r2Syncing, setR2Syncing] = useState(false);
+  const [r2SyncResult, setR2SyncResult] = useState(null);
+
+  const handleR2Save = () => {
+    setR2Config(r2Form);
+    setR2Saved(true);
+    setTimeout(() => setR2Saved(false), 2000);
+  };
+
+  const handleR2Sync = async () => {
+    setR2Syncing(true);
+    setR2SyncResult(null);
+    try {
+      await syncMetadataToR2(adminTemplates, builtInOverrides);
+      setR2SyncResult({ ok: true, msg: `Synced ${adminTemplates.length} custom templates to cloud` });
+    } catch (err) {
+      setR2SyncResult({ ok: false, msg: `Sync failed: ${err.message}` });
+    }
+    setR2Syncing(false);
+    setTimeout(() => setR2SyncResult(null), 4000);
+  };
+
+  const handleR2Test = async () => {
+    setR2Testing(true);
+    setR2TestResult(null);
+    try {
+      const url = `${r2Form.workerUrl.replace(/\/$/, '')}/templates`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'X-API-Key': r2Form.apiKey },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setR2TestResult({ ok: true, msg: `Connected — ${data.items?.length || 0} templates stored` });
+      } else {
+        setR2TestResult({ ok: false, msg: `Error ${res.status}: ${res.statusText}` });
+      }
+    } catch (err) {
+      setR2TestResult({ ok: false, msg: `Connection failed: ${err.message}` });
+    }
+    setR2Testing(false);
+  };
 
   // Merge built-in + admin templates for display (apply overrides to built-ins)
   const builtInTemplates = useMemo(() =>
@@ -104,6 +168,38 @@ export default function TemplatesManagerTab() {
     draft: customTemplates.filter((t) => t.status === 'draft').length,
   }), [builtInTemplates, customTemplates]);
 
+  // Load images from R2/IndexedDB for templates with hasImage flag
+  const [imageUrls, setImageUrls] = useState({});
+
+  const loadImages = useCallback(async () => {
+    const combined = [...builtInTemplates, ...customTemplates];
+    const toLoad = combined.filter((t) => t.hasImage && !imageUrls[t.id]);
+    if (toLoad.length === 0) return;
+
+    const newUrls = {};
+    await Promise.all(toLoad.map(async (t) => {
+      try {
+        const blob = await getTemplateImage(t.id);
+        if (blob) newUrls[t.id] = URL.createObjectURL(blob);
+      } catch { /* skip */ }
+    }));
+
+    if (Object.keys(newUrls).length > 0) {
+      setImageUrls((prev) => ({ ...prev, ...newUrls }));
+    }
+  }, [builtInTemplates, customTemplates]);
+
+  useEffect(() => { loadImages(); }, [loadImages]);
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(imageUrls).forEach((url) => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
+    };
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -125,7 +221,6 @@ export default function TemplatesManagerTab() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      // Compress via canvas
       const img = new window.Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -138,23 +233,70 @@ export default function TemplatesManagerTab() {
         canvas.width = w;
         canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const compressed = canvas.toDataURL('image/jpeg', 0.8);
-        setForm((prev) => ({ ...prev, image: compressed, imageName: file.name }));
+        // Create a blob for R2/IndexedDB storage
+        canvas.toBlob((blob) => {
+          const previewUrl = URL.createObjectURL(blob);
+          setForm((prev) => ({ ...prev, image: previewUrl, imageBlob: blob, imageName: file.name, hasImage: true }));
+        }, 'image/jpeg', 0.8);
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   };
 
+  const handleZipUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setZipError('');
+
+    if (!file.name.endsWith('.zip')) {
+      setZipError('Please upload a .zip file');
+      return;
+    }
+    if (file.size > MAX_ZIP_SIZE) {
+      setZipError('ZIP must be under 20MB');
+      return;
+    }
+
+    setZipValidating(true);
+    try {
+      const zip = await JSZip.loadAsync(file);
+      // Verify index.html exists
+      let hasIndex = !!zip.file('index.html');
+      if (!hasIndex) {
+        const entries = Object.keys(zip.files);
+        hasIndex = entries.some((e) => e.endsWith('/index.html') && e.split('/').length === 2);
+      }
+      if (!hasIndex) {
+        setZipError('ZIP must contain an index.html file at the root');
+        setZipValidating(false);
+        return;
+      }
+      setForm((prev) => ({
+        ...prev,
+        zipFile: file,
+        zipFileName: file.name,
+        zipSize: file.size,
+        hasZip: true,
+      }));
+    } catch {
+      setZipError('Invalid ZIP file — could not read contents');
+    }
+    setZipValidating(false);
+  };
+
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
     setEditId(null);
+    setEditSource(null);
     setShowForm(false);
     setImageError('');
+    setZipError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (zipInputRef.current) zipInputRef.current.value = '';
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.description.trim()) return;
 
@@ -168,19 +310,58 @@ export default function TemplatesManagerTab() {
       tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       previewUrl: form.previewUrl.trim(),
       status: form.status,
-      image: form.image,
       imageName: form.imageName,
+      hasImage: form.hasImage || (editId ? undefined : false),
+      hasZip: form.hasZip || (editId ? undefined : false),
+      zipFileName: form.zipFileName || undefined,
+      zipSize: form.zipSize || undefined,
     };
 
-    if (editId) {
+    if (editId && editSource === 'built-in') {
+      setBuiltInOverride(editId, {
+        name: templateData.name,
+        tier: templateData.tier,
+        category: templateData.category,
+        description: templateData.description,
+        longDesc: templateData.longDesc,
+        price: templateData.price,
+        tags: templateData.tags,
+        previewUrl: templateData.previewUrl,
+        status: templateData.status,
+        ...(form.imageBlob ? { hasImage: true, imageName: templateData.imageName } : {}),
+        ...(templateData.hasZip ? { hasZip: true, zipFileName: templateData.zipFileName, zipSize: templateData.zipSize } : {}),
+      });
+      if (form.imageBlob) {
+        await storeTemplateImage(editId, form.imageBlob).catch(() => {});
+      }
+      if (form.zipFile) {
+        await storeTemplateZip(editId, form.zipFile).catch(() => {});
+      }
+    } else if (editId) {
       updateAdminTemplate(editId, templateData);
+      if (form.imageBlob) {
+        await storeTemplateImage(editId, form.imageBlob).catch(() => {});
+      }
+      if (form.zipFile) {
+        await storeTemplateZip(editId, form.zipFile).catch(() => {});
+      }
     } else {
-      addAdminTemplate(templateData);
+      const newTemplate = addAdminTemplate(templateData);
+      if (newTemplate?.id) {
+        if (form.imageBlob) {
+          await storeTemplateImage(newTemplate.id, form.imageBlob).catch(() => {});
+        }
+        if (form.zipFile) {
+          await storeTemplateZip(newTemplate.id, form.zipFile).catch(() => {});
+        }
+      }
     }
     resetForm();
   };
 
   const handleEdit = (template) => {
+    // If template has an image stored, load it from R2/IndexedDB for preview
+    const imgUrl = imageUrls[template.id] || template.image || null;
     setForm({
       name: template.name,
       tier: template.tier,
@@ -191,15 +372,24 @@ export default function TemplatesManagerTab() {
       tags: (template.tags || []).join(', '),
       previewUrl: template.previewUrl || '',
       status: template.status || 'active',
-      image: template.image || null,
+      image: imgUrl,
+      imageBlob: null,
       imageName: template.imageName || '',
+      hasImage: template.hasImage || !!template.image || false,
+      zipFile: null,
+      zipFileName: template.zipFileName || '',
+      zipSize: template.zipSize || 0,
+      hasZip: template.hasZip || false,
     });
     setEditId(template.id);
+    setEditSource(template.source);
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     deleteAdminTemplate(id);
+    await deleteTemplateZip(id).catch(() => {});
+    await deleteTemplateImage(id).catch(() => {});
     setDeleteConfirm(null);
   };
 
@@ -274,6 +464,88 @@ export default function TemplatesManagerTab() {
         </div>
       </div>
 
+      {/* R2 Cloud Storage Settings */}
+      <div className="tmgr-r2-section">
+        <button
+          className="tmgr-r2-toggle"
+          onClick={() => setShowR2Settings(!showR2Settings)}
+        >
+          {isR2Enabled() ? <Cloud size={16} style={{ color: '#34d399' }} /> : <CloudOff size={16} style={{ color: '#6b7280' }} />}
+          <span>Cloud Storage {isR2Enabled() ? '(Connected)' : '(Local Only)'}</span>
+          <Settings size={14} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+        </button>
+        {showR2Settings && (
+          <div className="tmgr-r2-panel">
+            <p className="tmgr-r2-desc">
+              Connect to Cloudflare R2 for persistent cloud storage of template ZIPs. Without R2, templates are stored locally in IndexedDB.
+            </p>
+            <div className="tmgr-r2-field">
+              <label>Worker URL</label>
+              <input
+                type="url"
+                value={r2Form.workerUrl}
+                onChange={(e) => setR2Form((p) => ({ ...p, workerUrl: e.target.value }))}
+                placeholder="https://threeseas-template-storage.yourname.workers.dev"
+              />
+            </div>
+            <div className="tmgr-r2-field">
+              <label>API Key</label>
+              <input
+                type="password"
+                value={r2Form.apiKey}
+                onChange={(e) => setR2Form((p) => ({ ...p, apiKey: e.target.value }))}
+                placeholder="Your R2_API_KEY secret"
+              />
+            </div>
+            <div className="tmgr-r2-toggle-row">
+              <label className="tmgr-r2-switch">
+                <input
+                  type="checkbox"
+                  checked={r2Form.enabled}
+                  onChange={(e) => setR2Form((p) => ({ ...p, enabled: e.target.checked }))}
+                />
+                <span className="tmgr-r2-slider" />
+              </label>
+              <span>Enable R2 Cloud Storage</span>
+            </div>
+            <div className="tmgr-r2-actions">
+              <button
+                className="tmgr-btn-cancel"
+                onClick={handleR2Test}
+                disabled={r2Testing || !r2Form.workerUrl || !r2Form.apiKey}
+              >
+                {r2Testing ? 'Testing...' : 'Test Connection'}
+              </button>
+              <button
+                className="tmgr-btn-cancel"
+                onClick={handleR2Sync}
+                disabled={r2Syncing || !isR2Enabled()}
+                title="Push current template metadata to R2 cloud storage"
+              >
+                <Cloud size={14} />
+                {r2Syncing ? 'Syncing...' : 'Sync to Cloud'}
+              </button>
+              <button className="tmgr-btn-save" onClick={handleR2Save}>
+                <Check size={14} />
+                {r2Saved ? 'Saved!' : 'Save Settings'}
+              </button>
+            </div>
+            {r2TestResult && (
+              <div className={`tmgr-r2-test ${r2TestResult.ok ? 'tmgr-r2-test--ok' : 'tmgr-r2-test--err'}`}>
+                {r2TestResult.ok ? <Check size={14} /> : <AlertCircle size={14} />}
+                {r2TestResult.msg}
+              </div>
+            )}
+            {r2SyncResult && (
+              <div className={`tmgr-r2-test ${r2SyncResult.ok ? 'tmgr-r2-test--ok' : 'tmgr-r2-test--err'}`}>
+                {r2SyncResult.ok ? <Check size={14} /> : <AlertCircle size={14} />}
+                {r2SyncResult.msg}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="tmgr-filters">
         <div className="tmgr-search">
@@ -304,7 +576,7 @@ export default function TemplatesManagerTab() {
         <div className="tmgr-modal-overlay" onClick={resetForm}>
           <div className="tmgr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tmgr-modal-header">
-              <h3>{editId ? 'Edit Template' : 'Upload New Template'}</h3>
+              <h3>{editId ? (editSource === 'built-in' ? 'Edit Built-in Template' : 'Edit Template') : 'Upload New Template'}</h3>
               <button onClick={resetForm} className="tmgr-modal-close"><X size={18} /></button>
             </div>
             <form onSubmit={handleSubmit} className="tmgr-form">
@@ -418,7 +690,7 @@ export default function TemplatesManagerTab() {
                       <button
                         type="button"
                         className="tmgr-image-remove"
-                        onClick={() => setForm((prev) => ({ ...prev, image: null, imageName: '' }))}
+                        onClick={() => setForm((prev) => ({ ...prev, image: null, imageBlob: null, imageName: '', hasImage: false }))}
                       >
                         <X size={14} />
                       </button>
@@ -451,6 +723,59 @@ export default function TemplatesManagerTab() {
                 </div>
               </div>
 
+              {/* ZIP Upload */}
+              <div className="tmgr-form-group">
+                <label>Site Files (.zip) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— must contain index.html</span></label>
+                <div className="tmgr-zip-upload">
+                  {(form.hasZip || form.zipFile) ? (
+                    <div className="tmgr-zip-attached">
+                      <FileArchive size={18} />
+                      <div className="tmgr-zip-info">
+                        <span className="tmgr-zip-name">{form.zipFileName}</span>
+                        <span className="tmgr-zip-size">{(form.zipSize / 1024).toFixed(0)} KB</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="tmgr-zip-remove"
+                        onClick={() => setForm((prev) => ({ ...prev, zipFile: null, zipFileName: '', zipSize: 0, hasZip: false }))}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="tmgr-zip-upload-btn"
+                      onClick={() => zipInputRef.current?.click()}
+                      disabled={zipValidating}
+                    >
+                      {zipValidating ? (
+                        <>Validating...</>
+                      ) : (
+                        <>
+                          <FileArchive size={20} />
+                          <span>Upload Site ZIP</span>
+                          <span className="tmgr-zip-hint">Max 20MB — must include index.html</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <input
+                    ref={zipInputRef}
+                    type="file"
+                    accept=".zip"
+                    onChange={handleZipUpload}
+                    style={{ display: 'none' }}
+                  />
+                  {zipError && (
+                    <div className="tmgr-image-error">
+                      <AlertCircle size={14} />
+                      {zipError}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="tmgr-form-actions">
                 <button type="button" className="tmgr-btn-cancel" onClick={resetForm}>Cancel</button>
                 <button type="submit" className="tmgr-btn-save">
@@ -473,6 +798,7 @@ export default function TemplatesManagerTab() {
               <th>Tier</th>
               <th>Category</th>
               <th>Price</th>
+              <th>ZIP</th>
               <th>Status</th>
               <th>Source</th>
               <th style={{ width: 100 }}>Actions</th>
@@ -481,7 +807,7 @@ export default function TemplatesManagerTab() {
           <tbody>
             {allTemplates.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
+                <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>
                   No templates match your filters.
                 </td>
               </tr>
@@ -489,13 +815,18 @@ export default function TemplatesManagerTab() {
             {allTemplates.map((t) => (
               <tr key={`${t.source}-${t.id}`} className={t.source === 'custom' && t.status === 'draft' ? 'tmgr-row-draft' : ''}>
                 <td>
-                  <div
-                    className="tmgr-thumb"
-                    onClick={() => t.image && setPreviewImage(t.image)}
-                    style={t.image ? { cursor: 'pointer' } : { background: `linear-gradient(135deg, ${t.color || '#333'}40, ${t.color || '#333'}15)` }}
-                  >
-                    {t.image ? <img src={t.image} alt={t.name} /> : <Image size={16} />}
-                  </div>
+                  {(() => {
+                    const imgSrc = imageUrls[t.id] || t.image;
+                    return (
+                      <div
+                        className="tmgr-thumb"
+                        onClick={() => imgSrc && setPreviewImage(imgSrc)}
+                        style={imgSrc ? { cursor: 'pointer' } : { background: `linear-gradient(135deg, ${t.color || '#333'}40, ${t.color || '#333'}15)` }}
+                      >
+                        {imgSrc ? <img src={imgSrc} alt={t.name} /> : <Image size={16} />}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td>
                   <span className="tmgr-name">{t.name}</span>
@@ -539,6 +870,16 @@ export default function TemplatesManagerTab() {
                   )}
                 </td>
                 <td>
+                  {t.hasZip ? (
+                    <span className="tmgr-zip-badge" title={t.zipFileName}>
+                      <FileArchive size={13} />
+                      <span>{((t.zipSize || 0) / 1024).toFixed(0)}K</span>
+                    </span>
+                  ) : (
+                    <span className="tmgr-zip-none">—</span>
+                  )}
+                </td>
+                <td>
                   {t.source === 'built-in' ? (
                     <span
                       className={`tmgr-status tmgr-status--${t.status || 'active'} tmgr-status--clickable`}
@@ -572,6 +913,13 @@ export default function TemplatesManagerTab() {
                         <ExternalLink size={14} />
                       </a>
                     )}
+                    <button
+                      className="tmgr-action-btn"
+                      onClick={() => handleEdit(t)}
+                      title="Edit"
+                    >
+                      <Edit3 size={14} />
+                    </button>
                     {t.source === 'built-in' && t._modified && (
                       <button
                         className="tmgr-action-btn tmgr-action-btn--reset"
@@ -582,22 +930,22 @@ export default function TemplatesManagerTab() {
                       </button>
                     )}
                     {t.source === 'custom' && (
-                      <>
-                        <button
-                          className="tmgr-action-btn"
-                          onClick={() => handleEdit(t)}
-                          title="Edit"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          className="tmgr-action-btn tmgr-action-btn--danger"
-                          onClick={() => setDeleteConfirm(t.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </>
+                      <button
+                        className="tmgr-action-btn tmgr-action-btn--danger"
+                        onClick={() => setDeleteConfirm(t.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    {t.source === 'built-in' && (
+                      <button
+                        className="tmgr-action-btn tmgr-action-btn--danger"
+                        onClick={() => handleBuiltInStatusToggle(t)}
+                        title={(t.status || 'active') === 'active' ? 'Archive' : 'Restore'}
+                      >
+                        {(t.status || 'active') === 'active' ? <Trash2 size={14} /> : <RotateCcw size={14} />}
+                      </button>
                     )}
                   </div>
                 </td>

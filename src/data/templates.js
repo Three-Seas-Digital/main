@@ -23,7 +23,7 @@ export const ALL_TEMPLATES = [
     image: '/images/portfolio-coffee.jpg',
     color: '#ff6b9d',
     tags: ['Mobile-First', 'Fast Load', 'Conversion Optimized'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 499,
     remixable: true,
     components: ['hero', 'features', 'menu', 'location', 'footer'],
@@ -38,7 +38,7 @@ export const ALL_TEMPLATES = [
     image: '/images/portfolio-law.jpg',
     color: '#c084fc',
     tags: ['Full CMS', 'Lead Pipeline', 'Professional'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 1999,
     remixable: true,
     components: ['navbar', 'hero', 'services', 'team', 'contact', 'footer'],
@@ -53,7 +53,7 @@ export const ALL_TEMPLATES = [
     image: '/images/portfolio-spa.jpg',
     color: '#22d3ee',
     tags: ['Booking Engine', 'Client Portal', 'Payments'],
-    path: '/portfolio/premium',
+    path: '/pricing/premium',
     price: 3499,
     remixable: true,
     components: ['navbar', 'hero', 'booking', 'services', 'testimonials', 'footer'],
@@ -68,7 +68,7 @@ export const ALL_TEMPLATES = [
     image: '/images/portfolio-logistics.jpg',
     color: '#60a5fa',
     tags: ['BI Dashboard', 'CRM', 'Analytics'],
-    path: '/portfolio/enterprise',
+    path: '/pricing/enterprise',
     price: null,
     remixable: true,
     components: ['sidebar', 'header', 'dashboard', 'charts', 'tables', 'footer'],
@@ -83,7 +83,7 @@ export const ALL_TEMPLATES = [
     image: '/images/demo-coffee-hero.jpg',
     color: '#fbbf24',
     tags: ['Menu', 'Location', 'Ordering'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 599,
     remixable: true,
     components: ['hero', 'menu', 'about', 'location', 'footer'],
@@ -97,7 +97,7 @@ export const ALL_TEMPLATES = [
     description: 'Full admin dashboard with charts, tables, and dark mode.',
     longDesc: 'Comprehensive admin interface with data visualization, user management, and customizable dark/light themes.',
     tags: ['Charts', 'Tables', 'Dark Mode'],
-    path: '/portfolio/enterprise',
+    path: '/pricing/enterprise',
     price: null,
     remixable: true,
     components: ['sidebar', 'header', 'stats', 'charts', 'recent-activity', 'footer'],
@@ -112,7 +112,7 @@ export const ALL_TEMPLATES = [
     description: 'Conversion-focused product page with pricing tables.',
     longDesc: 'Everything you need to launch a SaaS product - pricing tables, feature comparisons, testimonials, and FAQ sections.',
     tags: ['SaaS', 'Pricing', 'Modern'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 1499,
     remixable: true,
     components: ['navbar', 'hero', 'features', 'pricing', 'testimonials', 'faq', 'footer'],
@@ -126,7 +126,7 @@ export const ALL_TEMPLATES = [
     description: 'Healthcare clinic site with doctor profiles.',
     longDesc: 'Professional medical practice website with doctor profiles, appointment booking, patient portal, and telehealth integration.',
     tags: ['Healthcare', 'Booking', 'Portal'],
-    path: '/portfolio/premium',
+    path: '/pricing/premium',
     price: 3999,
     remixable: true,
     components: ['navbar', 'hero', 'services', 'doctors', 'booking', 'footer'],
@@ -140,7 +140,7 @@ export const ALL_TEMPLATES = [
     description: 'Modern landing page for tech companies.',
     longDesc: 'Clean, modern design perfect for tech startups with feature highlights, team section, and investor information.',
     tags: ['Tech', 'Modern', 'Clean'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 549,
     remixable: true,
     components: ['hero', 'features', 'team', 'contact', 'footer'],
@@ -154,7 +154,7 @@ export const ALL_TEMPLATES = [
     description: 'Financial overview with P&L charts and invoicing.',
     longDesc: 'Complete financial management dashboard with profit/loss tracking, invoicing, expense management, and cash flow analysis.',
     tags: ['Finance', 'Invoicing', 'Reports'],
-    path: '/portfolio/enterprise',
+    path: '/pricing/enterprise',
     price: null,
     remixable: true,
     components: ['sidebar', 'header', 'overview', 'charts', 'invoices', 'footer'],
@@ -169,7 +169,7 @@ export const ALL_TEMPLATES = [
     description: 'Countdown timer hero with speaker bios.',
     longDesc: 'Event landing page with countdown timer, speaker lineup, schedule, ticket purchase, and venue information.',
     tags: ['Events', 'Countdown', 'Tickets'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 699,
     remixable: true,
     components: ['hero', 'countdown', 'speakers', 'schedule', 'tickets', 'footer'],
@@ -183,7 +183,7 @@ export const ALL_TEMPLATES = [
     description: 'Mobile app showcase with device mockups.',
     longDesc: 'Showcase your mobile app with device mockups, feature highlights, download buttons, and user testimonials.',
     tags: ['Mobile App', 'Mockups', 'Download'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 1799,
     remixable: true,
     components: ['navbar', 'hero', 'features', 'screenshots', 'download', 'footer'],
@@ -197,7 +197,7 @@ export const ALL_TEMPLATES = [
     description: 'Investor pitch deck site with metrics.',
     longDesc: 'Investor-focused landing page with metrics, team bios, traction proof, and funding information.',
     tags: ['Pitch', 'Investors', 'Metrics'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 649,
     remixable: true,
     components: ['hero', 'problem', 'solution', 'metrics', 'team', 'contact', 'footer'],
@@ -211,7 +211,7 @@ export const ALL_TEMPLATES = [
     description: 'Startup launch page with social proof.',
     longDesc: 'Product launch page designed for Product Hunt with upvote integration, feature list, and early access signup.',
     tags: ['Launch', 'Social Proof', 'Signup'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 1699,
     remixable: true,
     components: ['hero', 'features', 'social-proof', 'signup', 'footer'],
@@ -225,7 +225,7 @@ export const ALL_TEMPLATES = [
     description: 'Course sales page with curriculum and bio.',
     longDesc: 'Online course landing page with curriculum outline, instructor bio, testimonials, and enrollment options.',
     tags: ['Course', 'Education', 'Sales'],
-    path: '/portfolio/premium',
+    path: '/pricing/premium',
     price: 2999,
     remixable: true,
     components: ['hero', 'curriculum', 'instructor', 'testimonials', 'pricing', 'footer'],
@@ -240,7 +240,7 @@ export const ALL_TEMPLATES = [
     description: 'Corporate site with testimonials and forms.',
     longDesc: 'Professional consulting firm website with service offerings, client testimonials, case studies, and lead capture forms.',
     tags: ['Consulting', 'Corporate', 'Forms'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 2499,
     remixable: true,
     components: ['navbar', 'hero', 'services', 'case-studies', 'testimonials', 'contact', 'footer'],
@@ -254,7 +254,7 @@ export const ALL_TEMPLATES = [
     description: 'Luxury real estate with virtual tours.',
     longDesc: 'High-end real estate website featuring luxury listings, virtual tours, agent profiles, and mortgage tools.',
     tags: ['Luxury', 'Virtual Tours', 'High-End'],
-    path: '/portfolio/premium',
+    path: '/pricing/premium',
     price: 4499,
     remixable: true,
     components: ['navbar', 'hero', 'listings', 'agents', 'mortgage', 'footer'],
@@ -269,7 +269,7 @@ export const ALL_TEMPLATES = [
     description: 'Data-rich analytics with KPI cards.',
     longDesc: 'Advanced analytics dashboard with real-time KPIs, trend charts, custom reports, and data export capabilities.',
     tags: ['Analytics', 'KPIs', 'Reports'],
-    path: '/portfolio/enterprise',
+    path: '/pricing/enterprise',
     price: null,
     remixable: true,
     components: ['sidebar', 'header', 'kpi-cards', 'charts', 'data-tables', 'footer'],
@@ -283,7 +283,7 @@ export const ALL_TEMPLATES = [
     description: 'Client management with pipeline view.',
     longDesc: 'Customer relationship management dashboard with sales pipeline, contact management, and activity tracking.',
     tags: ['CRM', 'Pipeline', 'Sales'],
-    path: '/portfolio/premium',
+    path: '/pricing/premium',
     price: 3799,
     remixable: true,
     components: ['sidebar', 'header', 'pipeline', 'contacts', 'activities', 'footer'],
@@ -297,7 +297,7 @@ export const ALL_TEMPLATES = [
     description: 'Kanban board with time tracking.',
     longDesc: 'Project management dashboard with Kanban boards, time tracking, sprint planning, and team workload views.',
     tags: ['Kanban', 'Time Tracking', 'Agile'],
-    path: '/portfolio/enterprise',
+    path: '/pricing/enterprise',
     price: null,
     remixable: true,
     components: ['sidebar', 'header', 'kanban', 'timeline', 'team', 'footer'],
@@ -312,7 +312,7 @@ export const ALL_TEMPLATES = [
     description: 'Masonry gallery with lightbox.',
     longDesc: 'Creative portfolio with masonry grid layout, lightbox gallery, smooth scroll, and category filtering.',
     tags: ['Gallery', 'Masonry', 'Creative'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 799,
     remixable: true,
     components: ['navbar', 'gallery', 'about', 'contact', 'footer'],
@@ -326,7 +326,7 @@ export const ALL_TEMPLATES = [
     description: 'Creative agency with case studies.',
     longDesc: 'Design agency portfolio with bold visuals, case studies, team section, and client showcase.',
     tags: ['Agency', 'Case Studies', 'Bold'],
-    path: '/portfolio/business',
+    path: '/pricing/business',
     price: 1999,
     remixable: true,
     components: ['navbar', 'hero', 'work', 'services', 'team', 'contact', 'footer'],
@@ -340,7 +340,7 @@ export const ALL_TEMPLATES = [
     description: 'Developer portfolio with code snippets.',
     longDesc: 'Developer-focused portfolio with GitHub integration, code snippet highlighting, and project timelines.',
     tags: ['Developer', 'Code', 'GitHub'],
-    path: '/portfolio/starter',
+    path: '/pricing/starter',
     price: 499,
     remixable: true,
     components: ['hero', 'projects', 'skills', 'code', 'contact', 'footer'],
@@ -427,7 +427,25 @@ export function getTemplateByIdFromAll(id, builtInOverrides = {}, adminTemplates
 // Build dynamic category rows from merged templates (replaces static CATEGORIES on public page)
 export function getDynamicCategories(mergedTemplates) {
   const active = mergedTemplates.filter((t) => !t.status || t.status === 'active');
-  return [
+
+  // Categories that map to specific rows (includes both built-in and custom)
+  const categoryRows = {
+    'Landing Pages': 'landing',
+    'Business': 'business', 'Services': 'business', 'Real Estate': 'business', 'Finance': 'business',
+    'Dashboard': 'dashboard', 'Analytics': 'dashboard', 'Management': 'dashboard', 'PM': 'dashboard',
+    'Gallery': 'portfolio', 'Agency': 'portfolio', 'Developer': 'portfolio', 'Photography': 'portfolio', 'Portfolio': 'portfolio',
+    'Healthcare': 'healthcare',
+    'E-Commerce': 'ecommerce',
+    'Education': 'education',
+    'Events': 'events',
+    'SaaS': 'saas',
+    'Blog': 'blog',
+  };
+
+  // Track which custom templates are placed in a category row
+  const placedCustomIds = new Set();
+
+  const rows = [
     {
       id: 'trending',
       title: 'Trending Now',
@@ -436,7 +454,7 @@ export function getDynamicCategories(mergedTemplates) {
     {
       id: 'new',
       title: 'New Releases',
-      items: active.filter((t) => typeof t.id === 'string' || [7, 8, 9, 10].includes(t.id)),
+      items: active.filter((t) => [7, 8, 9, 10].includes(t.id)),
     },
     {
       id: 'landing',
@@ -451,19 +469,51 @@ export function getDynamicCategories(mergedTemplates) {
     {
       id: 'dashboard',
       title: 'Dashboards & Admin',
-      items: active.filter((t) => t.category === 'Dashboard'),
+      items: active.filter((t) => ['Dashboard', 'Analytics', 'Management', 'PM'].includes(t.category)),
     },
     {
       id: 'portfolio',
       title: 'Portfolios & Creative',
-      items: active.filter((t) => ['Gallery', 'Agency', 'Developer', 'Photography'].includes(t.category)),
+      items: active.filter((t) => ['Gallery', 'Agency', 'Developer', 'Photography', 'Portfolio'].includes(t.category)),
     },
     {
-      id: 'custom',
-      title: 'Custom Uploads',
-      items: active.filter((t) => typeof t.id === 'string'),
+      id: 'ecommerce',
+      title: 'E-Commerce & Stores',
+      items: active.filter((t) => t.category === 'E-Commerce'),
     },
-  ].filter((cat) => cat.items.length > 0);
+    {
+      id: 'healthcare',
+      title: 'Healthcare & Wellness',
+      items: active.filter((t) => t.category === 'Healthcare'),
+    },
+    {
+      id: 'education',
+      title: 'Education & Learning',
+      items: active.filter((t) => t.category === 'Education'),
+    },
+    {
+      id: 'saas',
+      title: 'SaaS & Software',
+      items: active.filter((t) => ['SaaS', 'Launch', 'Venture'].includes(t.category)),
+    },
+  ];
+
+  // Mark custom templates that landed in a category row
+  for (const row of rows) {
+    for (const t of row.items) {
+      if (typeof t.id === 'string') placedCustomIds.add(t.id);
+    }
+  }
+
+  // Custom Uploads row for custom templates not in any category row
+  const unplacedCustom = active.filter((t) => typeof t.id === 'string' && !placedCustomIds.has(t.id));
+  rows.push({
+    id: 'custom',
+    title: 'Custom Uploads',
+    items: unplacedCustom,
+  });
+
+  return rows.filter((cat) => cat.items.length > 0);
 }
 
 // Instantiate a template into builder components (legacy — superseded by the

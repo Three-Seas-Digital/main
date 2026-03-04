@@ -1,4 +1,4 @@
-import { useEffect, useRef, useLayoutEffect, useState, useCallback, lazy, Suspense, Fragment } from 'react';
+import { useEffect, useRef, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -8,7 +8,6 @@ import {
   BarChart3,
   Code2,
   Brain,
-  Compass,
   TrendingUp,
   Shield,
   Bell,
@@ -17,22 +16,30 @@ import {
   Accessibility,
   Palette,
   TestTube,
-  MessageSquare,
   Database,
   Bot,
-  Eye,
-  Map,
   Users,
   Target,
-  MessageCircle,
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Lazy load heavy components for better initial load performance
 const EnergyField = lazy(() => import('../components/EnergyField'));
 
 /* ── Reusable pinned-section animation ── */
-function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {}) {
+// ANIMATION STYLE OPTIONS:
+// 'converge' - Original: panels slide from sides toward center
+// 'slide-up' - Panels slide up from bottom  
+// 'fade-scale' - Fade in with scale, minimal movement
+// 'reveal-up' - Cards reveal upward like stacking
+// 'diagonal' - Panels come from opposite corners
+
+// Performance optimization: Use smooth easing constants
+const EASE_SMOOTH = 'power3.out';
+const EASE_EXIT = 'power2.inOut';
+
+function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {}, animationStyle = 'slide-up') {
   useLayoutEffect(() => {
     const section = sectionRef.current;
     const left = leftRef.current;
@@ -42,14 +49,21 @@ function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {})
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) return;
 
+    // Enable GPU acceleration for smoother animations
+    gsap.set([left, right], { 
+      willChange: 'transform, opacity',
+      force3D: true 
+    });
+
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=130%',
+          end: '+=120%',
           pin: true,
-          scrub: 0.6,
+          scrub: 0.5,
+          anticipatePin: 1,
         },
       });
 
@@ -59,22 +73,163 @@ function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {})
           .fromTo(opts.bgRef.current, { scale: 1.0, opacity: 1 }, { scale: 1.08, opacity: 0, ease: 'power2.in' }, 0.7);
       }
 
-      // Panels enter
-      tl.fromTo(left, { x: '-60vw', opacity: 0 }, { x: 0, opacity: 1, ease: 'power2.out' }, 0);
-      tl.fromTo(right, { x: '60vw', opacity: 0 }, { x: 0, opacity: 1, ease: 'power2.out' }, 0);
+      // Get card items for stagger animations
+      const cardItems = right.querySelectorAll('.editorial-list-item');
 
-      // Headline words
-      if (headlineRef?.current) {
-        const words = headlineRef.current.querySelectorAll('.word');
-        tl.fromTo(words, { y: 28, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.02, ease: 'power2.out' }, 0.05);
+      switch (animationStyle) {
+        case 'slide-up':
+          // === Panels slide up from bottom - SMOOTH ===
+          tl.fromTo(left, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
+          
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
+          }
+          
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { y: 30, opacity: 0 }, 
+              { y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
+              0.15
+            );
+          }
+          
+          // Exit - smooth fade out
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { y: 0, opacity: 1 }, 
+              { y: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
+              0.68
+            );
+          }
+          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-30vh', opacity: 0, ease: EASE_EXIT }, 0.75);
+          break;
+
+        case 'fade-scale':
+          // === Fade in with scale - SMOOTH ===
+          tl.fromTo(left, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0.04);
+          
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
+          }
+          
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { scale: 0.95, opacity: 0 }, 
+              { scale: 1, opacity: 1, stagger: 0.06, ease: 'power3.out' }, 
+              0.12
+            );
+          }
+          
+          // Exit - smooth scale down
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { scale: 1, opacity: 1 }, 
+              { scale: 0.97, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
+              0.68
+            );
+          }
+          tl.fromTo([left, right], { scale: 1, opacity: 1 }, { scale: 0.95, opacity: 0, ease: EASE_EXIT }, 0.75);
+          break;
+
+        case 'reveal-up':
+          // === Reveal upward - SMOOTH ===
+          tl.fromTo([left, right], { y: '15vh', opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0);
+          
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.03, ease: EASE_SMOOTH }, 0.08);
+          }
+          
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { y: 40, opacity: 0 }, 
+              { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 
+              0.15
+            );
+          }
+          
+          // Exit - smooth reveal away
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { y: 0, opacity: 1 }, 
+              { y: -20, opacity: 0, stagger: 0.04, ease: EASE_EXIT }, 
+              0.66
+            );
+          }
+          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-20vh', opacity: 0, ease: EASE_EXIT }, 0.75);
+          break;
+
+        case 'diagonal':
+          // === Panels from corners - SMOOTH ===
+          tl.fromTo(left, { x: '-35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { x: '35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
+          }
+          
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { x: 20, opacity: 0 }, 
+              { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
+              0.12
+            );
+          }
+          
+          // Exit - smooth return
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { x: 0, opacity: 1 }, 
+              { x: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
+              0.68
+            );
+          }
+          tl.fromTo(left, { x: 0, y: 0, opacity: 1 }, { x: '-30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
+          tl.fromTo(right, { x: 0, y: 0, opacity: 1 }, { x: '30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
+          break;
+
+        case 'converge':
+        default:
+          // === Panels from sides - SMOOTH ===
+          tl.fromTo(left, { x: '-30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { x: '30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
+
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.06);
+          }
+
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { x: 40, opacity: 0 }, 
+              { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
+              0.12
+            );
+          }
+
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, 
+              { x: 0, opacity: 1 }, 
+              { x: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
+              0.68
+            );
+          }
+          tl.fromTo(left, { x: 0, opacity: 1 }, { x: '-35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
+          tl.fromTo(right, { x: 0, opacity: 1 }, { x: '35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
+          break;
       }
-
-      // Panels exit
-      tl.fromTo(left, { x: 0, opacity: 1 }, { x: '-55vw', opacity: 0, ease: 'power2.in' }, 0.7);
-      tl.fromTo(right, { x: 0, opacity: 1 }, { x: '55vw', opacity: 0, ease: 'power2.in' }, 0.7);
     }, section);
 
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+      // Clean up will-change to free GPU memory
+      gsap.set([left, right], { willChange: 'auto' });
+    };
   }, []);
 }
 
@@ -169,86 +324,34 @@ function VideoHero() {
       <div className="hero-hook">
         <span className="hero-hook-label">THREE SEAS DIGITAL</span>
         <h1 className="hero-hook-headline">
-          We build the digital<br />
-          your competitors<br />
-          <span className="hero-hook-accent">wish they had.</span>
+          Navigate the <span className="hero-hook-accent">digital deep</span><br />
+          with a crew that never<br />
+          <span className="hero-hook-accent">loses course.</span>
         </h1>
         <p className="hero-hook-sub">
-          Strategy. Engineering. Design. — <em className="desc-accent">One team, zero excuses.</em>
+          <em className="desc-accent">Strategy.</em> <em className="desc-accent">Design.</em> <em className="desc-accent">Engineering.</em> — Three seas, one mission.
         </p>
       </div>
     </section>
   );
 }
 
-/* ── Navigate Section (first pinned GSAP) ── */
+/* ── Navigate Section — Two-Panel Glass (converge) ── */
 function NavigateSection() {
   const sectionRef = useRef(null);
   const leftRef = useRef(null);
   const rightRef = useRef(null);
   const headlineRef = useRef(null);
-  const microcopyRef = useRef(null);
   const bgRef = useRef(null);
 
-  useLayoutEffect(() => {
-    const section = sectionRef.current;
-    const left = leftRef.current;
-    const right = rightRef.current;
-    const headline = headlineRef.current;
-    const microcopy = microcopyRef.current;
-    const bg = bgRef.current;
-    if (!section || !left || !right || !headline || !microcopy) return;
-
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
-
-    const ctx = gsap.context(() => {
-      gsap.set([left, right], { opacity: 0 });
-      gsap.set(left, { x: '-60vw' });
-      gsap.set(right, { x: '60vw' });
-      gsap.set(microcopy, { opacity: 0, y: 16 });
-
-      const words = headline.querySelectorAll('.word');
-      gsap.set(words, { opacity: 0, y: 24 });
-
-      // Scroll-driven entrance + exit
-      const scrollTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: '+=130%',
-          pin: true,
-          scrub: 0.6,
-        },
-      });
-
-      // Background image parallax
-      if (bg) {
-        scrollTl.fromTo(bg, { scale: 1.12, opacity: 0 }, { scale: 1.0, opacity: 1, ease: 'none' }, 0);
-        scrollTl.fromTo(bg, { scale: 1.0, opacity: 1 }, { scale: 1.08, opacity: 0, ease: 'power2.in' }, 0.7);
-      }
-
-      // ENTRANCE (0–30%)
-      scrollTl.fromTo(left, { x: '-60vw', opacity: 0 }, { x: 0, opacity: 1, ease: 'power2.out' }, 0);
-      scrollTl.fromTo(right, { x: '60vw', opacity: 0 }, { x: 0, opacity: 1, ease: 'power2.out' }, 0);
-      scrollTl.fromTo(words, { y: 28, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.02, ease: 'power2.out' }, 0.05);
-      scrollTl.fromTo(microcopy, { opacity: 0, y: 16 }, { opacity: 1, y: 0, ease: 'power2.out' }, 0.1);
-
-      // EXIT (70–100%)
-      scrollTl.fromTo(left, { x: 0, opacity: 1 }, { x: '-55vw', opacity: 0, ease: 'power2.in' }, 0.7);
-      scrollTl.fromTo(right, { x: 0, opacity: 1 }, { x: '55vw', opacity: 0, ease: 'power2.in' }, 0.7);
-      scrollTl.fromTo(microcopy, { opacity: 1 }, { opacity: 0, ease: 'power2.in' }, 0.65);
-    }, section);
-
-    return () => ctx.revert();
-  }, []);
+  usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, { bgRef }, 'converge');
 
   return (
     <section ref={sectionRef} className="section-pinned" style={{ zIndex: 10 }}>
-      <div ref={bgRef} className="editorial-bg" style={{ backgroundImage: 'url(/images/lighthouse2.jpeg)', backgroundPosition: 'center top' }}>
-        <LighthouseBeam />
-        <div className="editorial-bg-overlay" />
+      <div ref={bgRef} className="editorial-bg" style={{ backgroundImage: 'url(/images/3seasship.jpeg)', backgroundPosition: 'center center' }}>
+        <div className="editorial-bg-overlay editorial-bg-overlay--dark" />
       </div>
+
       <div ref={leftRef} className="editorial-left glass-panel">
         <span className="micro-label">THREE SEAS DIGITAL</span>
 
@@ -269,29 +372,30 @@ function NavigateSection() {
           <Link to="/contact" className="btn btn-primary editorial-btn">
             Start a project <ArrowRight size={18} />
           </Link>
-          <Link to="/portfolio" className="btn btn-outline editorial-btn">
+          <Link to="/pricing" className="btn btn-outline editorial-btn">
             See our work <ChevronRight size={18} />
           </Link>
+        </div>
+
+        <div className="manifesto-caps">
+          <span className="editorial-dot" />
+          <span>Full-stack web dev</span>
+          <span className="editorial-dot" />
+          <span>Data analytics</span>
+          <span className="editorial-dot" />
+          <span>AI strategy</span>
+          <span className="editorial-dot" />
+          <span>Consulting</span>
         </div>
       </div>
 
       <div ref={rightRef} className="editorial-right glass-panel">
-        <h3 className="editorial-right-title">Capabilities</h3>
-        <ul className="editorial-list">
-          {['Analytics & Attribution', 'Web Development', 'AI Integration', 'Consulting'].map(item => (
-            <li key={item} className="editorial-list-item">
-              <span className="editorial-dot" />
-              {item}
-            </li>
-          ))}
-        </ul>
-        <Link to="/portfolio" className="editorial-link">
-          Explore services <ArrowRight size={16} />
-        </Link>
-      </div>
-
-      <div ref={microcopyRef} className="editorial-microcopy">
-        <p>Serving businesses across every digital frontier.</p>
+        <h3 className="editorial-right-title">What We Deliver</h3>
+        <div className="editorial-list-item"><span className="editorial-dot" />Full-stack web development</div>
+        <div className="editorial-list-item"><span className="editorial-dot" />Data analytics & dashboards</div>
+        <div className="editorial-list-item"><span className="editorial-dot" />AI strategy & integration</div>
+        <div className="editorial-list-item"><span className="editorial-dot" />Performance optimization</div>
+        <div className="editorial-list-item"><span className="editorial-dot" />Growth consulting</div>
       </div>
     </section>
   );
@@ -350,9 +454,9 @@ void main() {
   // Combine
   float intensity = (beam * falloff + glow + beam * haze) * flicker;
 
-  // Warm white light with slight gold tint
-  vec3 lightColor = vec3(1.0, 0.95, 0.8);
-  vec3 color = lightColor * intensity * 0.35;
+  // Platinum white light with emerald tint
+  vec3 lightColor = vec3(0.98, 0.97, 0.95);
+  vec3 color = lightColor * intensity * 0.4;
 
   // God rays — streaks radiating outward
   float rays = 0.0;
@@ -542,7 +646,7 @@ function parseAnsi(raw) {
   const parts = [];
   let rest = raw;
   let key = 0;
-  const colorMap = { '31': '#f87171', '32': '#4ade80', '33': '#facc15', '34': '#60a5fa', '35': '#c084fc', '36': '#22d3ee', '37': '#e2e8f0', '90': '#64748b', '0': null };
+  const colorMap = { '31': '#EF4444', '32': '#10B981', '33': '#D4AF37', '34': '#3B82F6', '35': '#A855F7', '36': '#34D399', '37': '#E8E6E1', '90': '#6B7280', '0': null };
   while (rest.length) {
     const idx = rest.indexOf('\x1b[');
     if (idx === -1) { parts.push(rest); break; }
@@ -636,10 +740,10 @@ function TypingTerminal() {
 
 /* ── Animated Analytics Dashboard Background ── */
 const DASH_KPIS = [
-  { label: 'Revenue', prefix: '$', value: 284600, suffix: '', color: '#4ade80' },
-  { label: 'Conversions', prefix: '', value: 1247, suffix: '', color: '#22d3ee' },
-  { label: 'ROAS', prefix: '', value: 4.8, suffix: 'x', color: '#facc15' },
-  { label: 'Sessions', prefix: '', value: 38420, suffix: '', color: '#a78bfa' },
+  { label: 'Revenue', prefix: '$', value: 284600, suffix: '', color: '#10B981' },
+  { label: 'Conversions', prefix: '', value: 1247, suffix: '', color: '#34D399' },
+  { label: 'ROAS', prefix: '', value: 4.8, suffix: 'x', color: '#D4AF37' },
+  { label: 'Sessions', prefix: '', value: 38420, suffix: '', color: '#E8E6E1' },
 ];
 
 const DASH_BAR_DATA = [
@@ -662,9 +766,9 @@ function generateSparkline(points, amplitude, offset) {
 }
 
 const DASH_LINE_SETS = [
-  { color: '#4ade80', data: generateSparkline(24, 18, 0), label: 'Revenue' },
-  { color: '#22d3ee', data: generateSparkline(24, 14, 2), label: 'Traffic' },
-  { color: '#facc15', data: generateSparkline(24, 10, 4), label: 'Conv Rate' },
+  { color: '#10B981', data: generateSparkline(24, 18, 0), label: 'Revenue' },
+  { color: '#34D399', data: generateSparkline(24, 14, 2), label: 'Traffic' },
+  { color: '#D4AF37', data: generateSparkline(24, 10, 4), label: 'Conv Rate' },
 ];
 
 function AnimatedCounter({ value, prefix, suffix, duration = 2000 }) {
@@ -773,7 +877,7 @@ function DonutChart({ segments, size = 90 }) {
   );
 }
 
-const BAR_COLORS = ['#4ade80', '#22d3ee', '#facc15', '#a78bfa', '#f472b6', '#fb923c'];
+const BAR_COLORS = ['#10B981', '#34D399', '#D4AF37', '#E8E6E1', '#059669', '#6B7280'];
 
 function AnalyticsDashboard() {
   const barsRef = useRef(null);
@@ -827,7 +931,7 @@ function AnalyticsDashboard() {
             <span className="dash-kpi-value">
               <AnimatedCounter value={kpi.value} prefix={kpi.prefix} suffix={kpi.suffix} duration={1800 + i * 200} />
             </span>
-            <span className="dash-kpi-delta" style={{ color: '#4ade80' }}>+{(3 + i * 2.1).toFixed(1)}%</span>
+            <span className="dash-kpi-delta" style={{ color: '#10B981' }}>+{(3 + i * 2.1).toFixed(1)}%</span>
           </div>
         ))}
       </div>
@@ -1373,107 +1477,133 @@ function checkProgram(gl, program) {
   return true;
 }
 
-/* ── Animated 3D Blob (WebGL) ── */
-const BLOB_VERT = `
+/* ── Bioluminescent Ocean Depths (WebGL) ── */
+const OCEAN_VERT = `
 attribute vec2 a_position;
 void main() { gl_Position = vec4(a_position, 0.0, 1.0); }`;
 
-const BLOB_FRAG = `
+const OCEAN_FRAG = `
 precision mediump float;
 uniform float u_time;
 uniform vec2 u_resolution;
 
-// Fast value noise (single octave)
-vec4 perm(vec4 x) { x = ((x * 34.0) + 1.0) * x; return x - floor(x * (1.0/289.0)) * 289.0; }
-float noise(vec3 p) {
-  vec3 a = floor(p);
-  vec3 d = p - a;
-  d = d * d * (3.0 - 2.0 * d);
-  vec4 b = a.xxyy + vec4(0.0,1.0,0.0,1.0);
-  vec4 k1 = perm(b.xyxy);
-  vec4 k2 = perm(k1.xyxy + b.zzww);
-  vec4 c = k2 + a.zzzz;
-  vec4 k3 = perm(c);
-  vec4 k4 = perm(c + 1.0);
-  vec4 o3 = fract(k4 * (1.0/41.0)) * d.z + fract(k3 * (1.0/41.0)) * (1.0 - d.z);
-  vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
-  return o4.y * d.y + o4.x * (1.0 - d.y);
+// Simplex noise functions
+vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+float snoise(vec3 v) {
+  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i  = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min(g.xyz, l.zxy);
+  vec3 i2 = max(g.xyz, l.zxy);
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod289(i);
+  vec4 p = permute(permute(permute(
+    i.z + vec4(0.0, i1.z, i2.z, 1.0))
+    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 0.142857142857;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
 }
 
-// SDF: sphere + 2 noise layers (was 3)
-float blobSDF(vec3 p, float t) {
-  float n = noise(p * 2.0 + t * 0.15) * 0.35;
-  n += noise(p * 3.5 - t * 0.2) * 0.18;
-  return length(p) - 0.9 - n;
-}
-
-// Normal via central differences — uses larger epsilon for fewer artifacts + cheaper
-vec3 calcNormal(vec3 p, float t) {
-  vec2 e = vec2(0.005, 0.0);
-  return normalize(vec3(
-    blobSDF(p + e.xyy, t) - blobSDF(p - e.xyy, t),
-    blobSDF(p + e.yxy, t) - blobSDF(p - e.yxy, t),
-    blobSDF(p + e.yyx, t) - blobSDF(p - e.yyx, t)
-  ));
+float fbm(vec3 p) {
+  float value = 0.0;
+  float amplitude = 0.5;
+  float frequency = 1.0;
+  for (int i = 0; i < 5; i++) {
+    value += amplitude * snoise(p * frequency);
+    amplitude *= 0.5;
+    frequency *= 2.0;
+  }
+  return value;
 }
 
 void main() {
-  vec2 uv = (gl_FragCoord.xy - u_resolution * 0.5) / min(u_resolution.x, u_resolution.y);
-  float t = u_time;
-
-  // Very slow orbit — pulled back for half-size blob
-  float camAngle = t * 0.06;
-  vec3 ro = vec3(sin(camAngle) * 5.6, sin(t * 0.04) * 0.3, cos(camAngle) * 5.6);
-  vec3 fwd = normalize(-ro);
-  vec3 right = normalize(cross(fwd, vec3(0,1,0)));
-  vec3 up = cross(right, fwd);
-  vec3 rd = normalize(fwd + uv.x * right + uv.y * up);
-
-  // March — 48 steps (was 64), larger step multiplier
-  float dist = 0.0;
-  float hit = 0.0;
-  for (int i = 0; i < 48; i++) {
-    float d = blobSDF(ro + rd * dist, t);
-    if (d < 0.005) { hit = 1.0; break; }
-    if (dist > 5.0) break;
-    dist += d * 0.8;
-  }
-
-  vec3 color = vec3(0.0);
-  float alpha = 0.0;
-
-  if (hit > 0.5) {
-    vec3 p = ro + rd * dist;
-    vec3 n = calcNormal(p, t);
-
-    // Lighting
-    vec3 L = normalize(vec3(0.5, 0.8, 0.6));
-    float diff = max(dot(n, L), 0.0);
-    float spec = pow(max(dot(reflect(-L, n), -rd), 0.0), 24.0);
-    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0);
-
-    // Gold/amber material
-    vec3 gold = vec3(0.92, 0.72, 0.20);
-    vec3 amber = vec3(0.85, 0.45, 0.12);
-    vec3 baseColor = mix(gold, amber, noise(p * 1.5 + t * 0.08));
-
-    color = baseColor * (0.18 + diff * 0.62);
-    color += vec3(1.0, 0.92, 0.7) * spec * 0.55;
-    color += gold * rim * 0.35;
-    color += amber * max(dot(n, -rd), 0.0) * 0.15;
-
-    alpha = 0.95;
-  }
-
-  // Ambient glow
-  float glow = exp(-dot(uv, uv) * 5.0) * 0.15;
-  color += vec3(0.9, 0.7, 0.2) * glow;
-  alpha = max(alpha, glow * 0.8);
-
+  vec2 uv = gl_FragCoord.xy / u_resolution;
+  float t = u_time * 0.15;
+  
+  // Create flowing ocean currents
+  vec3 p = vec3(uv * 3.0, t);
+  
+  // Multiple layers of noise for organic movement
+  float n1 = fbm(p + vec3(t * 0.5, t * 0.3, 0.0));
+  float n2 = fbm(p * 1.5 + vec3(-t * 0.4, t * 0.2, 1.0) + n1 * 0.5);
+  float n3 = fbm(p * 2.0 + vec3(t * 0.2, -t * 0.3, 2.0) + n2 * 0.3);
+  
+  // Create flowing light patterns like bioluminescent plankton
+  float flow = sin(uv.x * 8.0 + n1 * 4.0 + t) * cos(uv.y * 6.0 + n2 * 3.0 - t * 0.7);
+  flow += sin(uv.x * 12.0 - t * 0.8) * sin(uv.y * 10.0 + t * 0.5) * 0.5;
+  flow = flow * 0.5 + 0.5;
+  
+  // Color palette - bioluminescent cyan, purple, pink
+  vec3 cyan = vec3(0.13, 0.83, 0.93);    // #22d3ee
+  vec3 purple = vec3(0.75, 0.52, 0.99);   // #c084fc
+  vec3 pink = vec3(1.0, 0.42, 0.62);      // #ff6b9d
+  vec3 deepBlue = vec3(0.02, 0.05, 0.18); // #02052e
+  
+  // Mix colors based on noise patterns
+  vec3 color = deepBlue;
+  color = mix(color, purple, smoothstep(-0.3, 0.5, n1) * 0.4);
+  color = mix(color, cyan, smoothstep(0.0, 0.7, n2) * 0.5);
+  color = mix(color, pink, smoothstep(0.2, 0.8, n3) * flow * 0.6);
+  
+  // Add glowing veins like underwater light trails
+  float veins = pow(abs(n3), 3.0) * 2.0;
+  color += cyan * veins * 0.3;
+  color += pink * pow(abs(n2), 4.0) * 0.2;
+  
+  // Soft vignette
+  float vignette = 1.0 - length((uv - 0.5) * 1.2);
+  vignette = smoothstep(0.0, 0.7, vignette);
+  
+  // Add depth layers
+  float depth = sin(uv.y * 3.14159) * 0.3 + 0.7;
+  color *= depth;
+  
+  // Final glow
+  float glow = exp(-length(uv - 0.5) * 1.5) * 0.15;
+  color += cyan * glow;
+  
+  // Subtle pulsing brightness
+  float pulse = sin(t * 2.0) * 0.05 + 0.95;
+  color *= pulse;
+  
+  float alpha = 0.85 * vignette;
+  
   gl_FragColor = vec4(color, alpha);
 }`;
 
-function AnimatedBlob() {
+function BioluminescentDepths() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -1486,10 +1616,10 @@ function AnimatedBlob() {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, BLOB_VERT); gl.compileShader(vs);
-    if (!checkShader(gl, vs, 'blob-vert')) return;
-    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, BLOB_FRAG); gl.compileShader(fs);
-    if (!checkShader(gl, fs, 'blob-frag')) return;
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, OCEAN_VERT); gl.compileShader(vs);
+    if (!checkShader(gl, vs, 'ocean-vert')) return;
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, OCEAN_FRAG); gl.compileShader(fs);
+    if (!checkShader(gl, fs, 'ocean-frag')) return;
     const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
     if (!checkProgram(gl, prog)) return;
     gl.useProgram(prog);
@@ -1504,9 +1634,8 @@ function AnimatedBlob() {
     const uTime = gl.getUniformLocation(prog, 'u_time');
     const uRes = gl.getUniformLocation(prog, 'u_resolution');
 
-    // Render at reduced resolution for performance (0.5x pixel density)
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio, MAX_DPR) * 0.5;
+      const dpr = Math.min(window.devicePixelRatio, MAX_DPR) * 0.6;
       const w = Math.round(canvas.clientWidth * dpr);
       const h = Math.round(canvas.clientHeight * dpr);
       if (canvas.width !== w || canvas.height !== h) {
@@ -1515,7 +1644,6 @@ function AnimatedBlob() {
       }
     }
 
-    // Only render when visible
     let visible = false;
     const obs = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
@@ -1955,90 +2083,266 @@ function PolyhedraField() {
   return <canvas ref={canvasRef} className="audio-vis-canvas" />;
 }
 
-/* ── Editorial Section (reusable) ── */
-function EditorialSection({ id, zIndex, label, headline, outlineWords, desc, cta, ctaHref, rightTitle, items, rightLink, rightLinkHref, bgImage, bgComponent, rightComponent }) {
+/* ── BUILD Section — Wide Left + Terminal Right ── */
+function BuildSection() {
   const sectionRef = useRef(null);
   const leftRef = useRef(null);
   const rightRef = useRef(null);
   const headlineRef = useRef(null);
-  const bgRef = useRef(null);
 
-  usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, { bgRef: (bgImage || bgComponent) ? bgRef : undefined });
+  usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, {}, 'slide-up');
 
   return (
-    <section ref={sectionRef} id={id} className="section-pinned" style={{ zIndex }}>
-      {bgImage && (
-        <div ref={bgRef} className="editorial-bg" style={{ backgroundImage: `url(${bgImage})` }}>
-          <div className="editorial-bg-overlay" />
-        </div>
-      )}
-      {bgComponent && (
-        <div ref={bgRef} className="editorial-bg editorial-bg-component">
-          {bgComponent}
-          <div className="editorial-bg-overlay editorial-bg-overlay--light" />
-        </div>
-      )}
-
-      <div ref={leftRef} className="editorial-left glass-panel">
-        <span className="micro-label">{label}</span>
-        <div ref={headlineRef} className="editorial-headline">
-          <h2>
-            <span className="word">{headline}</span>
-            <br />
-            {outlineWords.map((w, i) => (
-              <span key={i}>
-                <span className="word text-outline">{w}</span>
-                {i < outlineWords.length - 1 ? ' ' : ''}
-              </span>
-            ))}
-          </h2>
-        </div>
-        <p className="editorial-desc">{desc}</p>
-        {ctaHref.startsWith('/') ? (
-          <Link to={ctaHref} className="btn btn-primary editorial-btn">
-            {cta} <ArrowRight size={18} />
-          </Link>
-        ) : (
-          <a href={ctaHref} className="btn btn-primary editorial-btn">
-            {cta} <ArrowRight size={18} />
-          </a>
-        )}
+    <section ref={sectionRef} id="build" className="section-pinned" style={{ zIndex: 20 }}>
+      <div className="editorial-bg editorial-bg-component">
+        <BioluminescentDepths />
+        <div className="editorial-bg-overlay editorial-bg-overlay--light" />
       </div>
 
-      <div ref={rightRef} className="editorial-right glass-panel">
-        <h3 className="editorial-right-title">{rightTitle}</h3>
-        <ul className="editorial-list">
-          {items.map(({ icon: Icon, label: itemLabel }) => (
-            <li key={itemLabel} className="editorial-list-item editorial-list-item--icon">
-              <div className="editorial-icon-box">
-                <Icon size={18} />
-              </div>
-              {itemLabel}
-            </li>
-          ))}
-        </ul>
-        {rightLink && (
-          rightLinkHref?.startsWith('/') ? (
-            <Link to={rightLinkHref} className="editorial-link">
-              {rightLink} <ArrowRight size={16} />
-            </Link>
-          ) : (
-            <a href={rightLinkHref || '#'} className="editorial-link">
-              {rightLink} <ArrowRight size={16} />
-            </a>
-          )
-        )}
-        {rightComponent && (
-          <div className="editorial-right-component">
-            {rightComponent}
+      <div className="build-layout" style={{ display: 'flex', alignItems: 'stretch', width: '100%', height: '100%', position: 'relative', zIndex: 2 }}>
+        <div ref={leftRef} className="editorial-left glass-panel">
+          <span className="micro-label">BUILD</span>
+          <div ref={headlineRef} className="editorial-headline">
+            <h2>
+              <span className="word">FULL-STACK</span>
+              <br />
+              <span className="word text-outline">DELIVERY</span>
+            </h2>
           </div>
-        )}
+          <p className="editorial-desc">
+            From data pipelines to production frontends, we design <em className="desc-accent">systems that scale.</em>
+          </p>
+          <div className="editorial-items-grid">
+            <div className="editorial-list-item"><div className="editorial-icon-box"><Code2 size={16} /></div>Engineering</div>
+            <div className="editorial-list-item"><div className="editorial-icon-box"><Palette size={16} /></div>Design Systems</div>
+            <div className="editorial-list-item"><div className="editorial-icon-box"><Zap size={16} /></div>Performance</div>
+            <div className="editorial-list-item"><div className="editorial-icon-box"><TestTube size={16} /></div>Testing</div>
+            <div className="editorial-list-item"><div className="editorial-icon-box"><Accessibility size={16} /></div>Accessibility</div>
+          </div>
+          <Link to="/about" className="btn btn-primary editorial-btn" style={{ marginTop: '24px' }}>
+            Meet the team <ArrowRight size={18} />
+          </Link>
+        </div>
+
+        <div ref={rightRef} className="editorial-right glass-panel build-terminal-wrap">
+          <TypingTerminal />
+        </div>
       </div>
     </section>
   );
 }
 
-/* ── Contact CTA (flowing section) ── */
+/* ── MEASURE Section — Featured Triptych + Overlay Card ── */
+function MeasureSection() {
+  const sectionRef = useRef(null);
+  const triptychRef = useRef(null);
+  const cardRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    const triptych = triptychRef.current;
+    const card = cardRef.current;
+    if (!section || !triptych || !card) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    gsap.set([triptych, card], { willChange: 'transform, opacity', force3D: true });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '+=120%',
+          pin: true,
+          scrub: 0.5,
+          anticipatePin: 1,
+        },
+      });
+
+      // Triptych fades + scales in first
+      tl.fromTo(triptych, { scale: 1.06, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
+      // Overlay card slides up
+      tl.fromTo(card, { y: '8vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.12);
+      // EXIT — card fades first, then triptych
+      tl.fromTo(card, { y: 0, opacity: 1 }, { y: '-4vh', opacity: 0, ease: EASE_EXIT }, 0.68);
+      tl.fromTo(triptych, { scale: 1, opacity: 1 }, { scale: 1.04, opacity: 0, ease: EASE_EXIT }, 0.75);
+    }, section);
+
+    return () => {
+      ctx.revert();
+      gsap.set([triptych, card], { willChange: 'auto' });
+    };
+  }, []);
+
+  return (
+    <section ref={sectionRef} id="measure" className="section-pinned" style={{ zIndex: 30 }}>
+      <div className="measure-layout">
+        <div ref={triptychRef} className="measure-triptych-featured">
+          <AnalyticsTriptych />
+        </div>
+
+        <div ref={cardRef} className="measure-overlay-card glass-panel">
+          <span className="micro-label">MEASURE</span>
+          <div className="editorial-headline">
+            <h2>
+              <span className="word">DATA</span>
+              <br />
+              <span className="word text-outline">THAT</span>{' '}
+              <span className="word text-outline">MOVES</span>
+            </h2>
+          </div>
+          <p className="editorial-desc">
+            Clean reporting, attribution models, and dashboards your team will <em className="desc-accent">actually use.</em>
+          </p>
+          <Link to="/contact" className="btn btn-primary editorial-btn">
+            Request a data audit <ArrowRight size={18} />
+          </Link>
+          <div className="capability-pills">
+            <span className="capability-pill">Analytics</span>
+            <span className="capability-pill">Attribution</span>
+            <span className="capability-pill">Governance</span>
+            <span className="capability-pill">Alerts</span>
+            <span className="capability-pill">Privacy</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── AUTOMATE Section — Centered + Floating Glass Cards ── */
+function AutomateSection() {
+  const sectionRef = useRef(null);
+  const centerRef = useRef(null);
+  const cardsRef = useRef(null);
+  const beamRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    const center = centerRef.current;
+    const cardsWrap = cardsRef.current;
+    const beam = beamRef.current;
+    if (!section || !center) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    gsap.set(center, { willChange: 'transform, opacity', force3D: true });
+
+    const ctx = gsap.context(() => {
+      const floaters = cardsWrap?.querySelectorAll('.floating-card') || [];
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '+=120%',
+          pin: true,
+          scrub: 0.5,
+          anticipatePin: 1,
+        },
+      });
+
+      // Center content appears first
+      tl.fromTo(center, { y: '10vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+      // Floating cards stagger in
+      if (floaters.length) {
+        tl.fromTo(floaters, { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, ease: EASE_SMOOTH }, 0.08);
+      }
+      // LighthouseBeam fades in
+      if (beam) {
+        tl.fromTo(beam, { opacity: 0 }, { opacity: 0.6, ease: 'none' }, 0.15);
+      }
+      // EXIT — all fade together
+      if (floaters.length) {
+        tl.fromTo(floaters, { opacity: 1 }, { opacity: 0, stagger: 0.02, ease: EASE_EXIT }, 0.68);
+      }
+      if (beam) {
+        tl.fromTo(beam, { opacity: 0.6 }, { opacity: 0, ease: EASE_EXIT }, 0.7);
+      }
+      tl.fromTo(center, { y: 0, opacity: 1 }, { y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.72);
+    }, section);
+
+    return () => {
+      ctx.revert();
+      gsap.set(center, { willChange: 'auto' });
+    };
+  }, []);
+
+  return (
+    <section ref={sectionRef} id="automate" className="section-pinned" style={{ zIndex: 40 }}>
+      <div className="editorial-bg editorial-bg-component">
+        <ParticleNetwork />
+        <div className="editorial-bg-overlay editorial-bg-overlay--light" />
+      </div>
+
+      <div className="automate-layout">
+        <div ref={beamRef} className="measure-triptych-featured" style={{ mixBlendMode: 'screen', opacity: 0, zIndex: 0 }}>
+          <LighthouseBeam />
+        </div>
+
+        <div ref={centerRef} className="automate-center">
+          <span className="micro-label">AUTOMATE</span>
+          <div className="editorial-headline" style={{ textAlign: 'center' }}>
+            <h2>
+              <span className="word">INTELLIGENT</span>
+              <br />
+              <span className="word text-outline">SYSTEMS</span>
+            </h2>
+          </div>
+          <p className="editorial-desc" style={{ textAlign: 'center', maxWidth: '520px' }}>
+            Agents, prompts, and pipelines that connect to your data — <em className="desc-accent">securely and measurably.</em>
+          </p>
+          <Link to="/contact" className="btn btn-primary editorial-btn">
+            Explore AI solutions <ArrowRight size={18} />
+          </Link>
+        </div>
+
+        <div ref={cardsRef} className="automate-layout">
+          <div className="floating-card glass-panel floating-card--tl">
+            <div className="floating-card-icon"><Brain size={20} /></div>
+            <div className="floating-card-text">
+              <div className="floating-card-label">AI Strategy</div>
+              <div className="floating-card-stat">Custom roadmaps</div>
+            </div>
+          </div>
+          <div className="floating-card glass-panel floating-card--tr">
+            <div className="floating-card-icon"><Bot size={20} /></div>
+            <div className="floating-card-text">
+              <div className="floating-card-label">Agents</div>
+              <div className="floating-card-stat">Autonomous workflows</div>
+            </div>
+          </div>
+          <div className="floating-card glass-panel floating-card--bl">
+            <div className="floating-card-icon"><Database size={20} /></div>
+            <div className="floating-card-text">
+              <div className="floating-card-label">RAG</div>
+              <div className="floating-card-stat">Context-aware AI</div>
+            </div>
+          </div>
+          <div className="floating-card glass-panel floating-card--br">
+            <div className="floating-card-icon"><Target size={20} /></div>
+            <div className="floating-card-text">
+              <div className="floating-card-label">Roadmapping</div>
+              <div className="floating-card-stat">Data-driven plans</div>
+            </div>
+          </div>
+          <div className="floating-card glass-panel floating-card--rc">
+            <div className="floating-card-icon"><Users size={20} /></div>
+            <div className="floating-card-text">
+              <div className="floating-card-label">Advisory</div>
+              <div className="floating-card-stat">Expert guidance</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Contact CTA — Two-Panel Glass ── */
 function ContactCTA() {
   const sectionRef = useRef(null);
   const leftRef = useRef(null);
@@ -2053,33 +2357,39 @@ function ContactCTA() {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) return;
 
+    gsap.set([left, right], { willChange: 'transform, opacity', force3D: true });
+
     const ctx = gsap.context(() => {
-      gsap.fromTo(left, { y: '10vh', opacity: 0 }, {
-        y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-        scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 45%', scrub: 0.5 },
+      gsap.fromTo(left, { y: '6vh', opacity: 0 }, {
+        y: 0, opacity: 1, ease: 'power3.out',
+        scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 50%', scrub: 0.4 },
       });
-      gsap.fromTo(right, { y: '10vh', opacity: 0 }, {
-        y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-        scrollTrigger: { trigger: section, start: 'top 75%', end: 'top 40%', scrub: 0.5 },
+      gsap.fromTo(right, { y: '6vh', opacity: 0 }, {
+        y: 0, opacity: 1, ease: 'power3.out',
+        scrollTrigger: { trigger: section, start: 'top 75%', end: 'top 45%', scrub: 0.4 },
       });
     }, section);
 
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+      gsap.set([left, right], { willChange: 'auto' });
+    };
   }, []);
 
   return (
     <section ref={sectionRef} className="contact-cta-section" style={{ zIndex: 70 }}>
       <div className="contact-cta-bg">
-        <PolyhedraField />
+        <FluidSimulation />
       </div>
+
       <div className="contact-cta-grid">
-        <div ref={leftRef} className="glass-panel contact-cta-left">
+        <div ref={leftRef} className="contact-cta-left glass-panel">
           <span className="micro-label">GET STARTED</span>
           <div className="editorial-headline">
             <h2>
-              <span>LET'S</span>
+              <span className="word">LET'S</span>
               <br />
-              <span className="text-outline">TALK</span>
+              <span className="word text-outline">TALK</span>
             </h2>
           </div>
           <p className="editorial-desc">
@@ -2090,135 +2400,17 @@ function ContactCTA() {
           </Link>
         </div>
 
-        <div ref={rightRef} className="glass-panel contact-cta-right">
-          <h3 className="editorial-right-title">Quick links</h3>
-          <ul className="editorial-list">
-            <li className="editorial-list-item">
-              <span className="editorial-dot" />
-              <Link to="/portfolio">View our portfolio</Link>
-            </li>
-            <li className="editorial-list-item">
-              <span className="editorial-dot" />
-              <Link to="/about">About us</Link>
-            </li>
-            <li className="editorial-list-item">
-              <span className="editorial-dot" />
-              <Link to="/services">Client portal</Link>
-            </li>
-            <li className="editorial-list-item">
-              <span className="editorial-dot" />
-              <Link to="/contact">Contact form</Link>
-            </li>
-          </ul>
+        <div ref={rightRef} className="contact-cta-right glass-panel">
+          <h3 className="editorial-right-title">Quick Links</h3>
+          <div className="editorial-list-item"><span className="editorial-dot" /><Link to="/pricing" className="editorial-link">Our Work</Link></div>
+          <div className="editorial-list-item"><span className="editorial-dot" /><Link to="/about" className="editorial-link">About</Link></div>
+          <div className="editorial-list-item"><span className="editorial-dot" /><Link to="/contact" className="editorial-link">Contact</Link></div>
+          <div className="editorial-list-item"><span className="editorial-dot" /><Link to="/pricing" className="editorial-link">Pricing</Link></div>
         </div>
       </div>
     </section>
   );
 }
-
-/* ── Section Data ── */
-const SECTIONS = [
-  {
-    id: 'services',
-    zIndex: 20,
-    label: 'CAPABILITIES',
-    headline: 'FULL-STACK',
-    outlineWords: ['DELIVERY'],
-    desc: <>From data pipelines to customer-facing products, we design <em className="desc-accent">systems that scale.</em></>,
-    cta: 'Meet the team',
-    ctaHref: '/about',
-    rightTitle: 'What we do',
-    items: [
-      { icon: BarChart3, label: 'Data & Analytics' },
-      { icon: Code2, label: 'Web & Platform Engineering' },
-      { icon: Brain, label: 'AI & Automation' },
-      { icon: Compass, label: 'Advisory & Roadmapping' },
-    ],
-    rightLink: 'Explore services',
-    rightLinkHref: '/portfolio',
-    bgComponent: <TypingTerminal />,
-  },
-  {
-    id: 'analytics',
-    zIndex: 30,
-    label: 'ANALYTICS',
-    headline: 'MEASURE',
-    outlineWords: ['WHAT', 'MATTERS'],
-    desc: <>Clean reporting, attribution models, and dashboards your team will <em className="desc-accent">actually use.</em></>,
-    cta: 'Request a data audit',
-    ctaHref: '/contact',
-    rightTitle: 'Data stack',
-    items: [
-      { icon: TrendingUp, label: 'Tracking & Governance' },
-      { icon: Shield, label: 'Attribution Modeling' },
-      { icon: Bell, label: 'Dashboards & Alerts' },
-      { icon: Lock, label: 'Privacy-First Design' },
-    ],
-    rightLink: 'See case studies',
-    rightLinkHref: '/portfolio',
-    bgComponent: <AnalyticsTriptych />,
-  },
-  {
-    id: 'work',
-    zIndex: 40,
-    label: 'WEB DEVELOPMENT',
-    headline: 'FAST',
-    outlineWords: ['AND', 'FINISHED'],
-    desc: <>Production-ready frontends, robust backends, and CI/CD that keeps releases <em className="desc-accent">boring</em> (in a good way).</>,
-    cta: 'View tech stack',
-    ctaHref: '/portfolio',
-    rightTitle: 'Build standards',
-    items: [
-      { icon: Zap, label: 'Performance Budgets' },
-      { icon: Accessibility, label: 'Accessibility (WCAG)' },
-      { icon: Palette, label: 'Design Systems' },
-      { icon: TestTube, label: 'Testing & Observability' },
-    ],
-    rightLink: 'Read engineering notes',
-    rightLinkHref: '/about',
-    bgComponent: <AnimatedBlob />,
-  },
-  {
-    id: 'insights',
-    zIndex: 50,
-    label: 'AI INTEGRATION',
-    headline: 'AUTOMATE',
-    outlineWords: ['THE', 'WORKFLOW'],
-    desc: <>Agents, prompts, and pipelines that connect to your data — <em className="desc-accent">securely and measurably.</em></>,
-    cta: 'Explore AI solutions',
-    ctaHref: '/contact',
-    rightTitle: 'AI delivery',
-    items: [
-      { icon: MessageSquare, label: 'Prompt Engineering' },
-      { icon: Database, label: 'RAG & Knowledge Bases' },
-      { icon: Bot, label: 'Agent Orchestration' },
-      { icon: Eye, label: 'Safety & Monitoring' },
-    ],
-    rightLink: 'See AI experiments',
-    rightLinkHref: '/portfolio',
-    bgComponent: <ParticleNetwork />,
-  },
-  {
-    id: 'team',
-    zIndex: 60,
-    label: 'CONSULTING',
-    headline: 'ALIGN',
-    outlineWords: ['THE', 'TEAM'],
-    desc: <>Roadmaps, rituals, and decision-making frameworks that keep delivery <em className="desc-accent">predictable.</em></>,
-    cta: 'Book a discovery call',
-    ctaHref: '/contact',
-    rightTitle: 'Advisory',
-    items: [
-      { icon: Map, label: 'Product Roadmapping' },
-      { icon: Users, label: 'Team Operating Model' },
-      { icon: Target, label: 'Metrics & Goals' },
-      { icon: MessageCircle, label: 'Stakeholder Communication' },
-    ],
-    rightLink: 'Read playbooks',
-    rightLinkHref: '/about',
-    bgComponent: <FluidSimulation />,
-  },
-];
 
 /* ── Main Home Component ── */
 export default function Home() {
@@ -2285,9 +2477,9 @@ export default function Home() {
       <main className="home-main">
         <VideoHero />
         <NavigateSection />
-        {SECTIONS.map(s => (
-          <EditorialSection key={s.id} {...s} />
-        ))}
+        <BuildSection />
+        <MeasureSection />
+        <AutomateSection />
         <ContactCTA />
       </main>
     </div>

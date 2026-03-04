@@ -6,6 +6,7 @@ import { generateId, safeSetItem, safeGetItem, onStorageWarning } from '../const
 import { generateBiDiscoveryPdf } from '../utils/generateOnboardingPdfs';
 import { generateKpisForClient } from '../components/admin/BusinessIntelligence/kpiRegistry';
 import { syncToApi } from '../api/apiSync.js';
+import { syncMetadataToR2, fetchMetadataFromR2, fetchOverridesFromR2, discoverR2Templates } from '../utils/templateStorage';
 import { appointmentsApi } from '../api/appointments.js';
 import { clientsApi } from '../api/clients.js';
 import { invoicesApi } from '../api/invoices.js';
@@ -364,6 +365,80 @@ export function AppProvider({ children }) {
       return next;
     });
   };
+
+  // R2 cloud sync — fetch metadata on mount, push changes back
+  const [r2Synced, setR2Synced] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Step 1: Fetch saved metadata from R2
+        const [r2Templates, r2Overrides] = await Promise.all([
+          fetchMetadataFromR2(),
+          fetchOverridesFromR2(),
+        ]);
+
+        if (cancelled) return;
+
+        let knownIds = new Set();
+
+        if (r2Templates?.adminTemplates) {
+          setAdminTemplates((local) => {
+            const localIds = new Set(local.map((t) => t.id));
+            const merged = [...local];
+            for (const rt of r2Templates.adminTemplates) {
+              if (!localIds.has(rt.id)) {
+                merged.push(rt);
+              }
+            }
+            knownIds = new Set(merged.map((t) => t.id));
+            return merged;
+          });
+        }
+
+        if (r2Overrides) {
+          setBuiltInOverrides((local) => ({ ...r2Overrides, ...local }));
+        }
+
+        if (cancelled) return;
+
+        // Step 2: Discover orphaned ZIPs in R2 that have no metadata
+        const r2Files = await discoverR2Templates();
+        if (cancelled || r2Files.length === 0) {
+          if (!cancelled) setR2Synced(true);
+          return;
+        }
+
+        setAdminTemplates((current) => {
+          const currentIds = new Set(current.map((t) => t.id));
+          const orphans = r2Files.filter((f) => !currentIds.has(f.id));
+          if (orphans.length === 0) return current;
+
+          const stubs = orphans.map((f) => ({
+            id: f.id,
+            name: `Cloud Template (${f.id.slice(0, 8)})`,
+            tier: 'Starter',
+            category: 'Other',
+            description: 'Imported from cloud storage',
+            status: 'active',
+            hasZip: true,
+            hasImage: f.hasImage || false,
+            zipSize: f.size || 0,
+            createdAt: f.uploaded || new Date().toISOString(),
+          }));
+          return [...current, ...stubs];
+        });
+      } catch { /* R2 unavailable, continue with localStorage */ }
+      if (!cancelled) setR2Synced(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!r2Synced) return;
+    syncMetadataToR2(adminTemplates, builtInOverrides).catch(() => {});
+  }, [adminTemplates, builtInOverrides, r2Synced]);
 
   // Appointments
   const addAppointment = (appointment) => {

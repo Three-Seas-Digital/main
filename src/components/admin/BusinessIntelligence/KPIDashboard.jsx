@@ -18,7 +18,7 @@ import {
   calcWinRate, calcAvgDealSize, calcSalesCycleLength,
   calcLeadConversionRate, calcGrossMargin, calcDSO, calcRevenuePerFTE,
   calcProjectCompletionRate, calcDataCompleteness, calcPipelineCoverage,
-  calcTotalRevenue, calcGrossProfitPerFTE,
+  calcTotalRevenue, calcGrossProfitPerFTE, calcExistingCustomerMix,
   fmtCurrency, fmtPct,
 } from './auditMetrics';
 import {
@@ -33,10 +33,13 @@ const PERIODS = ['daily', 'weekly', 'monthly', 'yearly'];
 
 const TIER_ICONS = { north_star: Star, driver: Gauge, guardrail: Shield, universal: Activity, custom: Tag };
 
+// Max-contrast palette for data viz — each chart uses the first N, so order matters
 const KPI_COLORS = [
-  '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#14b8a6', '#ec4899', '#f97316', '#6366f1', '#10b981',
+  '#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c',
+  '#0891b2', '#c026d3', '#ca8a04', '#4f46e5', '#059669',
 ];
+
+const UNIT_LABELS = { '%': 'Rate & Percentage', '$': 'Currency', days: 'Duration', '#': 'Count & Score', ratio: 'Ratio' };
 
 /** Tooltip — hover to show description */
 const Tooltip = ({ text, children }) => (
@@ -162,6 +165,7 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
       gp_per_fte: calcGrossProfitPerFTE(clientPayments, clientExpenses, users),
       project_completion: calcProjectCompletionRate(clientArr),
       data_completeness: calcDataCompleteness(clientArr, intakes),
+      existing_customer_mix: calcExistingCustomerMix(clientPayments, clientArr),
     };
   }, [clientPayments, clientArr, clientProspects, clientLeads, clientExpenses, users, intakes, currentMonth, priorMonth, currentYear, clientData]);
 
@@ -216,12 +220,6 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
     });
   }, [viewingSnapshotIdx, clientId]);
 
-  // --- Persist helpers ---
-  const persistData = useCallback((updated) => {
-    setAllData(updated);
-    safeSetItem(KPI_KEY, JSON.stringify(updated));
-  }, []);
-
   const saveMsgTimer = useRef(null);
   const showSaveMsg = useCallback((msg) => {
     setSaveMsg(msg);
@@ -262,7 +260,12 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
       if (v !== null && v !== undefined) initValues[kpi.id] = v;
     });
     data.snapshots = [{ date: new Date().toISOString(), values: initValues, period: data.config.activePeriod }];
-    persistData({ ...allData, [clientId]: data });
+    // Use functional updater so we don't clobber concurrent changes to other clients in allData
+    setAllData(prev => {
+      const updated = { ...prev, [clientId]: data };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showSaveMsg('Initialized!');
   };
 
@@ -271,19 +274,33 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
     const values = {};
     allKpis.forEach(kpi => { const v = getKpiValue(kpi.id); if (v !== null && v !== undefined) values[kpi.id] = v; });
     const snapshot = { date: new Date().toISOString(), values, period: activePeriod };
-    persistData({ ...allData, [clientId]: { ...clientData, snapshots: [...(clientData.snapshots || []), snapshot] } });
+    // Use functional updater to read the freshest allData — avoids stale closure
+    // overwriting data that changed since this render (e.g., from a prior setPeriod call)
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updated = { ...prev, [clientId]: { ...cd, snapshots: [...(cd.snapshots || []), snapshot] } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showSaveMsg('Snapshot saved!');
   };
 
   const refreshAll = () => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis };
-    allKpis.forEach(kpi => {
-      if (AUTO_COMPUTE_IDS.has(kpi.id) && computedValues[kpi.id] !== undefined) {
-        updatedKpis[kpi.id] = { ...(updatedKpis[kpi.id] || {}), current: computedValues[kpi.id], lastUpdated: new Date().toISOString(), unit: kpi.unit };
-      }
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis };
+      allKpis.forEach(kpi => {
+        if (AUTO_COMPUTE_IDS.has(kpi.id) && computedValues[kpi.id] !== undefined) {
+          updatedKpis[kpi.id] = { ...(updatedKpis[kpi.id] || {}), current: computedValues[kpi.id], lastUpdated: new Date().toISOString(), unit: kpi.unit };
+        }
+      });
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
     });
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
     setLastComputed(new Date().toISOString());
     showSaveMsg('Refreshed!');
   };
@@ -291,68 +308,127 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
   const setBaseline = (kpiId) => {
     if (!clientId || !clientData) return;
     const current = getKpiValue(kpiId);
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), baseline: current, baselineDate: new Date().toISOString() } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), baseline: current, baselineDate: new Date().toISOString() } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showSaveMsg('Baseline set!');
   };
 
   const resetBaseline = (kpiId) => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), baseline: null, baselineDate: null } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), baseline: null, baselineDate: null } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showSaveMsg('Baseline reset!');
   };
 
   const updateTarget = (kpiId, value) => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), target: value === '' ? null : parseFloat(value), lastUpdated: new Date().toISOString() } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), target: value === '' ? null : parseFloat(value), lastUpdated: new Date().toISOString() } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateManualOverride = (kpiId, value) => {
     if (!clientId || !clientData) return;
     const parsed = value === '' ? null : parseFloat(value);
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), manualOverride: parsed, current: parsed, lastUpdated: new Date().toISOString() } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), manualOverride: parsed, current: parsed, lastUpdated: new Date().toISOString() } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const clearManualOverride = (kpiId) => {
     if (!clientId || !clientData) return;
-    const existing = clientData.kpis[kpiId] || {};
-    const { manualOverride, ...rest } = existing;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...rest, manualOverride: null, lastUpdated: new Date().toISOString() } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const { manualOverride, ...rest } = (cd.kpis[kpiId] || {});
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...rest, manualOverride: null, lastUpdated: new Date().toISOString() } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
     showSaveMsg('Reverted to auto!');
   };
 
   const updateBaselineValue = (kpiId, value) => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), baseline: value === '' ? null : parseFloat(value), baselineDate: new Date().toISOString(), lastUpdated: new Date().toISOString() } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), baseline: value === '' ? null : parseFloat(value), baselineDate: new Date().toISOString(), lastUpdated: new Date().toISOString() } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateCustomLabel = (kpiId, label) => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), customLabel: label } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), customLabel: label } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateCustomUnit = (kpiId, unit) => {
     if (!clientId || !clientData) return;
-    const updatedKpis = { ...clientData.kpis, [kpiId]: { ...(clientData.kpis[kpiId] || {}), unit } };
-    persistData({ ...allData, [clientId]: { ...clientData, kpis: updatedKpis } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updatedKpis = { ...cd.kpis, [kpiId]: { ...(cd.kpis[kpiId] || {}), unit } };
+      const updated = { ...prev, [clientId]: { ...cd, kpis: updatedKpis } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const setPeriod = (period) => {
     if (!clientId || !clientData) return;
-    persistData({ ...allData, [clientId]: { ...clientData, config: { ...clientData.config, activePeriod: period } } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const updated = { ...prev, [clientId]: { ...cd, config: { ...cd.config, activePeriod: period } } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const togglePin = (kpiId) => {
     if (!clientId || !clientData) return;
-    const current = clientData.config?.pinnedKpis || [];
-    const next = current.includes(kpiId) ? current.filter(k => k !== kpiId) : [...current, kpiId].slice(0, 6);
-    persistData({ ...allData, [clientId]: { ...clientData, config: { ...clientData.config, pinnedKpis: next } } });
+    setAllData(prev => {
+      const cd = prev[clientId];
+      if (!cd) return prev;
+      const current = cd.config?.pinnedKpis || [];
+      const next = current.includes(kpiId) ? current.filter(k => k !== kpiId) : [...current, kpiId].slice(0, 6);
+      const updated = { ...prev, [clientId]: { ...cd, config: { ...cd.config, pinnedKpis: next } } };
+      safeSetItem(KPI_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleSave = useCallback(() => {
@@ -511,70 +587,144 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
       .filter(s => s.period === activePeriod)
       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // When < 2 snapshots, show a Baseline vs Current vs Target grouped bar chart
-    if (periodSnaps.length < 2) {
-      const comparisonData = kpis.map(kpi => {
+    // Split KPIs: those with snapshot history vs those with only live data
+    const kpisWithHistory = periodSnaps.length >= 2
+      ? kpis.filter(kpi => periodSnaps.some(snap => snap.values?.[kpi.id] != null))
+      : [];
+    const kpisLiveOnly = periodSnaps.length >= 2
+      ? kpis.filter(kpi => !periodSnaps.some(snap => snap.values?.[kpi.id] != null))
+      : kpis;
+
+    const charts = [];
+
+    // Bar chart for KPIs with no snapshot history (or < 2 snapshots total)
+    if (kpisLiveOnly.length > 0) {
+      const comparisonData = kpisLiveOnly.map(kpi => {
         const kpiData = clientData?.kpis?.[kpi.id] || {};
         const label = kpiData.customLabel || kpi.label;
-        const current = getKpiValue(kpi.id);
+        const current = getDisplayValue(kpi.id);
+        const baseline = kpiData.baseline;
+        const target = kpiData.target;
+        if (baseline == null && current == null && target == null) return null;
         return {
           name: label.length > 18 ? label.slice(0, 16) + '…' : label,
-          Baseline: kpiData.baseline ?? 0,
+          Baseline: baseline ?? 0,
           Current: current ?? 0,
-          Target: kpiData.target ?? 0,
+          Target: target ?? 0,
         };
-      }).filter(d => d.Baseline || d.Current || d.Target);
-      if (comparisonData.length === 0) return (
-        <div className="bi-kpi-dash-chart-empty"><p>Enter baseline, current, or target values to see charts.</p></div>
-      );
-      return (
-        <div className="bi-kpi-dash-chart">
-          <div className="bi-kpi-dash-chart-label">Baseline vs Current vs Target</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={comparisonData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
-              <YAxis tick={{ fontSize: 11 }} width={48} />
-              <RTooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e5e7eb' }} />
-              <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
-              <Bar dataKey="Baseline" fill="#94a3b8" radius={[3, 3, 0, 0]} barSize={14} />
-              <Bar dataKey="Current" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} />
-              <Bar dataKey="Target" fill="#22c55e" radius={[3, 3, 0, 0]} barSize={14} />
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="bi-kpi-dash-chart-hint">Save more snapshots to see trend charts over time.</p>
-        </div>
-      );
+      }).filter(Boolean);
+      if (comparisonData.length > 0) {
+        charts.push(
+          <div key="bar" className="bi-kpi-dash-chart">
+            <div className="bi-kpi-dash-chart-label">Baseline vs Current vs Target</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={comparisonData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 11 }} width={48} />
+                <RTooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
+                <Bar dataKey="Baseline" fill="#94a3b8" radius={[3, 3, 0, 0]} barSize={14} />
+                <Bar dataKey="Current" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} />
+                <Bar dataKey="Target" fill="#22c55e" radius={[3, 3, 0, 0]} barSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+            <p className="bi-kpi-dash-chart-hint">Take a snapshot after entering values to build trend charts over time.</p>
+          </div>
+        );
+      }
     }
 
-    // 2+ snapshots: show trend chart over time
-    const chartData = periodSnaps.map(snap => {
-      const point = { date: new Date(snap.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
-      kpis.forEach(kpi => { point[clientData?.kpis?.[kpi.id]?.customLabel || kpi.label] = snap.values?.[kpi.id] ?? null; });
-      return point;
-    });
-    const kpiLabels = kpis.map(kpi => clientData?.kpis?.[kpi.id]?.customLabel || kpi.label);
-    const ChartType = chartType === 'bar' ? BarChart : chartType === 'area' ? AreaChart : LineChart;
-    return (
-      <div className="bi-kpi-dash-chart">
-        <div className="bi-kpi-dash-chart-label">Trend — {activePeriod} snapshots ({periodSnaps.length})</div>
-        <ResponsiveContainer width="100%" height={220}>
-          <ChartType data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} width={48} />
-            <RTooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 6, border: '1px solid #e5e7eb' }} />
-            <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
-            {kpiLabels.map((label, i) => {
-              const color = KPI_COLORS[i % KPI_COLORS.length];
-              if (chartType === 'bar') return <Bar key={label} dataKey={label} fill={color} radius={[3, 3, 0, 0]} barSize={16} />;
-              if (chartType === 'area') return <Area key={label} type="monotone" dataKey={label} stroke={color} fill={color} fillOpacity={0.1} strokeWidth={2} dot={{ r: 2 }} />;
-              return <Line key={label} type="monotone" dataKey={label} stroke={color} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />;
-            })}
-          </ChartType>
-        </ResponsiveContainer>
-      </div>
+    // Trend charts — group by unit, then split large groups into max 5 lines per chart
+    if (kpisWithHistory.length > 0) {
+      const MAX_PER_CHART = 5;
+      const unitGroups = {};
+      kpisWithHistory.forEach(kpi => {
+        const unit = clientData?.kpis?.[kpi.id]?.unit || kpi.unit || '#';
+        if (!unitGroups[unit]) unitGroups[unit] = [];
+        unitGroups[unit].push(kpi);
+      });
+
+      // Render order: % → $ → days → # → ratio → rest
+      const unitOrder = ['%', '$', 'days', '#', 'ratio'];
+      const sortedUnits = [...new Set([...unitOrder.filter(u => unitGroups[u]), ...Object.keys(unitGroups)])];
+
+      sortedUnits.forEach(unit => {
+        const allInUnit = unitGroups[unit];
+        if (!allInUnit || allInUnit.length === 0) return;
+
+        // Split large groups into chunks — use category if available, else even split
+        const chunks = [];
+        if (allInUnit.length > MAX_PER_CHART) {
+          const byCat = {};
+          allInUnit.forEach(kpi => {
+            const cat = kpi.category || 'General';
+            if (!byCat[cat]) byCat[cat] = [];
+            byCat[cat].push(kpi);
+          });
+          const cats = Object.keys(byCat);
+          if (cats.length > 1) {
+            // Merge small categories so each chunk has 2-5 KPIs
+            let buffer = { label: '', kpis: [] };
+            cats.forEach(cat => {
+              if (buffer.kpis.length + byCat[cat].length > MAX_PER_CHART && buffer.kpis.length > 0) {
+                chunks.push(buffer);
+                buffer = { label: '', kpis: [] };
+              }
+              buffer.label = buffer.label ? `${buffer.label}, ${cat}` : cat;
+              buffer.kpis.push(...byCat[cat]);
+            });
+            if (buffer.kpis.length > 0) chunks.push(buffer);
+          } else {
+            // No categories — even split
+            const mid = Math.ceil(allInUnit.length / 2);
+            chunks.push({ label: '1', kpis: allInUnit.slice(0, mid) });
+            chunks.push({ label: '2', kpis: allInUnit.slice(mid) });
+          }
+        } else {
+          chunks.push({ label: '', kpis: allInUnit });
+        }
+
+        const unitLabel = UNIT_LABELS[unit] || unit;
+        const formatter = unit === '$' ? (v) => `$${Number(v).toLocaleString()}` : unit === '%' ? (v) => `${v}%` : unit === 'days' ? (v) => `${v}d` : undefined;
+
+        chunks.forEach((chunk, ci) => {
+          const chartData = periodSnaps.map(snap => {
+            const point = { date: new Date(snap.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+            chunk.kpis.forEach(kpi => { point[clientData?.kpis?.[kpi.id]?.customLabel || kpi.label] = snap.values?.[kpi.id] ?? null; });
+            return point;
+          });
+          const kpiLabels = chunk.kpis.map(kpi => clientData?.kpis?.[kpi.id]?.customLabel || kpi.label);
+          const ChartType = chartType === 'bar' ? BarChart : chartType === 'area' ? AreaChart : LineChart;
+          const subtitle = chunks.length > 1 && chunk.label && !/^\d+$/.test(chunk.label) ? ` — ${chunk.label}` : chunks.length > 1 ? ` (${ci + 1}/${chunks.length})` : '';
+          charts.push(
+            <div key={`trend-${unit}-${ci}`} className="bi-kpi-dash-chart">
+              <div className="bi-kpi-dash-chart-label">{unitLabel} Trends{subtitle} — {activePeriod} ({periodSnaps.length} snapshots)</div>
+              <ResponsiveContainer width="100%" height={180}>
+                <ChartType data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} width={52} tickFormatter={formatter} />
+                  <RTooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6, border: '1px solid #e5e7eb' }} formatter={formatter} />
+                  <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                  {kpiLabels.map((label, i) => {
+                    const color = KPI_COLORS[i % KPI_COLORS.length];
+                    if (chartType === 'bar') return <Bar key={label} dataKey={label} fill={color} radius={[3, 3, 0, 0]} barSize={16} />;
+                    if (chartType === 'area') return <Area key={label} type="monotone" dataKey={label} stroke={color} fill={color} fillOpacity={0.1} strokeWidth={2} dot={{ r: 2 }} />;
+                    return <Line key={label} type="monotone" dataKey={label} stroke={color} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />;
+                  })}
+                </ChartType>
+              </ResponsiveContainer>
+            </div>
+          );
+        });
+      });
+    }
+
+    if (charts.length === 0) return (
+      <div className="bi-kpi-dash-chart-empty"><p>Enter baseline, current, or target values to see charts.</p></div>
     );
+    return <>{charts}</>;
   };
 
   // --- Render a tier section ---
@@ -679,7 +829,12 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
         <div className="bi-kpi-dash-historical-banner">
           <Calendar size={15} />
           <span>Viewing snapshot from <strong>{new Date(clientData.snapshots[viewingSnapshotIdx].date).toLocaleString()}</strong> — values are editable</span>
-          <button className="btn-sm btn-primary" onClick={() => { persistData(allData); setViewingSnapshotIdx(null); showSaveMsg('Saved!'); }}>
+          <button className="btn-sm btn-primary" onClick={() => {
+            // Re-read from state at click time to capture any edits made to snapshot values
+            setAllData(prev => { safeSetItem(KPI_KEY, JSON.stringify(prev)); return prev; });
+            setViewingSnapshotIdx(null);
+            showSaveMsg('Saved!');
+          }}>
             <Save size={12} /> Save &amp; Return
           </button>
         </div>
@@ -709,7 +864,7 @@ export default function KPIDashboard({ biClientId, onBiClientChange }) {
               {pinnedKpis.map(kpiId => {
                 const reg = allKpis.find(k => k.id === kpiId);
                 if (!reg) return null;
-                const val = getKpiValue(kpiId);
+                const val = getDisplayValue(kpiId);
                 const kpiData = clientData.kpis?.[kpiId] || {};
                 const baseline = kpiData.baseline;
                 const unit = kpiData.unit || reg.unit;

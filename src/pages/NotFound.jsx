@@ -15,8 +15,8 @@ export default function NotFound() {
           <Link to="/" className="btn btn-primary">
             Back to Home <ArrowRight size={16} />
           </Link>
-          <Link to="/portfolio" className="btn btn-outline">
-            View Portfolio
+          <Link to="/pricing" className="btn btn-outline">
+            View Pricing
           </Link>
         </div>
       </div>

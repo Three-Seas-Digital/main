@@ -8,6 +8,7 @@ import { BarChart, Bar, LineChart, Line, ResponsiveContainer, XAxis, YAxis, Cart
 import { useAppContext } from '../../../context/AppContext';
 import { safeGetItem, safeSetItem, generateId, escapeHtml } from '../../../constants';
 import { syncToApi } from '../../../api/apiSync';
+import { interventionsApi } from '../../../api/interventions';
 
 const INTERVENTIONS_KEY = 'threeseas_bi_interventions';
 const AUDITS_KEY = 'threeseas_bi_audits';
@@ -134,12 +135,41 @@ export default function InterventionTracker({ biClientId, onBiClientChange }) {
     setInterventions(all[clientId]?.interventions || []);
   }, [clientId]);
 
-  const persist = (updated) => {
+  const persist = (updated, changedItem) => {
     setInterventions(updated);
     const all = safeGetItem(INTERVENTIONS_KEY, {});
     all[clientId] = { interventions: updated };
     safeSetItem(INTERVENTIONS_KEY, JSON.stringify(all));
-    syncToApi(() => Promise.resolve(), 'interventions-save');
+    // Sync changed item to DB
+    if (changedItem) {
+      const payload = {
+        title: changedItem.title,
+        intervention_type: changedItem.type || 'other',
+        description: changedItem.description || null,
+        status: changedItem.status || 'planned',
+        start_date: changedItem.startDate || null,
+        completed_date: changedItem.completedDate || null,
+        cost_to_client: changedItem.cost || 0,
+        notes: changedItem.notes || null,
+        tags: JSON.stringify(changedItem.tags || []),
+        linked_audit_id: changedItem.linkedAuditId || null,
+        linked_recommendation_id: changedItem.linkedRecommendationId || null,
+      };
+      if (changedItem.serverId) {
+        syncToApi(() => interventionsApi.update(clientId, changedItem.serverId, payload), 'intervention-update');
+      } else {
+        syncToApi(async () => {
+          const res = await interventionsApi.create(clientId, payload);
+          if (res?.data?.id) {
+            // Back-patch serverId into localStorage
+            const allData = safeGetItem(INTERVENTIONS_KEY, {});
+            const items = allData[clientId]?.interventions || [];
+            const idx = items.findIndex(i => i.id === changedItem.id);
+            if (idx !== -1) { items[idx].serverId = res.data.id; allData[clientId].interventions = items; safeSetItem(INTERVENTIONS_KEY, JSON.stringify(allData)); }
+          }
+        }, 'intervention-create');
+      }
+    }
   };
 
   const handleSave = () => {
@@ -153,11 +183,12 @@ export default function InterventionTracker({ biClientId, onBiClientChange }) {
       updatedAt: now,
     };
     if (editItem) {
-      persist(interventions.map(i => i.id === editItem.id ? { ...cleaned, id: editItem.id, createdAt: editItem.createdAt } : i));
+      const updated = { ...cleaned, id: editItem.id, createdAt: editItem.createdAt, serverId: editItem.serverId };
+      persist(interventions.map(i => i.id === editItem.id ? updated : i), updated);
     } else {
       cleaned.id = generateId();
       cleaned.createdAt = now;
-      persist([...interventions, cleaned]);
+      persist([...interventions, cleaned], cleaned);
     }
     resetForm();
   };

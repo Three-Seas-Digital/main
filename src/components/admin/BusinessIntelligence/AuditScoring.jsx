@@ -96,7 +96,29 @@ export default function AuditScoring({ biClientId, onBiClientChange }) {
       setAuditId(newId);
     }
     safeSetItem(AUDITS_KEY, JSON.stringify(audits));
-    syncToApi(() => auditsApi.create(clientId, { scores, notes, status: st }), 'audit-save');
+    // Two-step DB sync: (1) create/update audit record, (2) upsert category scores
+    syncToApi(async () => {
+      const auditDate = new Date().toISOString().slice(0, 10);
+      let serverAuditId;
+      if (auditId && auditId !== 'new') {
+        await auditsApi.update(auditId, { audit_date: auditDate, notes: JSON.stringify(notes) });
+        serverAuditId = auditId;
+      } else {
+        const res = await auditsApi.create(clientId, { audit_date: auditDate, notes: JSON.stringify(notes) });
+        serverAuditId = res?.data?.id;
+      }
+      if (serverAuditId) {
+        const categoryScores = categories.map(cat => ({
+          category_id: cat.id,
+          score: parseFloat(catScore(cat)) || 0,
+          weight: cat.weight,
+          internal_notes: (notes[cat.id] || {}).internal_notes || null,
+          client_summary: (notes[cat.id] || {}).client_summary || null,
+        }));
+        await auditsApi.upsertScores(serverAuditId, categoryScores);
+        if (publish) await auditsApi.publish(serverAuditId);
+      }
+    }, 'audit-save');
 
     // Bridge: write category definitions for portal (without icon/color fields)
     const portalCategories = DEFAULT_CATEGORIES.map(c => ({

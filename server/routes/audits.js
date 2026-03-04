@@ -215,4 +215,23 @@ router.post('/:id/subcriteria-scores', authenticateToken, requireRole('owner', '
   }
 });
 
+// POST /api/audits/:auditId/recommendations - Add recommendation to audit
+router.post('/:auditId/recommendations', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req, res) => {
+  try {
+    const { auditId } = req.params;
+    const { category_id, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO audit_recommendations (id, audit_id, category_id, title, description, priority,
+       estimated_cost_min, estimated_cost_max, estimated_timeline, status, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,
+      [id, auditId, category_id || null, title, description || null, priority || 'medium',
+       estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.user.userId]
+    );
+    res.status(201).json({ success: true, data: { id, message: 'Recommendation added' } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 export default router;

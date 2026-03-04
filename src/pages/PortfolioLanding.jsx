@@ -37,7 +37,7 @@ export function StarterShowcase() {
   return (
     <div className="demo-starter">
       <div className="demo-back-bar">
-        <Link to="/portfolio" className="demo-back-link"><ArrowLeft size={16} /> Back to Portfolio</Link>
+        <Link to="/pricing" className="demo-back-link"><ArrowLeft size={16} /> Back to Pricing</Link>
         <span className="demo-tier-label">Starter Demo</span>
       </div>
 
@@ -230,7 +230,7 @@ export function BusinessShowcase() {
   return (
     <div className="demo-business">
       <div className="demo-back-bar">
-        <Link to="/portfolio" className="demo-back-link"><ArrowLeft size={16} /> Back to Portfolio</Link>
+        <Link to="/pricing" className="demo-back-link"><ArrowLeft size={16} /> Back to Pricing</Link>
         <span className="demo-tier-label">Business Demo</span>
       </div>
 
@@ -502,7 +502,7 @@ export function PremiumShowcase() {
   return (
     <div className="demo-premium">
       <div className="demo-back-bar">
-        <Link to="/portfolio" className="demo-back-link"><ArrowLeft size={16} /> Back to Portfolio</Link>
+        <Link to="/pricing" className="demo-back-link"><ArrowLeft size={16} /> Back to Pricing</Link>
         <span className="demo-tier-label">Premium Demo</span>
       </div>
 
@@ -834,7 +834,7 @@ export function EnterpriseShowcase() {
   return (
     <div className="demo-enterprise">
       <div className="demo-back-bar">
-        <Link to="/portfolio" className="demo-back-link"><ArrowLeft size={16} /> Back to Portfolio</Link>
+        <Link to="/pricing" className="demo-back-link"><ArrowLeft size={16} /> Back to Pricing</Link>
         <span className="demo-tier-label">Enterprise Demo</span>
       </div>
 

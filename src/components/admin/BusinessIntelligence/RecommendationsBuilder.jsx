@@ -9,6 +9,7 @@ import { recommendationsApi } from '../../../api/recommendations';
 const RECS_KEY = 'threeseas_bi_recommendations';
 const TEMPLATES_KEY = 'threeseas_bi_templates';
 const AUDITS_KEY = 'threeseas_bi_audits';
+const THREADS_KEY = 'threeseas_bi_recommendation_threads';
 
 const DEFAULT_TEMPLATES = [
   { id: 't1', title: 'SSL Certificate', description: 'Install SSL certificate for HTTPS', priority: 'critical', impact: 'high', service: 'Technical' },
@@ -54,13 +55,13 @@ export default function RecommendationsBuilder({ biClientId, onBiClientChange })
   };
 
   const addFromTemplate = (tmpl) => {
-    const rec = { id: generateId(), ...tmpl, clientId, auditId, status: 'proposed', display_order: recs.length, threads: [], createdAt: new Date().toISOString() };
+    const rec = { id: generateId(), ...tmpl, clientId, auditId, status: 'proposed', display_order: recs.length, createdAt: new Date().toISOString() };
     saveRecs([...recs, rec]);
     setShowTemplates(false);
   };
 
   const addCustom = () => {
-    const rec = { id: generateId(), title: 'New Recommendation', description: '', priority: 'medium', impact: 'medium', service: '', clientId, auditId, status: 'proposed', display_order: recs.length, estimated_cost: '', timeline: '', expected_outcome: '', threads: [], createdAt: new Date().toISOString() };
+    const rec = { id: generateId(), title: 'New Recommendation', description: '', priority: 'medium', impact: 'medium', service: '', clientId, auditId, status: 'proposed', display_order: recs.length, estimated_cost: '', timeline: '', expected_outcome: '', createdAt: new Date().toISOString() };
     saveRecs([...recs, rec]);
     setExpandedRec(rec.id);
   };
@@ -88,11 +89,19 @@ export default function RecommendationsBuilder({ biClientId, onBiClientChange })
     });
   }, [recs, sortByIFSR]);
 
+  const getRecThreads = (recId) => {
+    const allThreads = safeGetItem(THREADS_KEY, []);
+    return allThreads.filter(t => t.recommendationId === recId);
+  };
+
   const addThreadMsg = (recId) => {
     if (!newThread.trim()) return;
-    const msg = { id: generateId(), author: currentUser?.name || 'Admin', message: newThread, createdAt: new Date().toISOString() };
-    saveRecs(recs.map(r => r.id === recId ? { ...r, threads: [...(r.threads || []), msg] } : r));
+    const msg = { id: generateId(), recommendationId: recId, author: currentUser?.name || 'Admin', authorType: 'admin', text: newThread, message: newThread, createdAt: new Date().toISOString() };
+    const allThreads = safeGetItem(THREADS_KEY, []);
+    safeSetItem(THREADS_KEY, JSON.stringify([...allThreads, msg]));
+    syncToApi(() => recommendationsApi.addThread(recId, { message: newThread, author_type: 'admin' }), 'add-thread');
     setNewThread('');
+    setRecs([...recs]); // trigger re-render
   };
 
   return (
@@ -197,8 +206,8 @@ export default function RecommendationsBuilder({ biClientId, onBiClientChange })
                   </div>
                   <div className="bi-threads">
                     <h4><MessageCircle size={14} /> Discussion</h4>
-                    {(rec.threads || []).map(t => (
-                      <div key={t.id} className="bi-thread-msg"><strong>{t.author}</strong> <small>{new Date(t.createdAt).toLocaleString()}</small><p>{t.message}</p></div>
+                    {getRecThreads(rec.id).map(t => (
+                      <div key={t.id} className="bi-thread-msg"><strong>{t.author}</strong> <small>{new Date(t.createdAt).toLocaleString()}</small><p>{t.text || t.message}</p></div>
                     ))}
                     <div className="bi-thread-input">
                       <input type="text" value={newThread} onChange={e => setNewThread(e.target.value)} placeholder="Add a message..." onKeyDown={e => e.key === 'Enter' && addThreadMsg(rec.id)} />

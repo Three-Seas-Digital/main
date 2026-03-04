@@ -72,8 +72,8 @@ export default function HealthOverview({ biClientId, onBiClientChange }) {
       <div className="bi-filter-bar">
         <select value={filterTier} onChange={e=>setFilterTier(e.target.value)}>
           <option value="all">All Tiers</option>
-          <option value="free">Free</option><option value="starter">Starter</option>
-          <option value="business">Business</option><option value="premium">Premium</option>
+          <option value="free">Free</option><option value="basic">Basic</option>
+          <option value="premium">Premium</option><option value="enterprise">Enterprise</option>
         </select>
       </div>
       <div className="bi-heatmap">

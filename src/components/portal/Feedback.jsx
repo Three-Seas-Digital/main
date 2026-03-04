@@ -171,7 +171,7 @@ export default function Feedback() {
     setTimeout(() => setSuccessMsg(''), 4000);
 
     syncToApi(
-      () => fetch('/api/feedback', {
+      () => fetch('/api/portal/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newFeedback),

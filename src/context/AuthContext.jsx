@@ -26,6 +26,72 @@ function hashPassword(password) {
 const USERS_KEY = 'threeseas_users';
 const ADMIN_AUTH_KEY = 'threeseas_current_user';
 const CLIENT_AUTH_KEY = 'threeseas_current_client';
+const TEMPLATE_USERS_KEY = 'threeseas_template_users';
+const TEMPLATE_AUTH_KEY = 'threeseas_current_template_user';
+
+// Template subscription tiers
+export const TEMPLATE_TIERS = {
+  free: {
+    id: 'free',
+    label: 'Free',
+    price: 0,
+    priceMonthly: 0,
+    priceYearly: 0,
+    description: 'Basic access to free templates',
+    features: [
+      'Access to Starter templates',
+      'Preview all templates',
+      'Save favorites (up to 5)',
+      'Email notifications',
+    ],
+    allowedTiers: ['Starter'],
+    maxFavorites: 5,
+    downloadsPerMonth: Infinity,
+    color: '#6b7280',
+  },
+  pro: {
+    id: 'pro',
+    label: 'Pro',
+    price: 19,
+    priceMonthly: 19,
+    priceYearly: 190, // ~17% discount
+    description: 'Full access to professional templates',
+    features: [
+      'Everything in Free',
+      'Download Business templates',
+      'Download Premium templates',
+      'Unlimited favorites',
+      'Priority support',
+      'Source code included',
+    ],
+    allowedTiers: ['Starter', 'Business', 'Premium'],
+    maxFavorites: Infinity,
+    downloadsPerMonth: Infinity,
+    color: '#22d3ee',
+    stripePriceId: 'price_pro_monthly', // Replace with real Stripe price ID
+  },
+  enterprise: {
+    id: 'enterprise',
+    label: 'Enterprise',
+    price: 49,
+    priceMonthly: 49,
+    priceYearly: 490, // ~17% discount
+    description: 'Complete access to all templates',
+    features: [
+      'Everything in Pro',
+      'Download Enterprise templates',
+      'White-label license',
+      'Commercial use allowed',
+      'Priority feature requests',
+      '1-on-1 customization call',
+    ],
+    allowedTiers: ['Starter', 'Business', 'Premium', 'Enterprise'],
+    maxFavorites: Infinity,
+    downloadsPerMonth: Infinity,
+    color: '#c8a43e',
+    stripePriceId: 'price_enterprise_monthly', // Replace with real Stripe price ID
+  },
+};
 
 const ROLES = {
   owner: {
@@ -106,6 +172,8 @@ export function AuthProvider({ children }) {
   const [users, setUsers] = useState(() => safeGetItem(USERS_KEY, []));
   const [currentUser, setCurrentUser] = useState(() => safeGetItem(ADMIN_AUTH_KEY, null));
   const [currentClient, setCurrentClient] = useState(() => safeGetItem(CLIENT_AUTH_KEY, null));
+  const [templateUsers, setTemplateUsers] = useState(() => safeGetItem(TEMPLATE_USERS_KEY, []));
+  const [currentTemplateUser, setCurrentTemplateUser] = useState(() => safeGetItem(TEMPLATE_AUTH_KEY, null));
 
   useEffect(() => {
     safeSetItem(USERS_KEY, JSON.stringify(users));
@@ -126,6 +194,18 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(CLIENT_AUTH_KEY);
     }
   }, [currentClient]);
+
+  useEffect(() => {
+    safeSetItem(TEMPLATE_USERS_KEY, JSON.stringify(templateUsers));
+  }, [templateUsers]);
+
+  useEffect(() => {
+    if (currentTemplateUser) {
+      safeSetItem(TEMPLATE_AUTH_KEY, JSON.stringify(currentTemplateUser));
+    } else {
+      localStorage.removeItem(TEMPLATE_AUTH_KEY);
+    }
+  }, [currentTemplateUser]);
 
   // Auto-migrate legacy 'staff' role to 'developer'
   useEffect(() => {
@@ -291,11 +371,164 @@ export function AuthProvider({ children }) {
 
   const clientLogout = () => setCurrentClient(null);
 
+  // Template user auth
+  const registerTemplateUser = (userData) => {
+    const existing = templateUsers.find(
+      (u) => u.email.toLowerCase() === userData.email.toLowerCase()
+    );
+    if (existing) return { success: false, error: 'An account with this email already exists' };
+
+    const newUser = {
+      id: generateId(),
+      name: userData.name,
+      email: userData.email.toLowerCase(),
+      password: hashPassword(userData.password),
+      tier: 'free',
+      subscription: {
+        status: 'active', // 'active', 'canceled', 'past_due'
+        startedAt: new Date().toISOString(),
+        expiresAt: null, // null for free tier
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+      },
+      favorites: [],
+      downloads: [],
+      downloadsThisMonth: 0,
+      downloadResetDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    setTemplateUsers((prev) => [...prev, newUser]);
+    setCurrentTemplateUser(newUser);
+    return { success: true, user: newUser };
+  };
+
+  const templateUserLogin = (email, password) => {
+    const hashed = hashPassword(password);
+    const user = templateUsers.find((u) => {
+      if (u.email.toLowerCase() !== email.toLowerCase()) return false;
+      if (u.password === hashed) return true;
+      return false;
+    });
+    if (!user) return { success: false, error: 'Invalid email or password' };
+    setCurrentTemplateUser(user);
+    return { success: true, user };
+  };
+
+  const templateUserLogout = () => setCurrentTemplateUser(null);
+
+  const updateTemplateUserTier = (userId, tier, subscriptionData = {}) => {
+    setTemplateUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              tier,
+              subscription: {
+                ...u.subscription,
+                ...subscriptionData,
+              },
+            }
+          : u
+      )
+    );
+    if (currentTemplateUser?.id === userId) {
+      setCurrentTemplateUser((prev) => ({
+        ...prev,
+        tier,
+        subscription: {
+          ...prev.subscription,
+          ...subscriptionData,
+        },
+      }));
+    }
+  };
+
+  const addToFavorites = (templateId) => {
+    if (!currentTemplateUser) return { success: false, error: 'Not logged in' };
+    const tier = TEMPLATE_TIERS[currentTemplateUser.tier];
+    if (currentTemplateUser.favorites.length >= tier.maxFavorites) {
+      return { success: false, error: 'Favorite limit reached. Upgrade to add more.' };
+    }
+    if (currentTemplateUser.favorites.includes(templateId)) {
+      return { success: false, error: 'Already in favorites' };
+    }
+    const updated = {
+      ...currentTemplateUser,
+      favorites: [...currentTemplateUser.favorites, templateId],
+    };
+    setCurrentTemplateUser(updated);
+    setTemplateUsers((prev) =>
+      prev.map((u) => (u.id === currentTemplateUser.id ? updated : u))
+    );
+    return { success: true };
+  };
+
+  const removeFromFavorites = (templateId) => {
+    if (!currentTemplateUser) return { success: false, error: 'Not logged in' };
+    const updated = {
+      ...currentTemplateUser,
+      favorites: currentTemplateUser.favorites.filter((id) => id !== templateId),
+    };
+    setCurrentTemplateUser(updated);
+    setTemplateUsers((prev) =>
+      prev.map((u) => (u.id === currentTemplateUser.id ? updated : u))
+    );
+    return { success: true };
+  };
+
+  const canDownloadTemplate = (templateTier) => {
+    if (!currentTemplateUser) return { canDownload: false, reason: 'login_required' };
+    const tier = TEMPLATE_TIERS[currentTemplateUser.tier];
+    if (!tier.allowedTiers.includes(templateTier)) {
+      return { canDownload: false, reason: 'upgrade_required', requiredTier: getRequiredTier(templateTier) };
+    }
+    return { canDownload: true };
+  };
+
+  const getRequiredTier = (templateTier) => {
+    if (templateTier === 'Starter') return 'free';
+    if (templateTier === 'Business' || templateTier === 'Premium') return 'pro';
+    return 'enterprise';
+  };
+
+  const recordDownload = (templateId, templateTier) => {
+    if (!currentTemplateUser) return { success: false, error: 'Not logged in' };
+    const tier = TEMPLATE_TIERS[currentTemplateUser.tier];
+    
+    // Check if allowed
+    if (!tier.allowedTiers.includes(templateTier)) {
+      return { success: false, error: 'Template tier not included in your plan' };
+    }
+
+    const download = {
+      templateId,
+      templateTier,
+      downloadedAt: new Date().toISOString(),
+    };
+
+    const updated = {
+      ...currentTemplateUser,
+      downloads: [...currentTemplateUser.downloads, download],
+      downloadsThisMonth: currentTemplateUser.downloadsThisMonth + 1,
+    };
+
+    setCurrentTemplateUser(updated);
+    setTemplateUsers((prev) =>
+      prev.map((u) => (u.id === currentTemplateUser.id ? updated : u))
+    );
+    return { success: true };
+  };
+
   const value = useMemo(() => ({
     currentUser, needsSetup, setupAdmin, login, logout, register, hasPermission,
     users, addUser, updateUser, deleteUser, approveUser, rejectUser, ROLES, STAFF_COLORS,
     currentClient, setCurrentClient, clientLogin, clientLogout, hashPassword,
-  }), [currentUser, users, currentClient, needsSetup]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Template user auth
+    templateUsers, currentTemplateUser, TEMPLATE_TIERS,
+    registerTemplateUser, templateUserLogin, templateUserLogout,
+    updateTemplateUserTier, addToFavorites, removeFromFavorites,
+    canDownloadTemplate, recordDownload, getRequiredTier,
+  }), [currentUser, users, currentClient, needsSetup, templateUsers, currentTemplateUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthContext.Provider value={value}>

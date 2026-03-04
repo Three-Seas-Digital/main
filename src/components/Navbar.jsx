@@ -41,7 +41,7 @@ export default function Navbar() {
   ];
 
   const enterpriseLinks = [
-    { to: '/portfolio', label: 'Portfolio' },
+    { to: '/pricing', label: 'Pricing' },
     { to: '/services', label: 'Client Portal' },
   ];
 

@@ -36,7 +36,35 @@ export function SalesProvider({ children }) {
 
   const [leads, setLeads] = useState(() => safeGetItem(LEADS_KEY, []));
   const [prospects, setProspects] = useState(() => safeGetItem(PROSPECTS_KEY, []));
-  const [businessDatabase, setBusinessDatabase] = useState(() => safeGetItem(BUSINESS_DB_KEY, []));
+  const [businessDatabase, setBusinessDatabase] = useState(() => {
+    const raw = safeGetItem(BUSINESS_DB_KEY, []);
+    // Dedup on load — merge entries with the same normalized name
+    const seen = new Map();
+    const deduped = [];
+    raw.forEach((entry) => {
+      const nameKey = (entry.name || '').toLowerCase().trim();
+      if (!nameKey) { deduped.push(entry); return; }
+      const existing = seen.get(nameKey);
+      if (existing) {
+        // Merge into the existing entry — keep richer data
+        existing.address = existing.address || entry.address || '';
+        existing.phone = existing.phone || entry.phone || '';
+        existing.website = existing.website || entry.website || '';
+        existing.coordinates = existing.coordinates || entry.coordinates || null;
+        existing.enrichment = { ...(entry.enrichment || {}), ...(existing.enrichment || {}) };
+        existing.key = `${nameKey}_${(existing.address || '').toLowerCase().trim()}`;
+        existing.updatedAt = new Date().toISOString();
+      } else {
+        const clone = { ...entry, key: `${nameKey}_${(entry.address || '').toLowerCase().trim()}` };
+        seen.set(nameKey, clone);
+        deduped.push(clone);
+      }
+    });
+    if (deduped.length < raw.length) {
+      safeSetItem(BUSINESS_DB_KEY, JSON.stringify(deduped));
+    }
+    return deduped;
+  });
   const [marketResearch, setMarketResearch] = useState(() => safeGetItem(RESEARCH_KEY, []));
 
   useEffect(() => {
@@ -131,39 +159,61 @@ export function SalesProvider({ children }) {
 
   // Business Database
   const saveToBusinessDb = (data) => {
-    const key = `${(data.name || '').toLowerCase().trim()}_${(data.address || '').toLowerCase().trim()}`;
-    const existing = businessDatabase.find((b) => b.key === key);
+    const nameNorm = (data.name || '').toLowerCase().trim();
+    const addrNorm = (data.address || '').toLowerCase().trim();
+    const key = `${nameNorm}_${addrNorm}`;
 
-    if (existing) {
-      setBusinessDatabase((prev) =>
-        prev.map((b) => b.key === key ? {
+    // Use functional updater to read the freshest state (avoids stale-closure duplicates)
+    let result = null;
+    setBusinessDatabase((prev) => {
+      // 1) Exact key match (name + address)
+      let match = prev.find((b) => b.key === key);
+      // 2) Fallback: match by name alone when either side has no address
+      if (!match && nameNorm) {
+        match = prev.find((b) => {
+          const bName = (b.name || '').toLowerCase().trim();
+          const bAddr = (b.address || '').toLowerCase().trim();
+          return bName === nameNorm && (!addrNorm || !bAddr);
+        });
+      }
+
+      if (match) {
+        // Update existing — merge enrichment, keep the richer address
+        const mergedAddr = addrNorm || (match.address || '');
+        const mergedKey = `${nameNorm}_${(mergedAddr).toLowerCase().trim()}`;
+        const updated = prev.map((b) => b.id === match.id ? {
           ...b,
           ...data,
+          address: mergedAddr,
+          key: mergedKey,
           enrichment: { ...b.enrichment, ...data.enrichment },
           updatedAt: new Date().toISOString(),
-        } : b)
-      );
-      syncToApi(() => businessDbApi.update(existing.id, data), 'updateBusinessDb');
-      return { success: true, updated: true };
-    }
+        } : b);
+        syncToApi(() => businessDbApi.update(match.id, { ...data, address: mergedAddr }), 'updateBusinessDb');
+        result = { success: true, updated: true };
+        return updated;
+      }
 
-    const entry = {
-      id: generateId(),
-      key,
-      name: data.name || '',
-      address: data.address || '',
-      phone: data.phone || '',
-      website: data.website || '',
-      type: data.type || '',
-      coordinates: data.coordinates || null,
-      enrichment: data.enrichment || {},
-      source: data.source || 'manual',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setBusinessDatabase((prev) => [...prev, entry]);
-    syncToApi(() => businessDbApi.create(entry), 'saveToBusinessDb');
-    return { success: true, entry };
+      // No match — create new entry
+      const entry = {
+        id: generateId(),
+        key,
+        name: data.name || '',
+        address: data.address || '',
+        phone: data.phone || '',
+        website: data.website || '',
+        type: data.type || '',
+        coordinates: data.coordinates || null,
+        enrichment: data.enrichment || {},
+        source: data.source || 'manual',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      syncToApi(() => businessDbApi.create(entry), 'saveToBusinessDb');
+      result = { success: true, entry };
+      return [...prev, entry];
+    });
+    return result;
   };
 
   const getFromBusinessDb = (name, address) => {

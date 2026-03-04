@@ -109,8 +109,11 @@ export function FinanceProvider({ children }) {
 
   // Used by unmarkInvoicePaid in AppContext
   const removePaymentByInvoice = (invoiceId) => {
+    const payment = payments.find((p) => p.invoiceId === invoiceId);
     setPayments((prev) => prev.filter((p) => p.invoiceId !== invoiceId));
-    syncToApi(() => paymentsApi.delete(invoiceId), 'removePaymentByInvoice');
+    if (payment) {
+      syncToApi(() => paymentsApi.delete(payment.id), 'removePaymentByInvoice');
+    }
   };
 
   const value = useMemo(() => ({

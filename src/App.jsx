@@ -25,7 +25,7 @@ const EnterpriseShowcase = lazy(() => import('./pages/PortfolioLanding').then(m 
 const Templates = lazy(() => import('./pages/Templates'));
 const TemplatesSignIn = lazy(() => import('./pages/TemplatesSignIn'));
 const Checkout = lazy(() => import('./pages/Checkout'));
-const Pricing = lazy(() => import('./pages/Pricing'));
+
 const Account = lazy(() => import('./pages/Account'));
 
 function PageLoader() {
@@ -36,7 +36,7 @@ function PageLoader() {
   );
 }
 
-const DEMO_PATHS = ['/portfolio/starter', '/portfolio/business', '/portfolio/premium', '/portfolio/enterprise'];
+const DEMO_PATHS = ['/pricing/starter', '/pricing/business', '/pricing/premium', '/pricing/enterprise'];
 const HIDE_NAVBAR_PATHS = ['/templates', '/checkout'];
 
 // Runs initSync once after all providers are mounted.
@@ -68,15 +68,15 @@ function AppLayout() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
-              <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/portfolio/starter" element={<StarterShowcase />} />
-              <Route path="/portfolio/business" element={<BusinessShowcase />} />
-              <Route path="/portfolio/premium" element={<PremiumShowcase />} />
-              <Route path="/portfolio/enterprise" element={<EnterpriseShowcase />} />
+              <Route path="/pricing" element={<Portfolio />} />
+              <Route path="/pricing/starter" element={<StarterShowcase />} />
+              <Route path="/pricing/business" element={<BusinessShowcase />} />
+              <Route path="/pricing/premium" element={<PremiumShowcase />} />
+              <Route path="/pricing/enterprise" element={<EnterpriseShowcase />} />
               <Route path="/templates" element={<Templates />} />
               <Route path="/templates/signin" element={<TemplatesSignIn />} />
               <Route path="/checkout" element={<Checkout />} />
-              <Route path="/pricing" element={<Pricing />} />
+
               <Route path="/account" element={<Account />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/services" element={<ClientSignup />} />

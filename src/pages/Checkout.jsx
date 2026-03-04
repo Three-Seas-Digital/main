@@ -8,6 +8,7 @@ import Navbar from '../components/Navbar';
 import FallbackImg from '../components/FallbackImg';
 import { useAppContext } from '../context/AppContext';
 import { getTemplateByIdFromAll } from '../data/templates';
+import { getTemplateZip, getTemplateImage } from '../utils/templateStorage';
 import '../styles/checkout.css';
 
 const TIER_INCLUDES = {
@@ -46,10 +47,21 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState({});
+  const [templateImageUrl, setTemplateImageUrl] = useState(null);
 
   useEffect(() => {
     document.title = template ? `Checkout — ${template.name}` : 'Checkout — Three Seas Digital';
   }, [template]);
+
+  // Load image from R2/IndexedDB if template has hasImage
+  useEffect(() => {
+    if (!template?.hasImage) return;
+    let cancelled = false;
+    getTemplateImage(template.id).then((blob) => {
+      if (blob && !cancelled) setTemplateImageUrl(URL.createObjectURL(blob));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [template?.id, template?.hasImage]);
 
   // Redirect if invalid template or Enterprise tier
   useEffect(() => {
@@ -101,8 +113,24 @@ export default function Checkout() {
     }, 1500);
   };
 
-  const handleDownload = () => {
-    alert(`Downloading ${template.name} template package...\n\nIn production, this would deliver a .zip file with the complete template source code.`);
+  const handleDownload = async () => {
+    try {
+      const blob = await getTemplateZip(template.id);
+      if (!blob) {
+        alert(`Downloading ${template.name} template package...\n\nTemplate files will be delivered to your email.`);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${template.name.replace(/\s+/g, '-').toLowerCase()}-template.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert(`Downloading ${template.name} template package...\n\nTemplate files will be delivered to your email.`);
+    }
   };
 
   if (success) {
@@ -149,8 +177,8 @@ export default function Checkout() {
           <div className="checkout-summary">
             <div className="checkout-template-card">
               <div className="checkout-template-image">
-                {template.image ? (
-                  <FallbackImg src={template.image} alt={template.name} />
+                {(templateImageUrl || template.image) ? (
+                  <FallbackImg src={templateImageUrl || template.image} alt={template.name} />
                 ) : (
                   <div className="checkout-template-gradient" style={{ background: `linear-gradient(135deg, ${template.color}40, ${template.color}10)` }} />
                 )}

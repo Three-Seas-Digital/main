@@ -88,7 +88,7 @@ export const AUTO_COMPUTE_IDS = new Set([
   'total_revenue', 'revenue_growth', 'aov', 'arpu', 'revenue_concentration',
   'win_rate', 'avg_deal_size', 'sales_cycle', 'lead_conversion', 'pipeline_coverage',
   'gross_margin', 'dso', 'rev_per_fte', 'gp_per_fte',
-  'project_completion', 'data_completeness',
+  'project_completion', 'data_completeness', 'existing_customer_mix',
 ]);
 
 // --- Universal KPI Stack (works in any industry, 18 KPIs across 6 sub-categories) ---

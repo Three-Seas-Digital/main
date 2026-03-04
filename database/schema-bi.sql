@@ -587,4 +587,122 @@ CREATE TABLE IF NOT EXISTS scheduled_reports (
 );
 
 
+-- 27. execution_plans (depends on clients)
+CREATE TABLE IF NOT EXISTS execution_plans (
+    id VARCHAR(36) PRIMARY KEY,
+    client_id VARCHAR(36) NOT NULL,
+    name VARCHAR(200) NOT NULL DEFAULT 'Untitled Plan',
+    plan_data JSON NOT NULL,
+    start_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+);
+
+-- ============================================================
+-- GROUP 7: AI Advisor System (3 tables)
+-- ============================================================
+
+-- 28. client_data_snapshots (depends on clients, users)
+-- Stores compiled snapshots of ALL client data for AI analysis.
+-- The snapshot_data JSON contains every BI component's data
+-- aggregated for the given time period.
+CREATE TABLE IF NOT EXISTS client_data_snapshots (
+    id VARCHAR(36) PRIMARY KEY,
+    client_id VARCHAR(36) NOT NULL,
+
+    period_type ENUM('daily', 'weekly', 'monthly', 'yearly') NOT NULL DEFAULT 'monthly',
+    period_label VARCHAR(50) NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+
+    snapshot_data JSON NOT NULL,
+    data_sources_included JSON,
+    data_completeness_score DECIMAL(5,2),
+    generated_by VARCHAR(36),
+    generation_trigger ENUM('manual', 'webhook', 'scheduled') DEFAULT 'manual',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_client_period (client_id, period_type, period_start),
+    INDEX idx_client_created (client_id, created_at)
+);
+
+-- 29. ai_recommendations (depends on clients, client_data_snapshots, users)
+-- AI-generated analysis runs. Each links to the snapshot that drove it.
+-- Separate from audit_recommendations (which are human-created).
+CREATE TABLE IF NOT EXISTS ai_recommendations (
+    id VARCHAR(36) PRIMARY KEY,
+    client_id VARCHAR(36) NOT NULL,
+    snapshot_id VARCHAR(36) NOT NULL,
+
+    ai_provider ENUM('gemini', 'external', 'webhook') NOT NULL DEFAULT 'gemini',
+    model_used VARCHAR(100),
+    analysis_type VARCHAR(50),
+    generation_status ENUM('pending', 'generating', 'completed', 'failed') DEFAULT 'pending',
+    error_message TEXT,
+    generated_at TIMESTAMP NULL,
+
+    ai_response_raw JSON,
+
+    executive_summary TEXT,
+    overall_health_rating ENUM('critical', 'at_risk', 'stable', 'growing', 'exceptional') NULL,
+    confidence_score DECIMAL(5,2),
+
+    total_recommendations INT DEFAULT 0,
+    critical_count INT DEFAULT 0,
+    high_count INT DEFAULT 0,
+    medium_count INT DEFAULT 0,
+    low_count INT DEFAULT 0,
+
+    created_by VARCHAR(36),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (snapshot_id) REFERENCES client_data_snapshots(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_client_created (client_id, created_at DESC),
+    INDEX idx_snapshot (snapshot_id),
+    INDEX idx_status (generation_status)
+);
+
+-- 30. ai_recommendation_items (depends on ai_recommendations, clients, users)
+-- Individual line items parsed from an AI analysis run.
+CREATE TABLE IF NOT EXISTS ai_recommendation_items (
+    id VARCHAR(36) PRIMARY KEY,
+    ai_recommendation_id VARCHAR(36) NOT NULL,
+    client_id VARCHAR(36) NOT NULL,
+
+    category VARCHAR(100),
+    title VARCHAR(300) NOT NULL,
+    description TEXT NOT NULL,
+    rationale TEXT,
+    expected_impact TEXT,
+    suggested_timeline VARCHAR(100),
+    estimated_effort ENUM('low', 'medium', 'high') NULL,
+
+    priority ENUM('critical', 'high', 'medium', 'low') DEFAULT 'medium',
+    display_order INT DEFAULT 0,
+
+    supporting_data_sources JSON,
+
+    admin_status ENUM('new', 'reviewed', 'accepted', 'declined', 'converted') DEFAULT 'new',
+    converted_to_rec_id VARCHAR(36) NULL,
+    admin_notes TEXT,
+    reviewed_at TIMESTAMP NULL,
+    reviewed_by VARCHAR(36),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (ai_recommendation_id) REFERENCES ai_recommendations(id) ON DELETE CASCADE,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_rec_id (ai_recommendation_id),
+    INDEX idx_client_priority (client_id, priority),
+    INDEX idx_status (admin_status)
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

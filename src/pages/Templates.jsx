@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import FallbackImg from '../components/FallbackImg';
 import Navbar from '../components/Navbar';
+import TemplatePreview from '../components/TemplatePreview';
 import { useAppContext } from '../context/AppContext';
 import { ALL_TEMPLATES, getAllMergedTemplates, getDynamicCategories, getTemplateByIdFromAll } from '../data/templates';
+import { getTemplateImage } from '../utils/templateStorage';
 
 // Tier configuration
 const TIER_CONFIG = {
@@ -34,7 +36,7 @@ const DEFAULT_FEATURED = {
   image: '/images/portfolio-coffee.jpg',
   color: '#ff6b9d',
   tags: ['Mobile-First', 'Fast Load', 'Conversion Optimized'],
-  path: '/portfolio/starter',
+  path: '/pricing/starter',
   price: 499,
 };
 
@@ -55,6 +57,11 @@ const GRADIENTS = [
 ];
 
 function getGradient(id) {
+  if (typeof id === 'string') {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+    return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
+  }
   return GRADIENTS[id % GRADIENTS.length];
 }
 
@@ -63,7 +70,7 @@ function formatPrice(price) {
 }
 
 // Hero Section Component
-function HeroSection({ template, isTransitioning, navigate }) {
+function HeroSection({ template, isTransitioning, navigate, onPreview }) {
   const tierConfig = TIER_CONFIG[template.tier];
   const isEnterprise = template.price === null;
 
@@ -121,10 +128,12 @@ function HeroSection({ template, isTransitioning, navigate }) {
         <p className="netflix-hero-desc">{template.longDesc || template.description}</p>
 
         <div className="netflix-hero-buttons">
-          <Link to={template.path} className="netflix-btn netflix-btn-primary">
-            <Eye size={24} />
-            Live Preview
-          </Link>
+          {(template.hasZip || template.path) && (
+            <button className="netflix-btn netflix-btn-primary" onClick={() => onPreview(template)}>
+              <Eye size={24} />
+              Live Preview
+            </button>
+          )}
 
           <button
             className="netflix-btn netflix-btn-secondary"
@@ -154,7 +163,7 @@ function HeroSection({ template, isTransitioning, navigate }) {
 }
 
 // Template Card Component
-function TemplateCard({ item, onSelect, isSelected }) {
+function TemplateCard({ item, onSelect, isSelected, onPreview }) {
   const [isHovered, setIsHovered] = useState(false);
   const tierConfig = TIER_CONFIG[item.tier];
   const isEnterprise = item.price === null;
@@ -210,7 +219,9 @@ function TemplateCard({ item, onSelect, isSelected }) {
                 title="Live Preview"
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(item.path, '_blank');
+                  if (item.hasZip || item.path) {
+                    onPreview(item);
+                  }
                 }}
               >
                 <Eye size={18} />
@@ -233,7 +244,7 @@ function TemplateCard({ item, onSelect, isSelected }) {
 }
 
 // Row Component with horizontal scroll
-function TemplateRow({ category, selectedId, onSelect }) {
+function TemplateRow({ category, selectedId, onSelect, onPreview }) {
   const rowRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -280,6 +291,7 @@ function TemplateRow({ category, selectedId, onSelect }) {
               item={item}
               onSelect={onSelect}
               isSelected={item.id === selectedId}
+              onPreview={onPreview}
             />
           ))}
         </div>
@@ -309,11 +321,40 @@ export default function Templates() {
   const [featuredTemplate, setFeaturedTemplate] = useState(DEFAULT_FEATURED);
   const [selectedId, setSelectedId] = useState(DEFAULT_FEATURED.id);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [imageUrls, setImageUrls] = useState({});
   const heroRef = useRef(null);
 
   useEffect(() => {
     document.title = 'Template Library — Three Seas Digital';
   }, []);
+
+  // Load images from R2/IndexedDB for templates with hasImage
+  useEffect(() => {
+    const toLoad = mergedTemplates.filter((t) => t.hasImage && !imageUrls[t.id]);
+    if (toLoad.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const newUrls = {};
+      await Promise.all(toLoad.map(async (t) => {
+        try {
+          const blob = await getTemplateImage(t.id);
+          if (blob && !cancelled) newUrls[t.id] = URL.createObjectURL(blob);
+        } catch { /* skip */ }
+      }));
+      if (!cancelled && Object.keys(newUrls).length > 0) {
+        setImageUrls((prev) => ({ ...prev, ...newUrls }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mergedTemplates]);
+
+  // Enrich templates with loaded R2 image URLs
+  const enrichedTemplates = useMemo(() =>
+    mergedTemplates.map((t) => imageUrls[t.id] ? { ...t, image: imageUrls[t.id] } : t),
+    [mergedTemplates, imageUrls]
+  );
+  const enrichedCategories = useMemo(() => getDynamicCategories(enrichedTemplates), [enrichedTemplates]);
 
   const handleSelectTemplate = (template) => {
     if (template.id === selectedId) return;
@@ -326,7 +367,8 @@ export default function Templates() {
     }
 
     setTimeout(() => {
-      setFeaturedTemplate(template);
+      const enriched = imageUrls[template.id] ? { ...template, image: imageUrls[template.id] } : template;
+      setFeaturedTemplate(enriched);
       setIsTransitioning(false);
     }, 300);
   };
@@ -341,19 +383,31 @@ export default function Templates() {
         template={featuredTemplate}
         isTransitioning={isTransitioning}
         navigate={navigate}
+        onPreview={setPreviewTemplate}
       />
 
       {/* Template Rows */}
       <div className="netflix-rows">
-        {categories.map((category) => (
+        {enrichedCategories.map((category) => (
           <TemplateRow
             key={category.id}
             category={category}
             selectedId={selectedId}
             onSelect={handleSelectTemplate}
+            onPreview={setPreviewTemplate}
           />
         ))}
       </div>
+
+      {/* Protected Preview Overlay */}
+      {previewTemplate && (
+        <TemplatePreview
+          templateId={previewTemplate.id}
+          templateName={previewTemplate.name}
+          templatePath={previewTemplate.path}
+          onClose={() => setPreviewTemplate(null)}
+        />
+      )}
 
       {/* Footer */}
       <footer className="netflix-footer">

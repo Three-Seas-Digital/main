@@ -47,6 +47,8 @@ export default function LeadsTab() {
 
   const [searchAddress, setSearchAddress] = useState('');
   const [searchRadius, setSearchRadius] = useState(1000);
+  const [customRadiusOpen, setCustomRadiusOpen] = useState(false);
+  const [customRadiusKm, setCustomRadiusKm] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -637,12 +639,44 @@ export default function LeadsTab() {
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className="leads-search-input"
           />
-          <select value={searchRadius} onChange={(e) => setSearchRadius(Number(e.target.value))} className="leads-select">
+          <select value={searchRadius} onChange={(e) => {
+            const v = e.target.value;
+            if (v === 'custom') { setCustomRadiusOpen(true); return; }
+            setSearchRadius(Number(v));
+            setCustomRadiusOpen(false);
+          }} className="leads-select">
             <option value={500}>0.5 km</option>
             <option value={1000}>1 km</option>
             <option value={2000}>2 km</option>
             <option value={5000}>5 km</option>
+            <option value={10000}>10 km</option>
+            <option value={25000}>25 km</option>
+            <option value={50000}>50 km</option>
+            <option value={100000}>100 km</option>
+            <option value={200000}>200 km</option>
+            <option value={300000}>300 km</option>
+            <option value="custom">Custom...</option>
           </select>
+          {customRadiusOpen && (
+            <div className="leads-custom-radius">
+              <input type="number" min={1} max={300} placeholder="km" value={customRadiusKm}
+                onChange={(e) => setCustomRadiusKm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customRadiusKm) {
+                    setSearchRadius(Math.min(300, Math.max(1, Number(customRadiusKm))) * 1000);
+                    setCustomRadiusOpen(false);
+                  }
+                }}
+                className="leads-custom-radius-input" />
+              <span className="leads-custom-radius-label">km</span>
+              <button className="btn btn-sm btn-primary" onClick={() => {
+                if (customRadiusKm) {
+                  setSearchRadius(Math.min(300, Math.max(1, Number(customRadiusKm))) * 1000);
+                  setCustomRadiusOpen(false);
+                }
+              }}>Set</button>
+            </div>
+          )}
           <select value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)} className="leads-select">
             {BUSINESS_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
@@ -662,7 +696,7 @@ export default function LeadsTab() {
             <div className="leads-map-header">
               <MapPin size={16} />
               <span>Search Area: {searchCenter.name?.split(',').slice(0, 3).join(',')}</span>
-              <span className="leads-map-radius">Radius: {searchRadius >= 1000 ? `${searchRadius / 1000} km` : `${searchRadius} m`}</span>
+              <span className="leads-map-radius">Radius: {searchRadius >= 1000 ? `${(searchRadius / 1000).toLocaleString()} km` : `${searchRadius} m`}</span>
             </div>
             <div className="leads-map-container">
               <iframe
@@ -671,7 +705,7 @@ export default function LeadsTab() {
                 height="300"
                 frameBorder="0"
                 scrolling="no"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${searchCenter.lon - 0.02},${searchCenter.lat - 0.015},${searchCenter.lon + 0.02},${searchCenter.lat + 0.015}&layer=mapnik&marker=${searchCenter.lat},${searchCenter.lon}`}
+                src={(() => { const deg = Math.max(0.01, (searchRadius / 1000) * 0.012); return `https://www.openstreetmap.org/export/embed.html?bbox=${searchCenter.lon - deg},${searchCenter.lat - deg * 0.75},${searchCenter.lon + deg},${searchCenter.lat + deg * 0.75}&layer=mapnik&marker=${searchCenter.lat},${searchCenter.lon}`; })()}
               />
               <div className="leads-map-links">
                 <a href={`https://www.openstreetmap.org/?mlat=${searchCenter.lat}&mlon=${searchCenter.lon}#map=15/${searchCenter.lat}/${searchCenter.lon}`} target="_blank" rel="noopener noreferrer">

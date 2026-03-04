@@ -3,12 +3,11 @@ import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { generateId } from '../utils/generateId.js';
 
-const router = Router();
-
-// ====================================
+// ====== Template Router (mounted at /api/recommendation-templates) ======
+const templateRouter = Router();
 
 // GET /api/recommendation-templates - List templates
-router.get('/', authenticateToken, async (req, res) => {
+templateRouter.get('/', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM recommendation_templates ORDER BY category, title'
@@ -21,7 +20,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // POST /api/recommendation-templates - Create template
-router.post('/', authenticateToken, async (req, res) => {
+templateRouter.post('/', authenticateToken, async (req, res) => {
   try {
     const { category, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
     const id = generateId();
@@ -37,7 +36,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/recommendation-templates/:id - Update template
-router.put('/:id', authenticateToken, async (req, res) => {
+templateRouter.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { category, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
     await pool.query(
@@ -52,7 +51,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // DELETE /api/recommendation-templates/:id - Delete template
-router.delete('/:id', authenticateToken, async (req, res) => {
+templateRouter.delete('/:id', authenticateToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM recommendation_templates WHERE id = ?', [req.params.id]);
     res.json({ success: true, data: { message: 'Template deleted' } });
@@ -61,29 +60,11 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ========================================
-
-// POST /api/audits/:auditId/recommendations - Add recommendation to audit
-router.post('/audits/:auditId/recommendations', authenticateToken, async (req, res) => {
-  try {
-    const { auditId } = req.params;
-    const { category_id, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
-    const id = generateId();
-    await pool.query(
-      `INSERT INTO audit_recommendations (id, audit_id, category_id, title, description, priority,
-       estimated_cost_min, estimated_cost_max, estimated_timeline, status, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,
-      [id, auditId, category_id || null, title, description || null, priority || 'medium',
-       estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.user.userId]
-    );
-    res.status(201).json({ success: true, data: { id, message: 'Recommendation added' } });
-  } catch (err) {
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
+// ====== Recommendations Router (mounted at /api/recommendations) ======
+const recRouter = Router();
 
 // GET /api/recommendations/client/:clientId - List all recommendations for client
-router.get('/recommendations/client/:clientId', authenticateToken, async (req, res) => {
+recRouter.get('/client/:clientId', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT r.*, a.version as audit_version, a.status as audit_status
@@ -101,7 +82,7 @@ router.get('/recommendations/client/:clientId', authenticateToken, async (req, r
 });
 
 // PUT /api/recommendations/:id - Update recommendation
-router.put('/recommendations/:id', authenticateToken, async (req, res) => {
+recRouter.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
     await pool.query(
@@ -116,7 +97,7 @@ router.put('/recommendations/:id', authenticateToken, async (req, res) => {
 });
 
 // PUT /api/recommendations/:id/status - Update status (accept/decline/complete)
-router.put('/recommendations/:id/status', authenticateToken, async (req, res) => {
+recRouter.put('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['pending', 'accepted', 'declined', 'in_progress', 'completed'];
@@ -136,7 +117,7 @@ router.put('/recommendations/:id/status', authenticateToken, async (req, res) =>
 });
 
 // DELETE /api/recommendations/:id - Delete recommendation
-router.delete('/recommendations/:id', authenticateToken, async (req, res) => {
+recRouter.delete('/:id', authenticateToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM audit_recommendations WHERE id = ?', [req.params.id]);
     res.json({ success: true, data: { message: 'Recommendation deleted' } });
@@ -145,10 +126,8 @@ router.delete('/recommendations/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ========================================
-
 // GET /api/recommendations/:id/threads - List threads
-router.get('/recommendations/:id/threads', authenticateToken, async (req, res) => {
+recRouter.get('/:id/threads', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM recommendation_threads WHERE recommendation_id = ? ORDER BY created_at ASC',
@@ -162,7 +141,7 @@ router.get('/recommendations/:id/threads', authenticateToken, async (req, res) =
 });
 
 // POST /api/recommendations/:id/threads - Add thread message
-router.post('/recommendations/:id/threads', authenticateToken, async (req, res) => {
+recRouter.post('/:id/threads', authenticateToken, async (req, res) => {
   try {
     const { message, author_type } = req.body;
     const id = generateId();
@@ -177,4 +156,4 @@ router.post('/recommendations/:id/threads', authenticateToken, async (req, res) 
   }
 });
 
-export default router;
+export { templateRouter, recRouter };

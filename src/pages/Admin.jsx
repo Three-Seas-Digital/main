@@ -10,6 +10,7 @@ import {
   FileSpreadsheet, LayoutDashboard, FileText, Layers, Menu,
   ClipboardList, Activity, Eye, Lightbulb, Search, Settings,
   Database, PieChart, Crosshair, Target, ClipboardCheck, Plus,
+  AlertTriangle, Filter, Grid3x3, Calculator, Brain,
 } from 'lucide-react';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
@@ -53,6 +54,14 @@ const ClientFinancials = lazy(() => import('../components/admin/BusinessIntellig
 const InterventionTracker = lazy(() => import('../components/admin/BusinessIntelligence/InterventionTracker'));
 const KPIDashboard = lazy(() => import('../components/admin/BusinessIntelligence/KPIDashboard'));
 const ExecutionTracker = lazy(() => import('../components/admin/BusinessIntelligence/ExecutionTracker'));
+const HealthOverview = lazy(() => import('../components/admin/BusinessIntelligence/HealthOverview'));
+const SWOTAnalysis = lazy(() => import('../components/admin/BusinessIntelligence/SWOTAnalysis'));
+const PortersFiveForces = lazy(() => import('../components/admin/BusinessIntelligence/PortersFiveForces'));
+const MarketSizing = lazy(() => import('../components/admin/BusinessIntelligence/MarketSizing'));
+const RiskAssessment = lazy(() => import('../components/admin/BusinessIntelligence/RiskAssessment'));
+const JourneyFunnel = lazy(() => import('../components/admin/BusinessIntelligence/JourneyFunnel'));
+const ForecastingEngine = lazy(() => import('../components/admin/BusinessIntelligence/ForecastingEngine'));
+const AIAdvisor = lazy(() => import('../components/admin/BusinessIntelligence/AIAdvisor'));
 
 
 /* ===== Sidebar navigation structure ===== */
@@ -74,6 +83,14 @@ const SIDEBAR_NAV = [
     { id: 'client-financials', label: 'Client Financials', icon: DollarSign, permission: 'manage_bi' },
     { id: 'interventions', label: 'Interventions', icon: Crosshair, permission: 'manage_bi' },
     { id: 'execution', label: '30/60/90 Plan', icon: Target, permission: 'manage_bi' },
+    { id: 'health-overview', label: 'Health Overview', icon: Grid3x3, permission: 'view_bi' },
+    { id: 'swot', label: 'SWOT Analysis', icon: Shield, permission: 'manage_bi' },
+    { id: 'porters', label: "Porter's Five Forces", icon: Layers, permission: 'manage_bi' },
+    { id: 'market-sizing', label: 'Market Sizing', icon: Calculator, permission: 'manage_bi' },
+    { id: 'risk', label: 'Risk Assessment', icon: AlertTriangle, permission: 'view_bi' },
+    { id: 'funnel', label: 'Journey Funnel', icon: Filter, permission: 'view_bi' },
+    { id: 'forecasting', label: 'Forecasting', icon: TrendingUp, permission: 'view_bi' },
+    { id: 'ai-advisor', label: 'AI Advisor', icon: Brain, permission: 'manage_bi' },
   ]},
   { id: 'business-db', label: 'Business Database', icon: Database, type: 'standalone', permission: 'view_sales' },
   { id: 'appointments', label: 'Appointments', icon: CalendarIcon, type: 'standalone', permission: 'view_appointments' },
@@ -705,6 +722,14 @@ export default function Admin() {
         {activeTab === 'interventions' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><InterventionTracker biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
         {activeTab === 'kpi-dashboard' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><KPIDashboard biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
         {activeTab === 'execution' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><ExecutionTracker biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'health-overview' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><HealthOverview biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'swot' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><SWOTAnalysis biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'porters' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><PortersFiveForces biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'market-sizing' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><MarketSizing biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'risk' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><RiskAssessment biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'funnel' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><JourneyFunnel biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'forecasting' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><ForecastingEngine biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
+        {activeTab === 'ai-advisor' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><AIAdvisor biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
           </div>
         </div>
       </div>

@@ -48,11 +48,14 @@ import userRoutes from './routes/users.js';
 import intakesRouter from './routes/intakes.js';
 import auditsRouter from './routes/audits.js';
 import auditCategoriesRouter from './routes/auditCategories.js';
-import recommendationsRouter from './routes/recommendations.js';
+import { templateRouter as recTemplateRouter, recRouter as recommendationsRouter } from './routes/recommendations.js';
 import portalRouter from './routes/portal.js';
 import clientFinancialsRouter from './routes/clientFinancials.js';
 import interventionsRouter from './routes/interventions.js';
 import aiRouter from './routes/ai.js';
+import growthTargetsRouter from './routes/growthTargets.js';
+import executionPlansRouter from './routes/executionPlans.js';
+import aiRecommendationsRouter from './routes/aiRecommendations.js';
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -77,9 +80,13 @@ app.use('/api/users', userRoutes);
 app.use('/api/intakes', intakesRouter);
 app.use('/api/audits', auditsRouter);
 app.use('/api/audit-categories', auditCategoriesRouter);
+app.use('/api/recommendation-templates', recTemplateRouter);
 app.use('/api/recommendations', recommendationsRouter);
 app.use('/api/portal', portalRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/clients', growthTargetsRouter);
+app.use('/api/clients', executionPlansRouter);
+app.use('/api/ai-recommendations', aiRecommendationsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

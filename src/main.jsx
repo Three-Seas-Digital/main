@@ -10,6 +10,10 @@ import './styles/footer.css'
 import './styles/admin.css'
 import './styles/client-portal.css'
 import './styles/demos.css'
+import './styles/templates.css'
+
+import './styles/account.css'
+
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
