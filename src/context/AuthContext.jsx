@@ -219,9 +219,15 @@ export function AuthProvider({ children }) {
 
   // On mount: try to restore session from stored JWT token
   const [apiChecked, setApiChecked] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
   useEffect(() => {
     const token = localStorage.getItem('threeseas_access_token');
     const isClientSession = !!localStorage.getItem(CLIENT_AUTH_KEY);
+    // Check if setup is needed (no admin exists)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/auth/setup`).then(r => r.json()).then(data => {
+      if (data.needsSetup) setNeedsSetup(true);
+    }).catch(() => {});
     // Skip admin /api/auth/me if this is a client session — the token is a client JWT
     if (token && !currentUser && !isClientSession) {
       authApi.me().then((user) => {
@@ -238,8 +244,6 @@ export function AuthProvider({ children }) {
       setApiChecked(true);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const needsSetup = apiChecked && users.length === 0 && !currentUser;
 
   const setupAdmin = async (userData) => {
     if (!needsSetup) return { success: false, error: 'Admin already configured' };

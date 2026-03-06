@@ -122,6 +122,19 @@ router.post('/register', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/auth/setup — Check if first-run setup is needed (no auth required)
+router.get('/setup', async (req, res) => {
+  try {
+    const [admins] = await pool.query(
+      "SELECT id FROM users WHERE role IN ('admin', 'owner') LIMIT 1"
+    );
+    res.json({ needsSetup: admins.length === 0 });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/auth/setup — First-run admin creation (no auth required)
 router.post('/setup', async (req, res) => {
   try {
