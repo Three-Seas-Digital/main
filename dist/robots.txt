@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /register
+
+Sitemap: https://threeseasdigital.com/sitemap.xml

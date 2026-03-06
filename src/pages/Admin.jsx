@@ -19,6 +19,7 @@ import { useAppContext } from '../context/AppContext';
 import { safeGetItem, safeSetItem } from '../constants';
 import AdminSetup from '../components/admin/AdminSetup';
 import AdminLogin from '../components/admin/AdminLogin';
+import ChangePasswordModal from '../components/admin/ChangePasswordModal';
 import NotificationsDropdown from '../components/admin/NotificationsDropdown';
 import { StatusBadge, RoleBadge, FollowUpBadge, formatDisplayDate, exportToICal } from '../components/admin/adminUtils';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -141,6 +142,7 @@ export default function Admin() {
   const [deleteApptInput, setDeleteApptInput] = useState('');
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [selectedAppointments, setSelectedAppointments] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const [biClientId, setBiClientId] = useState('');
@@ -344,8 +346,10 @@ export default function Admin() {
             </div>
             <div className="admin-header-actions">
               <NotificationsDropdown />
+              <button className="btn btn-outline btn-sm" onClick={() => setShowChangePassword(true)}><Settings size={16} /> Password</button>
               <button className="btn btn-outline btn-sm" onClick={logout}><LogOut size={16} /> Logout</button>
             </div>
+            {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
           </div>
         </div>
       </div>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left Sword (behind anchor) -->
+    <g transform="rotate(-40, 256, 280)">
+      <!-- Blade -->
+      <path d="M256 80 L264 88 L264 320 L256 332 L248 320 L248 88 Z" fill="#b0bec5" stroke="#1a2744" stroke-width="3"/>
+      <!-- Blade highlight -->
+      <path d="M252 90 L256 86 L260 90 L260 315 L256 325 L252 315 Z" fill="#cfd8dc" opacity="0.6"/>
+      <!-- Guard - curved cutlass style -->
+      <path d="M220 318 Q220 340 240 350 L248 320" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <path d="M292 318 Q292 340 272 350 L264 320" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <path d="M220 318 L292 318" stroke="#1a2744" stroke-width="4" fill="none"/>
+      <!-- Guard decorative circle -->
+      <circle cx="226" cy="322" r="5" fill="#cfd8dc" stroke="#1a2744" stroke-width="2"/>
+      <circle cx="286" cy="322" r="5" fill="#cfd8dc" stroke="#1a2744" stroke-width="2"/>
+      <!-- Grip -->
+      <rect x="247" y="348" width="18" height="40" rx="4" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <!-- Grip wrapping -->
+      <line x1="249" y1="355" x2="263" y2="355" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="362" x2="263" y2="362" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="369" x2="263" y2="369" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="376" x2="263" y2="376" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="383" x2="263" y2="383" stroke="#1a2744" stroke-width="1.5"/>
+      <!-- Pommel -->
+      <ellipse cx="256" cy="394" rx="12" ry="8" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+    </g>
+
+    <!-- Right Sword (behind anchor) -->
+    <g transform="rotate(40, 256, 280)">
+      <!-- Blade -->
+      <path d="M256 80 L264 88 L264 320 L256 332 L248 320 L248 88 Z" fill="#b0bec5" stroke="#1a2744" stroke-width="3"/>
+      <!-- Blade highlight -->
+      <path d="M252 90 L256 86 L260 90 L260 315 L256 325 L252 315 Z" fill="#cfd8dc" opacity="0.6"/>
+      <!-- Guard - curved cutlass style -->
+      <path d="M220 318 Q220 340 240 350 L248 320" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <path d="M292 318 Q292 340 272 350 L264 320" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <path d="M220 318 L292 318" stroke="#1a2744" stroke-width="4" fill="none"/>
+      <!-- Guard decorative circle -->
+      <circle cx="226" cy="322" r="5" fill="#cfd8dc" stroke="#1a2744" stroke-width="2"/>
+      <circle cx="286" cy="322" r="5" fill="#cfd8dc" stroke="#1a2744" stroke-width="2"/>
+      <!-- Grip -->
+      <rect x="247" y="348" width="18" height="40" rx="4" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+      <!-- Grip wrapping -->
+      <line x1="249" y1="355" x2="263" y2="355" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="362" x2="263" y2="362" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="369" x2="263" y2="369" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="376" x2="263" y2="376" stroke="#1a2744" stroke-width="1.5"/>
+      <line x1="249" y1="383" x2="263" y2="383" stroke="#1a2744" stroke-width="1.5"/>
+      <!-- Pommel -->
+      <ellipse cx="256" cy="394" rx="12" ry="8" fill="#8a9bae" stroke="#1a2744" stroke-width="3"/>
+    </g>
+
+    <!-- ANCHOR (on top) -->
+    <!-- Ring at top -->
+    <circle cx="256" cy="115" r="28" fill="none" stroke="#1a2744" stroke-width="14"/>
+    <circle cx="256" cy="115" r="28" fill="none" stroke="#0f1b33" stroke-width="10"/>
+
+    <!-- Stock (horizontal bar) -->
+    <rect x="190" y="160" width="132" height="18" rx="9" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Stock end caps -->
+    <circle cx="192" cy="169" r="12" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <circle cx="320" cy="169" r="12" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+
+    <!-- Shank (vertical bar) -->
+    <rect x="244" y="140" width="24" height="210" rx="4" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Shank center line -->
+    <line x1="256" y1="150" x2="256" y2="345" stroke="#2a3a5c" stroke-width="2" opacity="0.3"/>
+
+    <!-- Crown (where arms meet shank) -->
+    <rect x="230" y="340" width="52" height="16" rx="4" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+
+    <!-- Left Arm -->
+    <path d="M242 348 C242 348 230 380 190 410 C185 414 178 416 172 414 L160 406 C166 408 174 406 180 400 C215 372 235 348 235 348"
+          fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Left Fluke (pointed bill) -->
+    <path d="M190 410 L148 440 L160 406 Z" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Left palm -->
+    <path d="M172 414 L165 425 L155 420 L160 406" fill="#1a2744" stroke="#0f1b33" stroke-width="1.5"/>
+
+    <!-- Right Arm -->
+    <path d="M270 348 C270 348 282 380 322 410 C327 414 334 416 340 414 L352 406 C346 408 338 406 332 400 C297 372 277 348 277 348"
+          fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Right Fluke -->
+    <path d="M322 410 L364 440 L352 406 Z" fill="#1a2744" stroke="#0f1b33" stroke-width="2"/>
+    <!-- Right palm -->
+    <path d="M340 414 L347 425 L357 420 L352 406" fill="#1a2744" stroke="#0f1b33" stroke-width="1.5"/>
+  </g>
+</svg>

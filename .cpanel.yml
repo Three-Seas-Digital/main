@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/thretnah/public_html
+    - /bin/cp -R dist/index.html $DEPLOYPATH/
+    - /bin/cp -R dist/.htaccess $DEPLOYPATH/
+    - /bin/cp -R dist/assets $DEPLOYPATH/
+    - /bin/cp -R dist/images $DEPLOYPATH/

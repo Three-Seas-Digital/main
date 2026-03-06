@@ -185,6 +185,43 @@ router.post('/setup', async (req, res) => {
   }
 });
 
+// PUT /api/auth/change-password — Change own password (any authenticated user)
+router.put('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const [users] = await pool.query(
+      'SELECT id, password_hash FROM users WHERE id = ?',
+      [req.user.userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const valid = await bcrypt.compare(currentPassword, users[0].password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.user.userId]);
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/auth/logout — Clear refresh token
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
