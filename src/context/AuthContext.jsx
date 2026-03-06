@@ -232,9 +232,15 @@ export function AuthProvider({ children }) {
     if (token && !currentUser && !isClientSession) {
       authApi.me().then((user) => {
         setCurrentUser(user);
-        setUsers((prev) => {
-          const exists = prev.some((u) => u.id === user.id);
-          return exists ? prev : [...prev, user];
+        // Fetch full users list from API
+        usersApi.getAll().then((apiUsers) => {
+          setUsers(apiUsers);
+        }).catch(() => {
+          // Fallback: just add current user
+          setUsers((prev) => {
+            const exists = prev.some((u) => u.id === user.id);
+            return exists ? prev : [...prev, user];
+          });
         });
       }).catch(() => {
         localStorage.removeItem('threeseas_access_token');
