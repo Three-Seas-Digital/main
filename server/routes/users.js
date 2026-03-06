@@ -57,7 +57,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
-    const userRole = validRoles.includes(role) ? role : 'viewer';
+    const userRole = validRoles.includes(role) ? role : 'developer';
 
     const id = generateId();
     await pool.query(
@@ -103,7 +103,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req,
     }
 
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
-    const userRole = validRoles.includes(role) ? role : undefined;
+    const userRole = validRoles.includes(role) ? role : undefined; // undefined = keep existing role via COALESCE
     const resolvedName = displayName || name; // frontend sends "name", accept both
 
     // Handle password update if provided (raw plaintext from admin — hash it)
