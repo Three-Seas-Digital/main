@@ -95,7 +95,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req,
       return res.status(403).json({ error: 'Admins cannot modify other admin accounts' });
     }
 
-    const { username, role, displayName, name, email, status } = req.body;
+    const { username, password, role, displayName, name, email, status } = req.body;
 
     // Only owner can assign owner/admin roles
     if ((role === 'owner' || role === 'admin') && req.user.role !== 'owner') {
@@ -105,6 +105,12 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req,
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : undefined;
     const resolvedName = displayName || name; // frontend sends "name", accept both
+
+    // Handle password update if provided (raw plaintext from admin — hash it)
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, req.params.id]);
+    }
 
     await pool.query(
       `UPDATE users SET username = COALESCE(?, username), role = COALESCE(?, role),

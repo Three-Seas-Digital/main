@@ -380,11 +380,12 @@ export function AuthProvider({ children }) {
       const exists = users.some((u) => u.username === updates.username && u.id !== id);
       if (exists) return { success: false, error: 'Username already taken' };
     }
-    const processed = updates.password ? { ...updates, password: hashPassword(updates.password) } : updates;
+    const localUpdates = updates.password ? { ...updates, password: hashPassword(updates.password) } : updates;
     setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...processed } : u))
+      prev.map((u) => (u.id === id ? { ...u, ...localUpdates } : u))
     );
-    syncToApi(() => usersApi.update(id, processed), 'updateUser');
+    // Send raw password to server — server handles bcrypt hashing
+    syncToApi(() => usersApi.update(id, updates), 'updateUser');
     if (currentUser?.id === id) {
       setCurrentUser((prev) => ({ ...prev, ...updates }));
     }
