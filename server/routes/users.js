@@ -60,10 +60,11 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
     const userRole = validRoles.includes(role) ? role : 'developer';
 
     const id = generateId();
+    const resolvedName = displayName || req.body.name || username;
     await pool.query(
-      `INSERT INTO users (id, username, password_hash, role, display_name, email, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
-      [id, username, passwordHash, userRole, displayName || username, email || null]
+      `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, userRole, resolvedName, resolvedName, email || null]
     );
 
     res.status(201).json({
