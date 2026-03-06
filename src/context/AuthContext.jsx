@@ -301,6 +301,10 @@ export function AuthProvider({ children }) {
       }
       const apiUser = data.user || { username, role: data.role };
       setCurrentUser(apiUser);
+      // Fetch full users list from API after login
+      usersApi.getAll().then((apiUsers) => {
+        setUsers(apiUsers);
+      }).catch(() => {});
       return { success: true, user: apiUser };
     } catch (apiErr) {
       // API login failed — fall back to client-side auth
