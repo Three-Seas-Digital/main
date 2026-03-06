@@ -5958,8 +5958,8 @@
   background: var(--glass-bg); backdrop-filter: var(--glass-blur);
   border-radius: 14px;
   width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
+  max-width: 960px;
+  max-height: 92vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: portalDocSlideUp 0.25s ease;
@@ -6039,7 +6039,8 @@
 
 .portal-doc-modal-content iframe {
   width: 100%;
-  height: 600px;
+  height: calc(80vh - 120px);
+  min-height: 500px;
   border: 1px solid  var(--glass-border);
   border-radius: 8px;
 }
@@ -6079,10 +6080,11 @@
     width: 100%;
   }
   .portal-doc-modal {
-    max-height: 85vh;
+    max-height: 88vh;
   }
   .portal-doc-modal-content iframe {
-    height: 350px;
+    height: 60vh;
+    min-height: 300px;
   }
 }
 
@@ -6188,6 +6190,81 @@
   align-items: center;
   gap: 6px;
   margin-top: 16px;
+}
+
+.portal-onboarding-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.portal-onboarding-expand-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.portal-onboarding-readonly-value {
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.portal-onboarding-intake-readonly {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+:root.light-theme .portal-onboarding-expand-btn {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.1);
+  color: var(--text-secondary);
+}
+:root.light-theme .portal-onboarding-expand-btn:hover {
+  background: rgba(0,0,0,0.06);
+  color: var(--text-primary);
+}
+:root.light-theme .portal-onboarding-readonly-value {
+  background: rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* ===== Project Form ===== */
+.portal-onboarding-project-form {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.portal-onboarding-project-form input {
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: rgba(255,255,255,0.04); color: var(--text-primary); font-size: 0.88rem;
+  transition: border-color 0.15s;
+}
+.portal-onboarding-project-form input:focus {
+  outline: none; border-color: var(--jelly-cyan);
+}
+.portal-onboarding-project-btn {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 8px 18px; margin-top: 4px;
+  background: var(--jelly-cyan); color: #0a0e17; border: none; border-radius: var(--radius);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+}
+.portal-onboarding-project-btn:hover { opacity: 0.85; }
+.portal-onboarding-project-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+:root.light-theme .portal-onboarding-project-form input {
+  background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.12);
 }
 
 /* ===== Intake Form ===== */

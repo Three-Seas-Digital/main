@@ -147,10 +147,11 @@ router.post('/:id/scores', authenticateToken, requireRole('owner', 'admin', 'man
            existing[0].id]
         );
       } else {
+        const scoreId = generateId();
         await pool.query(
-          `INSERT INTO audit_scores (audit_id, category_id, score, weight, internal_notes, client_summary, evidence_urls)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [auditId, s.category_id, s.score, s.weight || 1, s.internal_notes || null,
+          `INSERT INTO audit_scores (id, audit_id, category_id, score, weight, internal_notes, client_summary, evidence_urls)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [scoreId, auditId, s.category_id, s.score, s.weight || 1, s.internal_notes || null,
            s.client_summary || null, s.evidence_urls ? JSON.stringify(s.evidence_urls) : null]
         );
       }
@@ -201,9 +202,10 @@ router.post('/:id/subcriteria-scores', authenticateToken, requireRole('owner', '
           [s.score, s.notes || null, existing[0].id]
         );
       } else {
+        const subScoreId = generateId();
         await pool.query(
-          'INSERT INTO audit_subcriteria_scores (audit_score_id, subcriteria_id, score, notes) VALUES (?, ?, ?, ?)',
-          [s.audit_score_id, s.subcriteria_id, s.score, s.notes || null]
+          'INSERT INTO audit_subcriteria_scores (id, audit_score_id, subcriteria_id, score, notes) VALUES (?, ?, ?, ?, ?)',
+          [subScoreId, s.audit_score_id, s.subcriteria_id, s.score, s.notes || null]
         );
       }
     }
@@ -220,12 +222,16 @@ router.post('/:auditId/recommendations', authenticateToken, requireRole('owner',
   try {
     const { auditId } = req.params;
     const { category_id, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
+    // Look up client_id from the audit
+    const [auditRow] = await pool.query('SELECT client_id FROM business_audits WHERE id = ?', [auditId]);
+    if (auditRow.length === 0) return res.status(404).json({ success: false, error: 'Audit not found' });
+    const clientId = auditRow[0].client_id;
     const id = generateId();
     await pool.query(
-      `INSERT INTO audit_recommendations (id, audit_id, category_id, title, description, priority,
+      `INSERT INTO audit_recommendations (id, audit_id, client_id, category_id, title, description, priority,
        estimated_cost_min, estimated_cost_max, estimated_timeline, status, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,
-      [id, auditId, category_id || null, title, description || null, priority || 'medium',
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,
+      [id, auditId, clientId, category_id || null, title, description || null, priority || 'medium',
        estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.user.userId]
     );
     res.status(201).json({ success: true, data: { id, message: 'Recommendation added' } });

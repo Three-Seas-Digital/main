@@ -5,6 +5,7 @@ import {
   Layout, Sparkles, Zap, ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import '../styles/templates.css';
 
 /* ===== TEMPLATES SIGN IN / SIGN UP =====
  * Separate from Client Portal - for template customers
@@ -115,7 +116,7 @@ function AuthCard() {
               </button>
             </div>
           </div>
-          <button type="submit" className="templates-auth-btn">
+          <button type="submit" className="templates-auth-submit">
             <Zap size={18} />
             Sign In
           </button>
@@ -181,7 +182,7 @@ function AuthCard() {
               />
             </div>
           </div>
-          <button type="submit" className="templates-auth-btn">
+          <button type="submit" className="templates-auth-submit">
             <Sparkles size={18} />
             Create Account
           </button>
@@ -192,17 +193,18 @@ function AuthCard() {
         <span>{isLogin ? "Don't have an account?" : "Already have an account?"}</span>
       </div>
 
-      <button 
-        type="button" 
-        className="templates-auth-link"
-        onClick={() => {
-          setIsLogin(!isLogin);
-          setError('');
-          setSuccess('');
-        }}
-      >
-        {isLogin ? 'Create free account' : 'Sign in to existing account'}
-      </button>
+      <div className="templates-auth-toggle">
+        <button
+          type="button"
+          onClick={() => {
+            setIsLogin(!isLogin);
+            setError('');
+            setSuccess('');
+          }}
+        >
+          {isLogin ? 'Create free account' : 'Sign in to existing account'}
+        </button>
+      </div>
     </div>
   );
 }

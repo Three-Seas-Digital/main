@@ -37,4 +37,13 @@ export const portalApi = {
   // Notifications
   getNotifications: () => api.get('/portal/notifications').then(r => r.data),
   updateNotificationPrefs: (prefs) => api.put('/portal/notification-prefs', prefs).then(r => r.data),
+
+  // Profile
+  updateProfile: (data) => api.put('/portal/profile', data).then(r => r.data),
+
+  // Onboarding
+  updateOnboarding: (onboarding) => api.put('/portal/onboarding', { onboarding }).then(r => r.data),
+
+  // Projects
+  createProject: (data) => api.post('/portal/projects', data).then(r => r.data),
 };

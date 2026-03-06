@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import pool from '../config/db.js';
 import { authenticateToken, generateTokens, verifyRefreshToken } from '../middleware/auth.js';
 import { loginRateLimit } from '../middleware/rateLimit.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -63,6 +64,7 @@ router.post('/login', loginRateLimit(5, 60000), async (req, res) => {
         id: user.id,
         username: user.username,
         role: user.role,
+        name: user.display_name,
         displayName: user.display_name,
         email: user.email,
       },
@@ -100,14 +102,15 @@ router.post('/register', authenticateToken, async (req, res) => {
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : 'developer';
 
-    const [result] = await pool.query(
-      `INSERT INTO users (username, password_hash, role, display_name, email, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'active', NOW())`,
-      [username, passwordHash, userRole, displayName || username, email || null]
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, userRole, displayName || username, displayName || username, email || null]
     );
 
     res.status(201).json({
-      id: result.insertId,
+      id,
       username,
       role: userRole,
       displayName: displayName || username,
@@ -137,21 +140,22 @@ router.post('/setup', async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    const [result] = await pool.query(
-      `INSERT INTO users (username, password_hash, role, display_name, email, status, created_at)
-       VALUES (?, ?, 'admin', ?, ?, 'active', NOW())`,
-      [username, passwordHash, displayName || username, email || null]
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
+       VALUES (?, ?, ?, 'admin', ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, displayName || username, displayName || username, email || null]
     );
 
     // Auto-login the new admin
     const tokenPayload = {
-      userId: result.insertId,
+      userId: id,
       username,
       role: 'admin',
       userType: 'admin',
@@ -161,14 +165,14 @@ router.post('/setup', async (req, res) => {
 
     await pool.query(
       'UPDATE users SET refresh_token = ?, last_login = NOW() WHERE id = ?',
-      [refreshToken, result.insertId]
+      [refreshToken, id]
     );
 
     res.status(201).json({
       accessToken,
       refreshToken,
       user: {
-        id: result.insertId,
+        id,
         username,
         role: 'admin',
         displayName: displayName || username,
@@ -212,6 +216,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       id: user.id,
       username: user.username,
       role: user.role,
+      name: user.display_name,
       displayName: user.display_name,
       email: user.email,
       status: user.status,

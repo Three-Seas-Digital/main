@@ -100,7 +100,7 @@ recRouter.put('/:id', authenticateToken, async (req, res) => {
 recRouter.put('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['pending', 'accepted', 'declined', 'in_progress', 'completed'];
+    const validStatuses = ['proposed', 'pending', 'accepted', 'declined', 'in_progress', 'completed'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status. Must be: ' + validStatuses.join(', ') });
     }

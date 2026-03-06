@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { upload, setUploadType } from '../middleware/upload.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 
@@ -42,13 +43,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // POST /api/prospects — Create prospect
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
-    const { businessName, contactName, email, phone, stage, source, notes, estimatedValue } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO prospects (business_name, contact_name, email, phone, stage, source, notes, estimated_value, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [businessName, contactName || null, email || null, phone || null, stage || 'new', source || 'manual', notes || null, estimatedValue || null]
+    const { id: bodyId, businessName, contactName, email, phone, stage, source, notes, estimatedValue } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO prospects (id, business_name, contact_name, email, phone, stage, source, notes, estimated_value, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, businessName, contactName || null, email || null, phone || null, stage || 'new', source || 'manual', notes || null, estimatedValue || null]
     );
-    res.status(201).json({ id: result.insertId, message: 'Prospect created' });
+    res.status(201).json({ id, message: 'Prospect created' });
   } catch (err) {
     console.error('[prospects] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -74,8 +76,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/prospects/:id — Delete prospect
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
-    await pool.query('DELETE FROM prospect_notes WHERE prospect_id = ?', [req.params.id]);
-    await pool.query('DELETE FROM prospect_documents WHERE prospect_id = ?', [req.params.id]);
+    // prospect_notes and prospect_documents have ON DELETE CASCADE
     await pool.query('DELETE FROM prospects WHERE id = ?', [req.params.id]);
     res.json({ message: 'Prospect deleted' });
   } catch (err) {
@@ -90,11 +91,12 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'
 router.post('/:id/notes', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
     const { text } = req.body;
-    const [result] = await pool.query(
-      'INSERT INTO prospect_notes (prospect_id, text, author, created_at) VALUES (?, ?, ?, NOW())',
-      [req.params.id, text, req.user.username]
+    const noteId = generateId();
+    await pool.query(
+      'INSERT INTO prospect_notes (id, prospect_id, text, author, created_at) VALUES (?, ?, ?, ?, NOW())',
+      [noteId, req.params.id, text, req.user.username]
     );
-    res.status(201).json({ id: result.insertId, message: 'Note added' });
+    res.status(201).json({ id: noteId, message: 'Note added' });
   } catch (err) {
     console.error('[prospects] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -121,12 +123,13 @@ router.post('/:id/documents', authenticateToken, requireRole('owner', 'admin', '
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'File required' });
 
-    const [result] = await pool.query(
-      `INSERT INTO prospect_documents (prospect_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [req.params.id, name || file.originalname, type || 'other', description || null, file.path, file.size, file.mimetype, req.user.username]
+    const docId = generateId();
+    await pool.query(
+      `INSERT INTO prospect_documents (id, prospect_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [docId, req.params.id, name || file.originalname, type || 'other', description || null, file.path, file.size, file.mimetype, req.user.username]
     );
-    res.status(201).json({ id: result.insertId, message: 'Document uploaded' });
+    res.status(201).json({ id: docId, message: 'Document uploaded' });
   } catch (err) {
     console.error('[prospects] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -155,26 +158,27 @@ router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'a
     const prospect = prospects[0];
 
     // Create client from prospect data
-    const [result] = await pool.query(
-      `INSERT INTO clients (name, email, phone, business_name, tier, status, source, source_prospect_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'active', 'pipeline', ?, NOW())`,
-      [prospect.contact_name || prospect.business_name, prospect.email, prospect.phone, prospect.business_name, req.body.tier || 'starter', prospect.id]
+    const clientId = generateId();
+    await pool.query(
+      `INSERT INTO clients (id, name, email, phone, business_name, tier, status, source, source_prospect_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', 'pipeline', ?, NOW())`,
+      [clientId, prospect.contact_name || prospect.business_name, prospect.email, prospect.phone, prospect.business_name, req.body.tier || 'free', prospect.id]
     );
 
     // Transfer documents
     await pool.query(
-      `INSERT INTO client_documents (client_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
-       SELECT ?, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at
+      `INSERT INTO client_documents (id, client_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
+       SELECT CONCAT(UNIX_TIMESTAMP(), '-', SUBSTRING(MD5(RAND()), 1, 7)), ?, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at
        FROM prospect_documents WHERE prospect_id = ?`,
-      [result.insertId, req.params.id]
+      [clientId, req.params.id]
     );
 
     // Transfer notes
     await pool.query(
-      `INSERT INTO client_notes (client_id, text, author, created_at)
-       SELECT ?, text, author, created_at
+      `INSERT INTO client_notes (id, client_id, text, author, created_at)
+       SELECT CONCAT(UNIX_TIMESTAMP(), '-', SUBSTRING(MD5(RAND()), 1, 7)), ?, text, author, created_at
        FROM prospect_notes WHERE prospect_id = ?`,
-      [result.insertId, req.params.id]
+      [clientId, req.params.id]
     );
 
     // Update prospect stage
@@ -183,7 +187,7 @@ router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'a
       [req.params.id]
     );
 
-    res.status(201).json({ clientId: result.insertId, message: 'Prospect converted to client' });
+    res.status(201).json({ clientId, message: 'Prospect converted to client' });
   } catch (err) {
     console.error('[prospects] Error:', err);
     res.status(500).json({ error: 'Server error' });

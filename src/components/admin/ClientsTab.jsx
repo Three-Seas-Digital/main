@@ -10,6 +10,9 @@ import {
 import { useAppContext } from '../../context/AppContext';
 import { StatusBadge, FollowUpBadge, TierBadge, formatDisplayDate } from './adminUtils';
 import ProjectBoard from './ProjectBoard';
+import { downloadDocumentFromR2 } from '../../utils/documentStorage';
+import { generateContractPdf, generateProposalPdf, generateIntakePdf } from '../../utils/generateOnboardingPdfs';
+import { safeGetItem } from '../../constants';
 
 export default function ClientsTab({ onClientViewed }) {
   const {
@@ -20,7 +23,7 @@ export default function ClientsTab({ onClientViewed }) {
     addInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
     updateClientTier, payments, SUBSCRIPTION_TIERS, RECURRING_FREQUENCIES,
     addClientDocument, deleteClientDocument, DOCUMENT_TYPES,
-    changeClientPassword,
+    changeClientPassword, reopenOnboarding,
   } = useAppContext();
   const canManage = hasPermission('manage_clients');
   const canDelete = hasPermission('delete_clients');
@@ -34,6 +37,7 @@ export default function ClientsTab({ onClientViewed }) {
   const [addError, setAddError] = useState('');
   const [confirmArchive, setConfirmArchive] = useState(null);
   const [confirmPermanentDelete, setConfirmPermanentDelete] = useState(null);
+  const [confirmReopenOnboarding, setConfirmReopenOnboarding] = useState(null);
   const [showArchivedClients, setShowArchivedClients] = useState(false);
   const [filterTier, setFilterTier] = useState('all');
   const [filterService, setFilterService] = useState('all');
@@ -58,6 +62,7 @@ export default function ClientsTab({ onClientViewed }) {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [viewingDocument, setViewingDocument] = useState(null);
   const [deleteDocConfirm, setDeleteDocConfirm] = useState(null);
+  const [loadingDocId, setLoadingDocId] = useState(null);
   const [deleteNoteConfirm, setDeleteNoteConfirm] = useState(null);
   const [deleteInvoiceConfirm, setDeleteInvoiceConfirm] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -97,6 +102,7 @@ export default function ClientsTab({ onClientViewed }) {
   // Active clients (exclude pending and archived)
   const filtered = useMemo(() => clients
     .filter((c) => c.status !== 'pending' && c.status !== 'archived')
+    .filter((c) => !c.onboarding || c.onboarding.complete)
     .filter((c) => filterStatus === 'all' || c.status === filterStatus)
     .filter((c) => filterTier === 'all' || (c.tier || 'free') === filterTier)
     .filter((c) => filterService === 'all' || c.service === filterService)
@@ -259,13 +265,70 @@ export default function ClientsTab({ onClientViewed }) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const downloadDocument = (doc) => {
+  const fetchDocData = async (doc) => {
+    if (doc.fileData) return doc.fileData;
+    // Fetch from R2
+    try {
+      const dataUri = await downloadDocumentFromR2(doc.id);
+      if (dataUri) return dataUri;
+    } catch { /* ignore */ }
+    return null;
+  };
+
+  const handleViewDocument = async (doc) => {
+    if (doc.fileData) {
+      setViewingDocument(doc);
+      return;
+    }
+    setLoadingDocId(doc.id);
+    const data = await fetchDocData(doc);
+    setLoadingDocId(null);
+    setViewingDocument(data ? { ...doc, fileData: data } : doc);
+  };
+
+  const downloadDocument = async (doc) => {
+    const href = await fetchDocData(doc);
+    if (!href) return;
     const link = document.createElement('a');
-    link.href = doc.fileData;
+    link.href = href;
     link.download = doc.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Regenerate a missing onboarding document PDF and upload to R2
+  const handleRegenerateDocument = async (doc) => {
+    if (!client) return;
+    const docType = doc.type; // intake, contract, proposal, welcome_packet
+    const tierData = SUBSCRIPTION_TIERS[client.tier] || SUBSCRIPTION_TIERS.free;
+    const intakes = safeGetItem('threeseas_bi_intakes', {});
+    const intakeData = intakes[client.id] || {};
+    const onbEntry = client.onboarding?.documents?.[docType] || {};
+    const sigOpts = onbEntry.signatureData ? { signatureData: onbEntry.signatureData, signedAt: onbEntry.signedAt } : {};
+
+    setLoadingDocId(doc.id);
+    try {
+      let pdfData;
+      if (docType === 'contract') {
+        pdfData = await generateContractPdf(client, tierData, sigOpts);
+      } else if (docType === 'proposal') {
+        pdfData = await generateProposalPdf(client, tierData, intakeData, {}, sigOpts);
+      } else if (docType === 'intake') {
+        pdfData = await generateIntakePdf(client, intakeData);
+      }
+      if (pdfData) {
+        pdfData.description = onbEntry.signatureData
+          ? `${doc.name} — signed and approved`
+          : `${doc.name} — regenerated`;
+        addClientDocument(client.id, pdfData);
+        setViewingDocument({ ...doc, fileData: pdfData.fileData });
+      }
+    } catch (err) {
+      console.error('[ClientsTab] Regenerate failed:', err);
+    } finally {
+      setLoadingDocId(null);
+    }
   };
 
   // Client detail view
@@ -417,6 +480,21 @@ export default function ClientsTab({ onClientViewed }) {
                     <option key={key} value={key}>{t.label} Tier</option>
                   ))}
                 </select>
+              )}
+              {canManage && client.onboarding?.complete && (
+                <>
+                  {confirmReopenOnboarding === client.id ? (
+                    <div className="confirm-delete-row">
+                      <span>Send back to onboarding?</span>
+                      <button className="btn btn-sm btn-primary" onClick={() => { reopenOnboarding(client.id); setConfirmReopenOnboarding(null); setSelectedClient(null); }}>Yes, Reopen</button>
+                      <button className="btn btn-sm btn-outline" onClick={() => setConfirmReopenOnboarding(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-sm btn-outline" onClick={() => setConfirmReopenOnboarding(client.id)}>
+                      <RefreshCw size={14} /> Back to Onboarding
+                    </button>
+                  )}
+                </>
               )}
               {canDelete && (
                 <>
@@ -733,8 +811,8 @@ export default function ClientsTab({ onClientViewed }) {
                       </div>
                     </div>
                     <div className="document-actions">
-                      <button className="btn btn-sm btn-outline" onClick={() => setViewingDocument(doc)} title="Preview">
-                        <Eye size={14} />
+                      <button className="btn btn-sm btn-outline" onClick={() => handleViewDocument(doc)} title="Preview" disabled={loadingDocId === doc.id}>
+                        {loadingDocId === doc.id ? <RefreshCw size={14} className="spin" /> : <Eye size={14} />}
                       </button>
                       <button className="btn btn-sm btn-primary" onClick={() => downloadDocument(doc)} title="Download">
                         <Download size={14} />
@@ -777,17 +855,23 @@ export default function ClientsTab({ onClientViewed }) {
                   <span><CalendarDays size={14} /> {new Date(viewingDocument.uploadedAt).toLocaleString()}</span>
                 </div>
                 <div className="document-preview-content">
-                  {viewingDocument.fileType?.startsWith('image/') ? (
+                  {viewingDocument.fileData && viewingDocument.fileType?.startsWith('image/') ? (
                     <img src={viewingDocument.fileData} alt={viewingDocument.name} />
-                  ) : viewingDocument.fileType === 'application/pdf' ? (
+                  ) : viewingDocument.fileData && viewingDocument.fileType === 'application/pdf' ? (
                     <iframe src={viewingDocument.fileData} title={viewingDocument.name} />
                   ) : (
                     <div className="document-no-preview">
                       <FileText size={48} />
-                      <p>Preview not available for this file type</p>
-                      <button className="btn btn-primary" onClick={() => downloadDocument(viewingDocument)}>
-                        <Download size={16} /> Download to View
-                      </button>
+                      <p>{viewingDocument.fileData ? 'Preview not available for this file type' : 'Document not found in storage.'}</p>
+                      {viewingDocument.fileData ? (
+                        <button className="btn btn-primary" onClick={() => downloadDocument(viewingDocument)}>
+                          <Download size={16} /> Download to View
+                        </button>
+                      ) : ['intake', 'contract', 'proposal'].includes(viewingDocument.type) ? (
+                        <button className="btn btn-primary" onClick={() => handleRegenerateDocument(viewingDocument)} disabled={loadingDocId === viewingDocument.id}>
+                          {loadingDocId === viewingDocument.id ? <><RefreshCw size={16} className="spin" /> Regenerating...</> : <><RefreshCw size={16} /> Regenerate Document</>}
+                        </button>
+                      ) : null}
                     </div>
                   )}
                 </div>

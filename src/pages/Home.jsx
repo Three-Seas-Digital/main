@@ -1,17 +1,14 @@
 import { useEffect, useRef, useLayoutEffect, useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
+import '../styles/home.css';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useMouseParallax } from '../hooks/useMouseParallax';
 import {
   ArrowRight,
   ChevronRight,
-  BarChart3,
   Code2,
   Brain,
-  TrendingUp,
-  Shield,
-  Bell,
-  Lock,
   Zap,
   Accessibility,
   Palette,
@@ -25,7 +22,7 @@ import {
 gsap.registerPlugin(ScrollTrigger);
 
 // Lazy load heavy components for better initial load performance
-const EnergyField = lazy(() => import('../components/EnergyField'));
+const DeepSeaCreatures = lazy(() => import('../components/DeepSeaCreatures'));
 
 /* ── Reusable pinned-section animation ── */
 // ANIMATION STYLE OPTIONS:
@@ -71,6 +68,13 @@ function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {},
       if (opts.bgRef?.current) {
         tl.fromTo(opts.bgRef.current, { scale: 1.12, opacity: 0 }, { scale: 1.0, opacity: 1, ease: 'none' }, 0)
           .fromTo(opts.bgRef.current, { scale: 1.0, opacity: 1 }, { scale: 1.08, opacity: 0, ease: 'power2.in' }, 0.7);
+      }
+
+      // Depth parallax: background drifts at different rate than foreground
+      const depthBg = opts.bgRef?.current || section.querySelector('.editorial-bg');
+      if (depthBg) {
+        const depthScale = (window.innerWidth <= 768) ? 0.4 : 1.0;
+        tl.fromTo(depthBg, { yPercent: 3 * depthScale }, { yPercent: -3 * depthScale, ease: 'none' }, 0);
       }
 
       // Get card items for stagger animations
@@ -235,8 +239,64 @@ function usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, opts = {},
 
 /* ── Video Hero (static, not pinned) ── */
 function VideoHero() {
+  const heroSectionRef = useRef(null);
+  const videoWrapRef = useRef(null);
+  const hookRef = useRef(null);
   const videoARef = useRef(null);
   const videoBRef = useRef(null);
+
+  // Hero scroll parallax: video at 0.3x speed, text fades out faster
+  useEffect(() => {
+    const section = heroSectionRef.current;
+    const videoWrap = videoWrapRef.current;
+    const hook = hookRef.current;
+    if (!section || !videoWrap || !hook) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
+    const isMobile = window.innerWidth <= 768;
+    const intensity = isMobile ? 0.5 : 1.0;
+
+    gsap.set(videoWrap, { scale: 1.12, willChange: 'transform', force3D: true });
+    gsap.set(hook, { willChange: 'transform, opacity', force3D: true });
+
+    const ctx = gsap.context(() => {
+      gsap.to(videoWrap, {
+        y: () => -window.innerHeight * 0.3 * intensity,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+      });
+
+      gsap.to(hook, {
+        y: () => -window.innerHeight * 0.35 * intensity,
+        opacity: 0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: '60% top',
+          scrub: true,
+        },
+      });
+    }, section);
+
+    return () => {
+      ctx.revert();
+      gsap.set([videoWrap, hook], { willChange: 'auto' });
+    };
+  }, []);
+
+  // Mouse parallax: hero text and video respond to cursor
+  useMouseParallax(heroSectionRef, [
+    { ref: hookRef, depth: 10 },
+    { ref: videoWrapRef, depth: 4 },
+  ]);
 
   // Dual-video ping-pong: two identical <video> elements alternate.
   // When the active one nears its end, the standby one starts from 0
@@ -315,13 +375,13 @@ function VideoHero() {
   };
 
   return (
-    <section className="video-hero">
-      <div className="hero-video-wrap">
+    <section className="video-hero" ref={heroSectionRef}>
+      <div className="hero-video-wrap" ref={videoWrapRef}>
         <video ref={videoARef} {...videoProps} autoPlay />
         <video ref={videoBRef} {...videoProps} style={{ opacity: 0 }} />
         <div className="hero-video-overlay" />
       </div>
-      <div className="hero-hook">
+      <div className="hero-hook" ref={hookRef}>
         <span className="hero-hook-label">THREE SEAS DIGITAL</span>
         <h1 className="hero-hook-headline">
           Navigate the <span className="hero-hook-accent">digital deep</span><br />
@@ -343,12 +403,49 @@ function NavigateSection() {
   const rightRef = useRef(null);
   const headlineRef = useRef(null);
   const bgRef = useRef(null);
+  const videoRef = useRef(null);
+
+  // Lazy-load the background video: only fetch + play when section is near viewport
+  useEffect(() => {
+    const video = videoRef.current;
+    const section = sectionRef.current;
+    if (!video || !section) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          // Trigger load and play once section enters viewport
+          video.load();
+          video.play().catch(() => {});
+          obs.disconnect();
+        }
+      },
+      { rootMargin: '200px' }  // start loading 200px before it enters view
+    );
+    obs.observe(section);
+    return () => obs.disconnect();
+  }, []);
 
   usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, { bgRef }, 'converge');
+  useMouseParallax(sectionRef, [
+    { ref: leftRef, depth: 6 },
+    { ref: rightRef, depth: 6 },
+    { ref: bgRef, depth: 4 },
+  ]);
 
   return (
     <section ref={sectionRef} className="section-pinned" style={{ zIndex: 10 }}>
-      <div ref={bgRef} className="editorial-bg" style={{ backgroundImage: 'url(/images/3seasship.jpeg)', backgroundPosition: 'center center' }}>
+      <div ref={bgRef} className="editorial-bg">
+        {/* preload="none" prevents eager network fetch — IntersectionObserver triggers load */}
+        <video
+          ref={videoRef}
+          src="/images/admiral.mp4"
+          preload="none"
+          loop
+          muted
+          playsInline
+          className="editorial-bg-video"
+        />
         <div className="editorial-bg-overlay editorial-bg-overlay--dark" />
       </div>
 
@@ -401,8 +498,8 @@ function NavigateSection() {
   );
 }
 
-/* ── Lighthouse Beam WebGL ── */
-const BEAM_VERT = `
+/* ── Circuit Board WebGL ── */
+const CIRCUIT_VERT = `
 attribute vec2 a_position;
 varying vec2 v_uv;
 void main() {
@@ -410,68 +507,182 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-const BEAM_FRAG = `
+const CIRCUIT_FRAG = `
 precision mediump float;
 uniform float u_time;
 uniform vec2 u_resolution;
-uniform vec2 u_origin;
 varying vec2 v_uv;
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// Rounded box SDF for pads
+float sdRoundBox(vec2 p, vec2 b, float r) {
+  vec2 d = abs(p) - b;
+  return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
+}
 
 void main() {
   vec2 uv = v_uv;
   float aspect = u_resolution.x / u_resolution.y;
-  uv.x *= aspect;
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  float t = u_time;
 
-  // Origin in aspect-corrected space
-  vec2 origin = vec2(u_origin.x * aspect, u_origin.y);
+  vec3 color = vec3(0.0);
 
-  vec2 dir = uv - origin;
-  float dist = length(dir);
-  float angle = atan(dir.x, dir.y);
+  // Grid scale — denser grid = more detail
+  float scale = 12.0;
+  vec2 gp = p * scale;
+  vec2 cell = floor(gp);
+  vec2 fp = fract(gp);
 
-  // Rotating beam — two opposing cones
-  float beamAngle = u_time * 0.1;
-  float cone1 = cos(angle - beamAngle);
-  float cone2 = cos(angle - beamAngle + 3.14159);
+  // ── Traces (horizontal + vertical lines along grid) ──
+  float traceBright = 0.0;
 
-  // Narrow the beam cone (lower power = wider beam)
-  float beam1 = pow(max(0.0, cone1), 2.0);
-  float beam2 = pow(max(0.0, cone2), 2.0);
-  float beam = max(beam1, beam2);
-
-  // Distance falloff — light fades with distance
-  float falloff = 1.0 / (1.0 + dist * 2.2);
-
-  // Atmospheric scattering — soft glow around origin
-  float glow = exp(-dist * 3.0) * 0.6;
-
-  // Fog/haze interaction — beam picks up more near the bottom
-  float haze = smoothstep(0.9, 0.0, uv.y) * 0.3;
-
-  // Subtle flicker
-  float flicker = 0.92 + 0.08 * sin(u_time * 3.7 + sin(u_time * 7.3) * 0.5);
-
-  // Combine
-  float intensity = (beam * falloff + glow + beam * haze) * flicker;
-
-  // Platinum white light with emerald tint
-  vec3 lightColor = vec3(0.98, 0.97, 0.95);
-  vec3 color = lightColor * intensity * 0.4;
-
-  // God rays — streaks radiating outward
-  float rays = 0.0;
-  for (float i = 0.0; i < 6.0; i++) {
-    float rayAngle = beamAngle + i * 1.0472; // 60deg spacing
-    float rayAlign = pow(max(0.0, cos(angle - rayAngle)), 5.0);
-    rays += rayAlign * falloff * 0.25;
+  // Horizontal trace — razor-thin lines
+  float hRand = hash(vec2(cell.y, 0.0));
+  if (hRand > 0.35) {
+    float hDist = abs(fp.y - 0.5);
+    // Sharp core + soft bloom
+    float hCore = smoothstep(0.015, 0.0, hDist) * 0.5;
+    float hBloom = exp(-hDist * 120.0) * 0.2;
+    float hLine = hCore + hBloom;
+    // Pulse traveling along the trace
+    float pulseX = fract(t * 0.2 * (0.5 + hRand) + hRand * 5.0);
+    float pDist = abs((gp.x - cell.x) / scale - pulseX);
+    float pulse = exp(-pDist * 12.0 * scale) * 0.8;
+    traceBright += hLine + hLine * pulse * 2.5;
   }
-  color += lightColor * rays;
 
-  float alpha = clamp(intensity * 0.6 + rays * 0.4, 0.0, 1.0);
+  // Vertical trace
+  float vRand = hash(vec2(0.0, cell.x));
+  if (vRand > 0.35) {
+    float vDist = abs(fp.x - 0.5);
+    float vCore = smoothstep(0.015, 0.0, vDist) * 0.5;
+    float vBloom = exp(-vDist * 120.0) * 0.2;
+    float vLine = vCore + vBloom;
+    float pulseY = fract(t * 0.18 * (0.5 + vRand) + vRand * 7.0);
+    float pDist = abs((gp.y - cell.y) / scale - pulseY);
+    float pulse = exp(-pDist * 12.0 * scale) * 0.8;
+    traceBright += vLine + vLine * pulse * 2.5;
+  }
+
+  // ── Corner turns / elbows at intersections ──
+  float cornerRand = hash(cell);
+  if (cornerRand > 0.6) {
+    float cornerDist = length(fp - 0.5);
+    float cornerCore = smoothstep(0.012, 0.0, abs(cornerDist - 0.15)) * 0.35;
+    float cornerBloom = exp(-abs(cornerDist - 0.15) * 80.0) * 0.15;
+    float cornerArc = cornerCore + cornerBloom;
+    // Only show quarter arcs based on hash
+    float quadrant = floor(cornerRand * 4.0);
+    vec2 dir = fp - 0.5;
+    bool show = (quadrant < 1.0 && dir.x > 0.0 && dir.y > 0.0) ||
+                (quadrant < 2.0 && dir.x < 0.0 && dir.y > 0.0) ||
+                (quadrant < 3.0 && dir.x < 0.0 && dir.y < 0.0) ||
+                (dir.x > 0.0 && dir.y < 0.0);
+    traceBright += show ? cornerArc : 0.0;
+  }
+
+  // Trace color — matrix green with slight variation
+  vec3 traceColor = mix(
+    vec3(0.0, 0.9, 0.25),
+    vec3(0.0, 0.65, 0.18),
+    hash(cell * 0.37)
+  );
+  color += traceColor * traceBright;
+
+  // ── IC Pads / Components at some intersections ──
+  for (float dy = -1.0; dy <= 1.0; dy++) {
+    for (float dx = -1.0; dx <= 1.0; dx++) {
+      vec2 nc = cell + vec2(dx, dy);
+      float padRand = hash(nc * 1.73);
+
+      if (padRand > 0.72) {
+        vec2 padCenter = (nc + 0.5) / scale;
+        float padType = floor(padRand * 3.0);
+
+        vec2 diff = p - padCenter;
+
+        if (padType < 1.0) {
+          // Square IC chip — hard edge + tight glow
+          float d = sdRoundBox(diff, vec2(0.018, 0.018), 0.003);
+          float chip = smoothstep(0.002, 0.0, d) * 0.7;
+          float ring = exp(-abs(d) * 140.0) * 0.35;
+          // Pulse — chip activates periodically
+          float fireRate = 2.0 + padRand * 4.0;
+          float fire = smoothstep(0.0, 0.05, fract(t / fireRate))
+                     * smoothstep(0.3, 0.05, fract(t / fireRate));
+          color += vec3(0.0, 1.0, 0.35) * (chip + ring) * (0.5 + fire * 0.8);
+        } else if (padType < 2.0) {
+          // Circular via/pad — tighter falloff
+          float d = length(diff);
+          float outer = exp(-d * 200.0) * 0.5;
+          float inner = exp(-d * 350.0) * 0.4;
+          float pulse = sin(t * 1.5 + padRand * 6.28) * 0.5 + 0.5;
+          color += vec3(0.0, 1.0, 0.4) * (outer * (0.4 + pulse * 0.6) + inner);
+        } else {
+          // Rectangular capacitor — crisper edges
+          float d = sdRoundBox(diff, vec2(0.025, 0.008), 0.002);
+          float cap = smoothstep(0.0015, 0.0, d) * 0.5;
+          float glow = exp(-abs(d) * 100.0) * 0.2;
+          color += vec3(0.0, 0.8, 0.25) * (cap + glow);
+        }
+      }
+    }
+  }
+
+  // ── Data pulses — bright dots traveling along traces ──
+  for (float i = 0.0; i < 6.0; i++) {
+    float seed = i * 3.71;
+    float row = floor(hash(vec2(seed, 0.0)) * scale);
+    float speed = 0.3 + hash(vec2(seed, 1.0)) * 0.4;
+    float phase = fract(t * speed + hash(vec2(seed, 2.0)));
+    vec2 pulsePos = vec2(phase * aspect, (row + 0.5) / scale);
+    float d = length(p - pulsePos);
+    float bright = exp(-d * 80.0) * 0.8;
+    // Trailing glow — tighter
+    vec2 trail = p - pulsePos;
+    float trailDist = abs(trail.y);
+    float trailLen = max(0.0, -trail.x);
+    float trailGlow = exp(-trailDist * 140.0) * exp(-trailLen * 20.0) * 0.25;
+    color += vec3(0.5, 1.0, 0.55) * bright + vec3(0.0, 0.8, 0.25) * trailGlow;
+  }
+
+  // Vertical data pulses
+  for (float i = 0.0; i < 4.0; i++) {
+    float seed = i * 5.13 + 100.0;
+    float col = floor(hash(vec2(seed, 0.0)) * scale);
+    float speed = 0.25 + hash(vec2(seed, 1.0)) * 0.35;
+    float phase = fract(t * speed + hash(vec2(seed, 2.0)));
+    vec2 pulsePos = vec2((col + 0.5) / scale, phase);
+    float d = length(p - pulsePos);
+    float bright = exp(-d * 80.0) * 0.6;
+    color += vec3(0.4, 1.0, 0.45) * bright;
+  }
+
+  // Crisp grid dots at every intersection
+  vec2 gridFrac = fract(gp);
+  float dotDist = length(gridFrac - 0.5);
+  float gridDot = smoothstep(0.04, 0.02, dotDist) * 0.12;
+  color += vec3(0.0, 0.5, 0.15) * gridDot;
+
+  // Central processor glow
+  vec2 center = vec2(aspect * 0.5, 0.5);
+  float centerDist = length(p - center);
+  float cpuGlow = exp(-centerDist * 5.0) * 0.12;
+  color += vec3(0.0, 0.8, 0.25) * cpuGlow;
+
+  // Vignette
+  float vig = smoothstep(0.75, 0.25, length(uv - 0.5));
+  color *= vig;
+
+  float alpha = clamp(length(color) * 1.8, 0.0, 1.0);
   gl_FragColor = vec4(color, alpha);
 }`;
 
-function LighthouseBeam() {
+function CircuitBoard() {
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -484,10 +695,10 @@ function LighthouseBeam() {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
-    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, BEAM_VERT); gl.compileShader(vs);
-    if (!checkShader(gl, vs, 'beam-vert')) return;
-    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, BEAM_FRAG); gl.compileShader(fs);
-    if (!checkShader(gl, fs, 'beam-frag')) return;
+    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, CIRCUIT_VERT); gl.compileShader(vs);
+    if (!checkShader(gl, vs, 'circuit-vert')) return;
+    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, CIRCUIT_FRAG); gl.compileShader(fs);
+    if (!checkShader(gl, fs, 'circuit-frag')) return;
     const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
     if (!checkProgram(gl, prog)) return;
     gl.useProgram(prog);
@@ -501,7 +712,6 @@ function LighthouseBeam() {
 
     const uTime = gl.getUniformLocation(prog, 'u_time');
     const uRes = gl.getUniformLocation(prog, 'u_resolution');
-    const uOrigin = gl.getUniformLocation(prog, 'u_origin');
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
@@ -520,7 +730,6 @@ function LighthouseBeam() {
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(uTime, (now - t0) / 1000);
       gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.uniform2f(uOrigin, 0.5, 0.75);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       rafRef.current = requestAnimationFrame(render);
     };
@@ -528,7 +737,7 @@ function LighthouseBeam() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, []);
 
-  return <canvas ref={canvasRef} className="lighthouse-beam-canvas" />;
+  return <canvas ref={canvasRef} className="circuit-board-canvas" aria-hidden="true" />;
 }
 
 /* ── Typing Terminal Background ── */
@@ -881,7 +1090,6 @@ const BAR_COLORS = ['#10B981', '#34D399', '#D4AF37', '#E8E6E1', '#059669', '#6B7
 
 function AnalyticsDashboard() {
   const barsRef = useRef(null);
-  const valsRef = useRef([]);
   const rafRef = useRef(null);
 
   useEffect(() => {
@@ -1672,416 +1880,8 @@ function BioluminescentDepths() {
   return <canvas ref={canvasRef} className="blob-canvas" />;
 }
 
-/* ── Particle Network (WebGL) ── */
-const PARTICLE_VERT = `
-attribute vec2 a_position;
-uniform float u_pointSize;
-void main() {
-  gl_Position = vec4(a_position, 0.0, 1.0);
-  gl_PointSize = u_pointSize;
-}`;
 
-const PARTICLE_FRAG = `
-precision mediump float;
-uniform vec4 u_color;
-void main() {
-  float d = distance(gl_PointCoord, vec2(0.5));
-  if (d > 0.5) discard;
-  float alpha = smoothstep(0.5, 0.15, d) * u_color.a;
-  gl_FragColor = vec4(u_color.rgb, alpha);
-}`;
 
-const LINE_VERT = `
-attribute vec2 a_position;
-void main() {
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
-
-const LINE_FRAG = `
-precision mediump float;
-uniform vec4 u_color;
-void main() {
-  gl_FragColor = u_color;
-}`;
-
-function ParticleNetwork() {
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const gl = canvas.getContext('webgl', { alpha: true, antialias: true });
-    if (!gl) return;
-
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-
-    function makeProgram(vsSrc, fsSrc) {
-      const v = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(v, vsSrc); gl.compileShader(v);
-      if (!checkShader(gl, v, 'particle-vert')) return null;
-      const f = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(f, fsSrc); gl.compileShader(f);
-      if (!checkShader(gl, f, 'particle-frag')) return null;
-      const p = gl.createProgram(); gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
-      if (!checkProgram(gl, p)) return null;
-      return p;
-    }
-
-    const pointProg = makeProgram(PARTICLE_VERT, PARTICLE_FRAG);
-    const lineProg = makeProgram(LINE_VERT, LINE_FRAG);
-    if (!pointProg || !lineProg) return;
-
-    const COUNT = 80;
-    const particles = [];
-    for (let i = 0; i < COUNT; i++) {
-      particles.push({
-        x: Math.random() * 2 - 1, y: Math.random() * 2 - 1,
-        vx: (Math.random() - 0.5) * 0.002, vy: (Math.random() - 0.5) * 0.002,
-        size: 1.5 + Math.random() * 2.5,
-      });
-    }
-
-    const posBuf = gl.createBuffer();
-    const lineBuf = gl.createBuffer();
-    const connectDist = 0.28;
-
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
-      const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
-    }
-
-    const render = () => {
-      resize();
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-
-      // Update particles
-      for (const p of particles) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < -1 || p.x > 1) p.vx *= -1;
-        if (p.y < -1 || p.y > 1) p.vy *= -1;
-      }
-
-      // Draw lines
-      const lineVerts = [];
-      for (let i = 0; i < COUNT; i++) {
-        for (let j = i + 1; j < COUNT; j++) {
-          const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
-          if (Math.sqrt(dx * dx + dy * dy) < connectDist) {
-            lineVerts.push(particles[i].x, particles[i].y, particles[j].x, particles[j].y);
-          }
-        }
-      }
-      if (lineVerts.length) {
-        gl.useProgram(lineProg);
-        gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineVerts), gl.DYNAMIC_DRAW);
-        const aPos = gl.getAttribLocation(lineProg, 'a_position');
-        gl.enableVertexAttribArray(aPos);
-        gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-        gl.uniform4f(gl.getUniformLocation(lineProg, 'u_color'), 0.13, 0.83, 0.93, 0.12);
-        gl.drawArrays(gl.LINES, 0, lineVerts.length / 2);
-      }
-
-      // Draw points
-      const posData = new Float32Array(COUNT * 2);
-      particles.forEach((p, i) => { posData[i * 2] = p.x; posData[i * 2 + 1] = p.y; });
-      gl.useProgram(pointProg);
-      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, posData, gl.DYNAMIC_DRAW);
-      const aPos = gl.getAttribLocation(pointProg, 'a_position');
-      gl.enableVertexAttribArray(aPos);
-      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-      gl.uniform1f(gl.getUniformLocation(pointProg, 'u_pointSize'), 3.0 * Math.min(window.devicePixelRatio, MAX_DPR));
-      gl.uniform4f(gl.getUniformLocation(pointProg, 'u_color'), 0.13, 0.83, 0.93, 0.7);
-      gl.drawArrays(gl.POINTS, 0, COUNT);
-
-      rafRef.current = requestAnimationFrame(render);
-    };
-    rafRef.current = requestAnimationFrame(render);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-
-  return <canvas ref={canvasRef} className="particle-network-canvas" />;
-}
-
-/* ── Fluid Simulation (WebGL) ── */
-const FLUID_VERT = `
-attribute vec2 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_uv;
-void main() {
-  v_uv = a_texCoord;
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
-
-const FLUID_FRAG = `
-precision mediump float;
-uniform float u_time;
-uniform vec2 u_resolution;
-varying vec2 v_uv;
-
-vec3 palette(float t) {
-  vec3 a = vec3(0.5, 0.5, 0.5);
-  vec3 b = vec3(0.5, 0.5, 0.5);
-  vec3 c = vec3(1.0, 1.0, 1.0);
-  vec3 d = vec3(0.05, 0.33, 0.53);
-  return a + b * cos(6.28318 * (c * t + d));
-}
-
-void main() {
-  vec2 uv = v_uv;
-  float aspect = u_resolution.x / u_resolution.y;
-  uv.x *= aspect;
-  vec2 uv0 = uv;
-  vec3 finalColor = vec3(0.0);
-
-  for (float i = 0.0; i < 3.0; i++) {
-    uv = fract(uv * 1.8) - 0.5;
-    float d = length(uv) * exp(-length(uv0));
-
-    vec3 col = palette(length(uv0) + i * 0.4 + u_time * 0.15);
-
-    d = sin(d * 8.0 + u_time * 0.6) / 8.0;
-    d = abs(d);
-    d = pow(0.012 / d, 1.4);
-
-    finalColor += col * d;
-  }
-
-  finalColor *= 0.35;
-  gl_FragColor = vec4(finalColor, 1.0);
-}`;
-
-function FluidSimulation() {
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const gl = canvas.getContext('webgl', { alpha: false, antialias: false });
-    if (!gl) return;
-
-    const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, FLUID_VERT); gl.compileShader(vs);
-    if (!checkShader(gl, vs, 'fluid-vert')) return;
-    const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, FLUID_FRAG); gl.compileShader(fs);
-    if (!checkShader(gl, fs, 'fluid-frag')) return;
-    const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
-    if (!checkProgram(gl, prog)) return;
-    gl.useProgram(prog);
-
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-    const aPos = gl.getAttribLocation(prog, 'a_position');
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-    const texBuf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, texBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1,1,1,0,0,1,0]), gl.STATIC_DRAW);
-    const aTex = gl.getAttribLocation(prog, 'a_texCoord');
-    gl.enableVertexAttribArray(aTex);
-    gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 0, 0);
-
-    const uTime = gl.getUniformLocation(prog, 'u_time');
-    const uRes = gl.getUniformLocation(prog, 'u_resolution');
-
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
-      const w = canvas.clientWidth * dpr, h = canvas.clientHeight * dpr;
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
-    }
-
-    let t0 = performance.now();
-    const render = (now) => {
-      resize();
-      gl.uniform1f(uTime, (now - t0) / 1000);
-      gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      rafRef.current = requestAnimationFrame(render);
-    };
-    rafRef.current = requestAnimationFrame(render);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-
-  return <canvas ref={canvasRef} className="fluid-sim-canvas" />;
-}
-
-/* ── Audio Visualizer Bars (WebGL) ── */
-/* ── 3D Polyhedra geometry ── */
-const TETRA_V = [[0,1,0],[0.943,-0.333,0],[-0.471,-0.333,0.816],[-0.471,-0.333,-0.816]];
-const TETRA_E = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
-const OCTA_V = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-const OCTA_E = [[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,4],[2,5],[3,4],[3,5]];
-const PHI = (1 + Math.sqrt(5)) / 2;
-const ICO_V = [[-1,PHI,0],[1,PHI,0],[-1,-PHI,0],[1,-PHI,0],[0,-1,PHI],[0,1,PHI],[0,-1,-PHI],[0,1,-PHI],[PHI,0,-1],[PHI,0,1],[-PHI,0,-1],[-PHI,0,1]].map(v => { const l = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]); return [v[0]/l,v[1]/l,v[2]/l]; });
-const ICO_E = [[0,1],[0,5],[0,7],[0,10],[0,11],[1,5],[1,7],[1,8],[1,9],[2,3],[2,4],[2,6],[2,10],[2,11],[3,4],[3,6],[3,8],[3,9],[4,5],[4,9],[4,11],[5,9],[5,11],[6,7],[6,8],[6,10],[7,8],[7,10],[8,9],[9,3]];
-
-const SHAPES = [
-  { verts: TETRA_V, edges: TETRA_E },
-  { verts: OCTA_V, edges: OCTA_E },
-  { verts: ICO_V, edges: ICO_E },
-];
-
-function buildPolyhedra() {
-  const items = [];
-  for (let i = 0; i < 14; i++) {
-    const shape = SHAPES[i % 3];
-    items.push({
-      verts: shape.verts,
-      edges: shape.edges,
-      x: (Math.random() - 0.5) * 1.6,
-      y: (Math.random() - 0.5) * 1.0,
-      z: 2 + Math.random() * 3,
-      z0: 2 + Math.random() * 3,
-      scale: 0.08 + Math.random() * 0.14,
-      rx: Math.random() * Math.PI * 2,
-      ry: Math.random() * Math.PI * 2,
-      rz: Math.random() * Math.PI * 2,
-      sx: (0.15 + Math.random() * 0.25) * (Math.random() > 0.5 ? 1 : -1),
-      sy: (0.1 + Math.random() * 0.2) * (Math.random() > 0.5 ? 1 : -1),
-      sz: (0.08 + Math.random() * 0.15) * (Math.random() > 0.5 ? 1 : -1),
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.2,
-      zPhase: Math.random() * Math.PI * 2,
-      hue: Math.random(),
-    });
-  }
-  return items;
-}
-
-function PolyhedraField() {
-  const canvasRef = useRef(null);
-  const rafRef = useRef(null);
-  const polyRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    if (!polyRef.current) polyRef.current = buildPolyhedra();
-    const polys = polyRef.current;
-
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio, MAX_DPR);
-      const w = canvas.clientWidth * dpr;
-      const h = canvas.clientHeight * dpr;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-      }
-    }
-
-    function rotX(v, a) {
-      const c = Math.cos(a), s = Math.sin(a);
-      return [v[0], v[1]*c - v[2]*s, v[1]*s + v[2]*c];
-    }
-    function rotY(v, a) {
-      const c = Math.cos(a), s = Math.sin(a);
-      return [v[0]*c + v[2]*s, v[1], -v[0]*s + v[2]*c];
-    }
-    function rotZ(v, a) {
-      const c = Math.cos(a), s = Math.sin(a);
-      return [v[0]*c - v[1]*s, v[0]*s + v[1]*c, v[2]];
-    }
-
-    function project(v, w, h, fov) {
-      const f = fov / Math.max(v[2], 0.1);
-      return [w / 2 + v[0] * f, h / 2 - v[1] * f, 1 / Math.max(v[2], 0.1)];
-    }
-
-    let t0 = performance.now();
-    let lastT = 0;
-    const BOUNDS_X = 1.2, BOUNDS_Y = 0.8;
-    const render = (now) => {
-      resize();
-      const w = canvas.width, h = canvas.height;
-      const t = (now - t0) / 1000;
-      const dt = Math.min(t - lastT, 0.05);
-      lastT = t;
-      ctx.clearRect(0, 0, w, h);
-      const fov = Math.min(w, h) * 0.9;
-
-      // Physics update — move, bounce off edges
-      for (const p of polys) {
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        // Bounce off horizontal bounds
-        if (p.x > BOUNDS_X) { p.x = BOUNDS_X; p.vx *= -1; p.sx *= -1; }
-        if (p.x < -BOUNDS_X) { p.x = -BOUNDS_X; p.vx *= -1; p.sx *= -1; }
-        // Bounce off vertical bounds
-        if (p.y > BOUNDS_Y) { p.y = BOUNDS_Y; p.vy *= -1; p.sy *= -1; }
-        if (p.y < -BOUNDS_Y) { p.y = -BOUNDS_Y; p.vy *= -1; p.sy *= -1; }
-        // Bob in z
-        p.z = p.z0 + Math.sin(t * 0.5 + p.zPhase) * 0.6;
-      }
-
-      // Sort by z for back-to-front
-      polys.sort((a, b) => b.z - a.z);
-
-      for (const p of polys) {
-        // Rotate
-        const ax = p.rx + t * p.sx;
-        const ay = p.ry + t * p.sy;
-        const az = p.rz + t * p.sz;
-
-        const px = p.x;
-        const py = p.y;
-
-        // Transform vertices
-        const projected = p.verts.map(v => {
-          let r = [v[0] * p.scale, v[1] * p.scale, v[2] * p.scale];
-          r = rotX(r, ax);
-          r = rotY(r, ay);
-          r = rotZ(r, az);
-          r = [r[0] + px, r[1] + py, r[2] + p.z];
-          return project(r, w, h, fov);
-        });
-
-        // Depth-based opacity and glow
-        const depthAlpha = Math.max(0.15, Math.min(1, 1.2 - p.z / 5));
-        const pulse = 0.6 + 0.4 * Math.sin(t * 0.8 + p.hue * Math.PI * 2);
-
-        // Gold/amber palette based on shape hue
-        const gR = Math.round(210 + p.hue * 40);
-        const gG = Math.round(155 + p.hue * 50);
-        const gB = Math.round(40 + p.hue * 20);
-
-        // Draw edges
-        ctx.lineWidth = Math.max(1, 2.5 * depthAlpha);
-        ctx.strokeStyle = `rgba(${gR},${gG},${gB},${(depthAlpha * pulse * 0.9).toFixed(3)})`;
-        ctx.shadowColor = `rgba(${gR},${gG},${gB},${(depthAlpha * 0.5).toFixed(3)})`;
-        ctx.shadowBlur = 8 * depthAlpha;
-        ctx.beginPath();
-        for (const [a, b] of p.edges) {
-          ctx.moveTo(projected[a][0], projected[a][1]);
-          ctx.lineTo(projected[b][0], projected[b][1]);
-        }
-        ctx.stroke();
-
-        // Draw vertices as bright dots
-        ctx.shadowBlur = 12 * depthAlpha;
-        ctx.fillStyle = `rgba(255,240,200,${(depthAlpha * pulse * 0.8).toFixed(3)})`;
-        for (const pt of projected) {
-          const r = Math.max(1.5, 3 * pt[2] * depthAlpha);
-          ctx.beginPath();
-          ctx.arc(pt[0], pt[1], r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      ctx.shadowBlur = 0;
-      rafRef.current = requestAnimationFrame(render);
-    };
-    rafRef.current = requestAnimationFrame(render);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-
-  return <canvas ref={canvasRef} className="audio-vis-canvas" />;
-}
 
 /* ── BUILD Section — Wide Left + Terminal Right ── */
 function BuildSection() {
@@ -2091,6 +1891,10 @@ function BuildSection() {
   const headlineRef = useRef(null);
 
   usePinnedSection(sectionRef, leftRef, rightRef, headlineRef, {}, 'slide-up');
+  useMouseParallax(sectionRef, [
+    { ref: leftRef, depth: 6 },
+    { ref: rightRef, depth: 6 },
+  ]);
 
   return (
     <section ref={sectionRef} id="build" className="section-pinned" style={{ zIndex: 20 }}>
@@ -2138,6 +1942,11 @@ function MeasureSection() {
   const triptychRef = useRef(null);
   const cardRef = useRef(null);
 
+  useMouseParallax(sectionRef, [
+    { ref: triptychRef, depth: 4 },
+    { ref: cardRef, depth: 6 },
+  ]);
+
   useLayoutEffect(() => {
     const section = sectionRef.current;
     const triptych = triptychRef.current;
@@ -2154,7 +1963,7 @@ function MeasureSection() {
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=120%',
+          end: '+=100%',
           pin: true,
           scrub: 0.5,
           anticipatePin: 1,
@@ -2163,6 +1972,9 @@ function MeasureSection() {
 
       // Triptych fades + scales in first
       tl.fromTo(triptych, { scale: 1.06, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
+      // Depth parallax: triptych drifts behind overlay card
+      const depthScale = (window.innerWidth <= 768) ? 0.4 : 1.0;
+      tl.fromTo(triptych, { yPercent: 2 * depthScale }, { yPercent: -2 * depthScale, ease: 'none' }, 0);
       // Overlay card slides up
       tl.fromTo(card, { y: '8vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.12);
       // EXIT — card fades first, then triptych
@@ -2219,6 +2031,11 @@ function AutomateSection() {
   const cardsRef = useRef(null);
   const beamRef = useRef(null);
 
+  useMouseParallax(sectionRef, [
+    { ref: centerRef, depth: 6 },
+    { ref: cardsRef, depth: 16, selector: '.floating-card' },
+  ]);
+
   useLayoutEffect(() => {
     const section = sectionRef.current;
     const center = centerRef.current;
@@ -2238,7 +2055,7 @@ function AutomateSection() {
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: '+=120%',
+          end: '+=90%',
           pin: true,
           scrub: 0.5,
           anticipatePin: 1,
@@ -2246,12 +2063,22 @@ function AutomateSection() {
       });
 
       // Center content appears first
-      tl.fromTo(center, { y: '10vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+      tl.fromTo(center, { y: '6vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
       // Floating cards stagger in
       if (floaters.length) {
-        tl.fromTo(floaters, { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, ease: EASE_SMOOTH }, 0.08);
+        tl.fromTo(floaters, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, ease: EASE_SMOOTH }, 0.06);
       }
-      // LighthouseBeam fades in
+
+      // Depth parallax: each floating card drifts at a unique rate
+      if (floaters.length && window.innerWidth > 768) {
+        const cardDepths = [3.6, 3.0, -2.4, -3.0, 1.8]; // tl, tr, bl, br, rc
+        floaters.forEach((card, i) => {
+          const d = cardDepths[i] ?? 2;
+          tl.fromTo(card, { yPercent: d }, { yPercent: -d, ease: 'none' }, 0);
+        });
+      }
+
+      // CircuitBoard fades in
       if (beam) {
         tl.fromTo(beam, { opacity: 0 }, { opacity: 0.6, ease: 'none' }, 0.15);
       }
@@ -2273,14 +2100,9 @@ function AutomateSection() {
 
   return (
     <section ref={sectionRef} id="automate" className="section-pinned" style={{ zIndex: 40 }}>
-      <div className="editorial-bg editorial-bg-component">
-        <ParticleNetwork />
-        <div className="editorial-bg-overlay editorial-bg-overlay--light" />
-      </div>
-
       <div className="automate-layout">
         <div ref={beamRef} className="measure-triptych-featured" style={{ mixBlendMode: 'screen', opacity: 0, zIndex: 0 }}>
-          <LighthouseBeam />
+          <CircuitBoard />
         </div>
 
         <div ref={centerRef} className="automate-center">
@@ -2348,6 +2170,11 @@ function ContactCTA() {
   const leftRef = useRef(null);
   const rightRef = useRef(null);
 
+  useMouseParallax(sectionRef, [
+    { ref: leftRef, depth: 6 },
+    { ref: rightRef, depth: 6 },
+  ]);
+
   useLayoutEffect(() => {
     const section = sectionRef.current;
     const left = leftRef.current;
@@ -2360,6 +2187,16 @@ function ContactCTA() {
     gsap.set([left, right], { willChange: 'transform, opacity', force3D: true });
 
     const ctx = gsap.context(() => {
+      // Depth parallax: DeepSeaCreatures bg moves at ~0.6x content scroll speed
+      const bgEl = section.querySelector('.contact-cta-bg');
+      if (bgEl) {
+        const depthScale = (window.innerWidth <= 768) ? 0.4 : 1.0;
+        gsap.fromTo(bgEl, { yPercent: -8 * depthScale }, {
+          yPercent: 8 * depthScale, ease: 'none',
+          scrollTrigger: { trigger: section, start: 'top bottom', end: 'bottom top', scrub: true },
+        });
+      }
+
       gsap.fromTo(left, { y: '6vh', opacity: 0 }, {
         y: 0, opacity: 1, ease: 'power3.out',
         scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 50%', scrub: 0.4 },
@@ -2379,7 +2216,7 @@ function ContactCTA() {
   return (
     <section ref={sectionRef} className="contact-cta-section" style={{ zIndex: 70 }}>
       <div className="contact-cta-bg">
-        <FluidSimulation />
+        <Suspense fallback={null}><DeepSeaCreatures /></Suspense>
       </div>
 
       <div className="contact-cta-grid">
@@ -2465,11 +2302,6 @@ export default function Home() {
 
   return (
     <div className="home-page">
-      {/* WebGL Background */}
-      <Suspense fallback={null}>
-        <EnergyField />
-      </Suspense>
-
       {/* Noise Overlay */}
       <div className="noise-overlay" />
 

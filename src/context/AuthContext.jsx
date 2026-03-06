@@ -6,7 +6,9 @@ import { authApi } from '../api/auth';
 
 const AuthContext = createContext();
 
-// Client-side password hashing (stopgap until backend with bcrypt).
+// Client-side password hashing — localStorage fallback ONLY.
+// Real auth uses bcrypt on the server via /api/auth and /api/client-auth.
+// This is NOT compatible with bcrypt hashes in Neon. Do NOT use for DB operations.
 function hashPassword(password) {
   const salt = 'tsd_2026';
   const str = salt + password;
@@ -215,9 +217,31 @@ export function AuthProvider({ children }) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const needsSetup = users.length === 0 || !users.some((u) => (u.role === 'admin' || u.role === 'owner') && u.status === 'approved');
+  // On mount: try to restore session from stored JWT token
+  const [apiChecked, setApiChecked] = useState(false);
+  useEffect(() => {
+    const token = localStorage.getItem('threeseas_access_token');
+    const isClientSession = !!localStorage.getItem(CLIENT_AUTH_KEY);
+    // Skip admin /api/auth/me if this is a client session — the token is a client JWT
+    if (token && !currentUser && !isClientSession) {
+      authApi.me().then((user) => {
+        setCurrentUser(user);
+        setUsers((prev) => {
+          const exists = prev.some((u) => u.id === user.id);
+          return exists ? prev : [...prev, user];
+        });
+      }).catch(() => {
+        localStorage.removeItem('threeseas_access_token');
+        localStorage.removeItem('threeseas_refresh_token');
+      }).finally(() => setApiChecked(true));
+    } else {
+      setApiChecked(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setupAdmin = (userData) => {
+  const needsSetup = apiChecked && users.length === 0 && !currentUser;
+
+  const setupAdmin = async (userData) => {
     if (!needsSetup) return { success: false, error: 'Admin already configured' };
     if (!userData.username || !userData.password || !userData.name || !userData.email) {
       return { success: false, error: 'All fields are required' };
@@ -225,63 +249,102 @@ export function AuthProvider({ children }) {
     if (userData.password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters' };
     }
-    const newAdmin = {
-      id: generateId(),
-      username: userData.username,
-      password: hashPassword(userData.password),
-      name: userData.name,
-      email: userData.email,
-      role: 'owner',
-      status: 'approved',
-      color: STAFF_COLORS[0],
-      createdAt: new Date().toISOString(),
-    };
-    setUsers([newAdmin]);
-    setCurrentUser(newAdmin);
-    syncToApi(() => authApi.setup({ username: userData.username, password: userData.password, name: userData.name, email: userData.email }), 'setupAdmin');
-    return { success: true, user: newAdmin };
-  };
-
-  const login = (username, password) => {
-    const hashed = hashPassword(password);
-    const user = users.find((u) => {
-      if (u.username !== username) return false;
-      if (u.password === hashed) return true;
-      if (u.password === password) {
-        setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, password: hashed } : x));
-        return true;
+    // Try API setup first
+    try {
+      const data = await authApi.setup({ username: userData.username, password: userData.password, displayName: userData.name, email: userData.email });
+      if (data.accessToken) {
+        localStorage.setItem('threeseas_access_token', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('threeseas_refresh_token', data.refreshToken);
       }
-      return false;
-    });
-    if (!user) return { success: false, error: 'Invalid credentials' };
-    if (user.status === 'pending') return { success: false, error: 'Your account is pending approval. Please wait for an admin to approve your registration.' };
-    if (user.status === 'rejected') return { success: false, error: 'Your account has been rejected. Contact an administrator.' };
-    setCurrentUser(user);
-    syncToApi(() => authApi.login({ username, password }), 'login');
-    return { success: true, user };
+      const apiUser = data.user || { ...userData, role: 'owner', status: 'approved' };
+      setCurrentUser(apiUser);
+      setUsers([apiUser]);
+      return { success: true, user: apiUser };
+    } catch {
+      // Fallback to client-side setup
+      const newAdmin = {
+        id: generateId(),
+        username: userData.username,
+        password: hashPassword(userData.password),
+        name: userData.name,
+        email: userData.email,
+        role: 'owner',
+        status: 'approved',
+        color: STAFF_COLORS[0],
+        createdAt: new Date().toISOString(),
+      };
+      setUsers([newAdmin]);
+      setCurrentUser(newAdmin);
+      return { success: true, user: newAdmin };
+    }
   };
 
-  const register = (userData) => {
-    const existsUsername = users.some((u) => u.username === userData.username);
-    if (existsUsername) return { success: false, error: 'Username already taken' };
-    const existsEmail = users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase());
-    if (existsEmail) return { success: false, error: 'Email already registered' };
-    const newUser = {
-      ...userData,
-      password: hashPassword(userData.password),
-      id: generateId(),
-      role: 'pending',
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-    setUsers((prev) => [...prev, newUser]);
-    syncToApi(() => authApi.register({ ...userData, password: userData.password }), 'register');
-    return { success: true, user: newUser };
+  const login = async (username, password) => {
+    // Try API login first (returns JWT tokens)
+    try {
+      const data = await authApi.login({ username, password });
+      if (data.accessToken) {
+        localStorage.setItem('threeseas_access_token', data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem('threeseas_refresh_token', data.refreshToken);
+        }
+      }
+      const apiUser = data.user || { username, role: data.role };
+      setCurrentUser(apiUser);
+      return { success: true, user: apiUser };
+    } catch (apiErr) {
+      // API login failed — fall back to client-side auth
+      const hashed = hashPassword(password);
+      const user = users.find((u) => {
+        if (u.username !== username) return false;
+        if (u.password === hashed) return true;
+        if (u.password === password) {
+          setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, password: hashed } : x));
+          return true;
+        }
+        return false;
+      });
+      if (!user) return { success: false, error: 'Invalid credentials' };
+      if (user.status === 'pending') return { success: false, error: 'Your account is pending approval. Please wait for an admin to approve your registration.' };
+      if (user.status === 'rejected') return { success: false, error: 'Your account has been rejected. Contact an administrator.' };
+      setCurrentUser(user);
+      return { success: true, user };
+    }
+  };
+
+  const register = async (userData) => {
+    // Try API register first
+    try {
+      const data = await authApi.register({ username: userData.username, password: userData.password, displayName: userData.name, email: userData.email });
+      const newUser = data.user || { ...userData, id: data.id, role: 'pending', status: 'pending' };
+      setUsers((prev) => [...prev, newUser]);
+      return { success: true, user: newUser };
+    } catch (apiErr) {
+      const errMsg = apiErr.response?.data?.error;
+      if (errMsg) return { success: false, error: errMsg };
+      // Fallback to client-side
+      const existsUsername = users.some((u) => u.username === userData.username);
+      if (existsUsername) return { success: false, error: 'Username already taken' };
+      const existsEmail = users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase());
+      if (existsEmail) return { success: false, error: 'Email already registered' };
+      const newUser = {
+        ...userData,
+        password: hashPassword(userData.password),
+        id: generateId(),
+        role: 'pending',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+      setUsers((prev) => [...prev, newUser]);
+      return { success: true, user: newUser };
+    }
   };
 
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem(ADMIN_AUTH_KEY);
+    localStorage.removeItem('threeseas_access_token');
+    localStorage.removeItem('threeseas_refresh_token');
   };
 
   const hasPermission = (permission) => {

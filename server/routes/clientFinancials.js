@@ -605,7 +605,7 @@ router.post(
             record.new_customers,
             record.customers,
             'partial', // data_completeness (CSV has limited fields)
-            'csv_import',
+            'imported',
             record.notes,
             req.user.userId,
           ]

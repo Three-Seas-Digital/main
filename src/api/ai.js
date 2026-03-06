@@ -55,3 +55,39 @@ export async function aiAuditSuggestions(auditData, category) {
   const { data } = await api.post('/ai/audit-suggestions', { auditData, category });
   return data;
 }
+
+/**
+ * Generate AI recommendations for a client via xAI
+ * @param {string} clientId
+ */
+export async function aiRecommend(clientId) {
+  const { data } = await api.post(`/ai/recommend/${clientId}`);
+  return data;
+}
+
+/**
+ * Generate AI SWOT analysis for a client via xAI
+ * @param {string} clientId
+ */
+export async function aiGenerateSWOT(clientId) {
+  const { data } = await api.post(`/ai/swot/${clientId}`);
+  return data;
+}
+
+/**
+ * Get latest SWOT analysis for a client
+ * @param {string} clientId
+ */
+export async function aiGetSWOT(clientId) {
+  const { data } = await api.get(`/ai/swot/${clientId}`);
+  return data;
+}
+
+/**
+ * Get SWOT analysis history for a client
+ * @param {string} clientId
+ */
+export async function aiGetSWOTHistory(clientId) {
+  const { data } = await api.get(`/ai/swot/${clientId}/history`);
+  return data;
+}

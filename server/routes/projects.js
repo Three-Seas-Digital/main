@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 
@@ -48,13 +49,15 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // POST /api/projects — Create project
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req, res) => {
   try {
-    const { clientId, name, description, status, startDate, endDate } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO projects (client_id, name, description, status, start_date, end_date, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [clientId, name, description || null, status || 'planning', startDate || null, endDate || null]
+    const { id: bodyId, clientId, name, title, description, status, startDate, dueDate, endDate } = req.body;
+    const id = bodyId || generateId();
+    const projectName = title || name || 'Untitled';
+    await pool.query(
+      `INSERT INTO projects (id, client_id, name, title, description, status, start_date, due_date, end_date, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, clientId, projectName, projectName, description || null, status || 'planning', startDate || null, dueDate || null, endDate || null]
     );
-    res.status(201).json({ id: result.insertId, message: 'Project created' });
+    res.status(201).json({ id, message: 'Project created' });
   } catch (err) {
     console.error('[projects] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -80,10 +83,8 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/projects/:id — Delete project (cascades to tasks, milestones, time entries)
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req, res) => {
   try {
-    await pool.query('DELETE FROM project_tasks WHERE project_id = ?', [req.params.id]);
-    await pool.query('DELETE FROM project_milestones WHERE project_id = ?', [req.params.id]);
-    await pool.query('DELETE FROM project_developers WHERE project_id = ?', [req.params.id]);
-    await pool.query('DELETE FROM time_entries WHERE project_id = ?', [req.params.id]);
+    // time_entries has ON DELETE SET NULL — don't delete manually; let FK handle it
+    // project_tasks, project_milestones, project_developers have ON DELETE CASCADE
     await pool.query('DELETE FROM projects WHERE id = ?', [req.params.id]);
     res.json({ message: 'Project deleted' });
   } catch (err) {
@@ -98,12 +99,13 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'
 router.post('/:id/tasks', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req, res) => {
   try {
     const { title, description, status, assignedTo, sortOrder } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO project_tasks (project_id, title, description, status, assigned_to, sort_order, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [req.params.id, title, description || null, status || 'todo', assignedTo || null, sortOrder || 0]
+    const taskId = generateId();
+    await pool.query(
+      `INSERT INTO project_tasks (id, project_id, title, description, status, assigned_to, sort_order, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [taskId, req.params.id, title, description || null, status || 'todo', assignedTo || null, sortOrder || 0]
     );
-    res.status(201).json({ id: result.insertId, message: 'Task added' });
+    res.status(201).json({ id: taskId, message: 'Task added' });
   } catch (err) {
     console.error('[projects] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -143,12 +145,13 @@ router.delete('/:id/tasks/:taskId', authenticateToken, requireRole('owner', 'adm
 router.post('/:id/milestones', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req, res) => {
   try {
     const { title, description, dueDate, completed } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO project_milestones (project_id, title, description, due_date, completed, created_at)
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [req.params.id, title, description || null, dueDate || null, completed || false]
+    const msId = generateId();
+    await pool.query(
+      `INSERT INTO project_milestones (id, project_id, title, description, due_date, completed, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [msId, req.params.id, title, description || null, dueDate || null, completed || false]
     );
-    res.status(201).json({ id: result.insertId, message: 'Milestone added' });
+    res.status(201).json({ id: msId, message: 'Milestone added' });
   } catch (err) {
     console.error('[projects] Error:', err);
     res.status(500).json({ error: 'Server error' });

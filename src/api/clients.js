@@ -16,9 +16,13 @@ export const clientsApi = {
   // Tags
   addTag: (id, tag) => api.post(`/clients/${id}/tags`, { tag }).then(r => r.data),
   removeTag: (id, tag) => api.delete(`/clients/${id}/tags/${encodeURIComponent(tag)}`).then(r => r.data),
+  // Password management
+  setPassword: (id, password, mustChangePassword = true) =>
+    api.put(`/clients/${id}/set-password`, { password, mustChangePassword }).then(r => r.data),
   // Documents
   uploadDocument: (id, formData) => api.post(`/clients/${id}/documents`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }).then(r => r.data),
+  saveDocumentMetadata: (id, metadata) => api.post(`/clients/${id}/documents/metadata`, metadata).then(r => r.data),
   deleteDocument: (id, docId) => api.delete(`/clients/${id}/documents/${docId}`).then(r => r.data),
 };

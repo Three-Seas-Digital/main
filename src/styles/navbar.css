@@ -88,10 +88,10 @@
   align-items: center;
   padding: 8px 16px;
   font-weight: 500;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   transition: all var(--transition-fast);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   position: relative;
   line-height: 1.5;
@@ -134,10 +134,10 @@
   gap: 4px;
   padding: 8px 16px;
   font-weight: 500;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   transition: all var(--transition-fast);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   background: none;
   border: none;
@@ -218,10 +218,10 @@
 .nav-dropdown-menu a {
   display: block;
   padding: 10px 20px;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   transition: all var(--transition-fast);
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
   text-align: center;
@@ -266,13 +266,13 @@
 
 /* Nav CTA button */
 .nav-cta {
-  padding: 8px 20px;
+  padding: 10px 22px;
   border: 1px solid var(--jelly-pink);
   border-radius: 100px;
   color: var(--sirius-white);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;

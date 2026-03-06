@@ -4,6 +4,8 @@ import {
   Check, ArrowLeft, Sparkles, ArrowRight,
   Code, Smartphone, Headphones, RefreshCw, Shield, Building2
 } from 'lucide-react';
+import LighthouseBeam from '../components/LighthouseBeam';
+import '../styles/pricing.css';
 
 const TIERS = [
   {
@@ -80,6 +82,7 @@ export default function Pricing() {
     <div className="pricing-page">
       <div className="pricing-bg">
         <div className="pricing-gradient" />
+        <LighthouseBeam originX={0.5} originY={0.2} />
       </div>
 
       <Link to="/templates" className="pricing-back">

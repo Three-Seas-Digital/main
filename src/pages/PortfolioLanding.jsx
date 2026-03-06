@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import '../styles/demos.css';
 import {
   ArrowLeft, ArrowRight, Phone, Mail, MapPin, Clock, Star, Check,
   Facebook, Instagram, Twitter, Coffee, Heart, Menu, X, Send,

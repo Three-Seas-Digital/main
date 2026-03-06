@@ -27,6 +27,7 @@ const TemplatesSignIn = lazy(() => import('./pages/TemplatesSignIn'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 
 const Account = lazy(() => import('./pages/Account'));
+const TemplateLanding = lazy(() => import('./components/templates/TemplateLanding'));
 
 function PageLoader() {
   return (
@@ -37,7 +38,7 @@ function PageLoader() {
 }
 
 const DEMO_PATHS = ['/pricing/starter', '/pricing/business', '/pricing/premium', '/pricing/enterprise'];
-const HIDE_NAVBAR_PATHS = ['/templates', '/checkout'];
+const HIDE_NAVBAR_PATHS = ['/templates', '/checkout', '/templates/preview'];
 
 // Runs initSync once after all providers are mounted.
 // Non-blocking — app renders immediately while sync happens in background.
@@ -56,8 +57,8 @@ function SyncInitializer({ children }) {
 function AppLayout() {
   const location = useLocation();
   const isDemo = DEMO_PATHS.includes(location.pathname);
-  const hideNavbar = HIDE_NAVBAR_PATHS.includes(location.pathname);
-  const hideFooter = isDemo || HIDE_NAVBAR_PATHS.includes(location.pathname);
+  const hideNavbar = HIDE_NAVBAR_PATHS.includes(location.pathname) || location.pathname.startsWith('/templates/preview');
+  const hideFooter = isDemo || hideNavbar;
 
   return (
     <>
@@ -75,6 +76,7 @@ function AppLayout() {
               <Route path="/pricing/enterprise" element={<EnterpriseShowcase />} />
               <Route path="/templates" element={<Templates />} />
               <Route path="/templates/signin" element={<TemplatesSignIn />} />
+              <Route path="/templates/preview/:id" element={<TemplateLanding />} />
               <Route path="/checkout" element={<Checkout />} />
 
               <Route path="/account" element={<Account />} />

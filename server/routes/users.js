@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 const SALT_ROUNDS = 12;
@@ -10,7 +11,7 @@ const SALT_ROUNDS = 12;
 router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, role, display_name, email, status, created_at, last_login FROM users ORDER BY created_at DESC'
+      'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users ORDER BY created_at DESC'
     );
     res.json(rows);
   } catch (err) {
@@ -23,7 +24,7 @@ router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), asy
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, role, display_name, email, status, created_at, last_login FROM users WHERE id = ?',
+      'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users WHERE id = ?',
       [req.params.id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -53,14 +54,15 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : 'viewer';
 
-    const [result] = await pool.query(
-      `INSERT INTO users (username, password_hash, role, display_name, email, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'active', NOW())`,
-      [username, passwordHash, userRole, displayName || username, email || null]
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO users (id, username, password_hash, role, display_name, email, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, userRole, displayName || username, email || null]
     );
 
     res.status(201).json({
-      id: result.insertId,
+      id,
       username,
       role: userRole,
       displayName: displayName || username,
@@ -75,15 +77,16 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
 // PUT /api/users/:id — Update user
 router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req, res) => {
   try {
-    const { username, role, displayName, email, status } = req.body;
+    const { username, role, displayName, name, email, status } = req.body;
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : undefined;
+    const resolvedName = displayName || name; // frontend sends "name", accept both
 
     await pool.query(
       `UPDATE users SET username = COALESCE(?, username), role = COALESCE(?, role),
        display_name = COALESCE(?, display_name), email = COALESCE(?, email),
        status = COALESCE(?, status), updated_at = NOW() WHERE id = ?`,
-      [username, userRole, displayName, email, status, req.params.id]
+      [username, userRole, resolvedName, email, status, req.params.id]
     );
     res.json({ message: 'User updated' });
   } catch (err) {
@@ -96,7 +99,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req,
 router.put('/:id/password', authenticateToken, async (req, res) => {
   try {
     // Only admin or the user themselves can change password
-    if (req.user.role !== 'admin' && req.user.userId !== parseInt(req.params.id)) {
+    if (req.user.role !== 'admin' && req.user.userId !== req.params.id) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
@@ -129,7 +132,7 @@ router.put('/:id/password', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin'), async (req, res) => {
   try {
     // Prevent deleting yourself
-    if (req.user.userId === parseInt(req.params.id)) {
+    if (req.user.userId === req.params.id) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
     await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);

@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Shield,
-  Plus, X, RefreshCw, Printer, Save, Users, BarChart3, Target,
+  Plus, X, RefreshCw, Printer, Save, Users, BarChart3, Target, Brain,
 } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { safeGetItem, safeSetItem, generateId, escapeHtml } from '../../../constants';
 import { syncToApi } from '../../../api/apiSync';
+import { aiGenerateSWOT, aiGetSWOT } from '../../../api/ai';
 import {
   calcRevenueConcentration,
   calcDSO,
@@ -199,6 +200,8 @@ export default function SWOTAnalysis({ biClientId, onBiClientChange }) {
   const [allData, setAllData] = useState(() => safeGetItem(SWOT_KEY, {}));
   const [inputs, setInputs] = useState({ strengths: '', weaknesses: '', opportunities: '', threats: '' });
   const [saveMsg, setSaveMsg] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiLastGenerated, setAiLastGenerated] = useState(null);
 
   const saveMsgTimer = useRef(null);
   const showSaveMsg = useCallback((msg) => {
@@ -278,6 +281,45 @@ export default function SWOTAnalysis({ biClientId, onBiClientChange }) {
     clientId, selectedClient, clients, payments, prospects,
     audits, intakes, interventionsRaw, allData, updateClientSwot, showSaveMsg,
   ]);
+
+  // AI-powered SWOT generation via xAI
+  const runAiGenerate = useCallback(async () => {
+    if (!clientId || aiGenerating) return;
+    setAiGenerating(true);
+    try {
+      const result = await aiGenerateSWOT(clientId);
+      if (result.success && result.data) {
+        const swotData = result.data;
+        // Convert AI format [{title, description}] to component format [{id, text, isAuto}]
+        const toItems = (arr) => (arr || []).map(item => makeItem(
+          item.title ? `${item.title}: ${item.description}` : (item.description || item.text || String(item)),
+          true
+        ));
+
+        // Merge: keep manual items, replace auto items with AI ones
+        const current = allData[clientId] || defaultSwotData();
+        const mergeItems = (existing, fresh) => {
+          const manual = (existing || []).filter(i => !i.isAuto);
+          return [...manual, ...fresh];
+        };
+
+        updateClientSwot({
+          strengths: mergeItems(current.strengths, toItems(swotData.strengths)),
+          weaknesses: mergeItems(current.weaknesses, toItems(swotData.weaknesses)),
+          opportunities: mergeItems(current.opportunities, toItems(swotData.opportunities)),
+          threats: mergeItems(current.threats, toItems(swotData.threats)),
+        });
+
+        setAiLastGenerated(swotData.generated_at || new Date().toISOString());
+        showSaveMsg('AI SWOT generated');
+      }
+    } catch (err) {
+      showSaveMsg('AI generation failed — check xAI API key');
+      console.error('AI SWOT error:', err);
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [clientId, aiGenerating, allData, updateClientSwot, showSaveMsg]);
 
   // Auto-analyze when client first selected and has no data
   useEffect(() => {
@@ -384,6 +426,14 @@ export default function SWOTAnalysis({ biClientId, onBiClientChange }) {
               <button className="btn-secondary btn-sm" onClick={runAutoAnalyze}>
                 <RefreshCw size={14} /> Auto-Analyze
               </button>
+              <button
+                className="btn-secondary btn-sm"
+                onClick={runAiGenerate}
+                disabled={aiGenerating}
+                style={aiGenerating ? { opacity: 0.6, cursor: 'wait' } : {}}
+              >
+                <Brain size={14} /> {aiGenerating ? 'Generating...' : 'AI Generate'}
+              </button>
               <button className="btn-secondary btn-sm" onClick={printReport}>
                 <Printer size={14} /> Print
               </button>
@@ -443,6 +493,13 @@ export default function SWOTAnalysis({ biClientId, onBiClientChange }) {
                 <Target size={14} />
                 <span>Last updated</span>
                 <small>{new Date(clientSwot.updatedAt).toLocaleDateString()}</small>
+              </div>
+            )}
+            {aiLastGenerated && (
+              <div className="bi-stat">
+                <Brain size={14} />
+                <span>AI Generated</span>
+                <small>{new Date(aiLastGenerated).toLocaleDateString()}</small>
               </div>
             )}
             <div className="bi-stat">

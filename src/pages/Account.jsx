@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import '../styles/account.css';
 import { 
   User, Mail, Download, Heart, Crown, Zap, LogOut,
   CreditCard, Calendar, ChevronRight, ExternalLink,

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  Check, Circle, FileText, CheckCircle,
+  Check, Circle, FileText, CheckCircle, ChevronDown, ChevronUp, Eye, Plus,
   ClipboardCheck, User, Star, Shield, Mail, Briefcase, FolderKanban,
   AlertCircle, PenTool, Type, RotateCcw, BookOpen,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { SITE_INFO, safeGetItem } from '../../constants';
+import { generateContractPdf, generateProposalPdf } from '../../utils/generateOnboardingPdfs';
 
 const DOC_LABELS = {
   intake: 'Intake Questionnaire',
@@ -255,7 +256,7 @@ function SignaturePad({ onSign, disabled }) {
 /* ===== Main Component ===== */
 
 export default function PortalOnboarding({ client }) {
-  const { updateClientOnboarding, submitClientIntake, SUBSCRIPTION_TIERS } = useAppContext();
+  const { updateClientOnboarding, submitClientIntake, addProject, SUBSCRIPTION_TIERS } = useAppContext();
 
   // Intake form state
   const existingIntake = useMemo(
@@ -280,9 +281,28 @@ export default function PortalOnboarding({ client }) {
   });
   const [intakeSubmitted, setIntakeSubmitted] = useState(false);
 
+  // Expand/collapse state for completed documents
+  const [expandedDocs, setExpandedDocs] = useState({});
+  const toggleDocExpand = (key) => setExpandedDocs((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Project form state
+  const [projectForm, setProjectForm] = useState({ title: '', description: '' });
+  const [localProjects, setLocalProjects] = useState([]);
+
   const onboarding = client.onboarding || {};
   const docs = onboarding.documents || {};
   const docsGenerated = !!onboarding.documentsGeneratedAt;
+
+  // Merge server projects with locally created ones (before sync completes)
+  const clientProjects = useMemo(() => {
+    const serverProjects = client.projects || [];
+    const allIds = new Set(serverProjects.map(p => p.id));
+    const merged = [...serverProjects];
+    for (const lp of localProjects) {
+      if (!allIds.has(lp.id)) merged.push(lp);
+    }
+    return merged;
+  }, [client.projects, localProjects]);
 
   const tierData = SUBSCRIPTION_TIERS?.[client.tier] || {};
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -294,9 +314,9 @@ export default function PortalOnboarding({ client }) {
     const hasPassword = !!client.password;
     const welcomeSent = !!onboarding.welcomeEmailSent;
     const allDocsApproved = docsGenerated && Object.values(docs).every((d) => d.status === 'approved');
-    const hasProject = (client.projects || []).length > 0;
+    const hasProject = clientProjects.length > 0;
     return [hasProfile, hasTier, hasPassword, welcomeSent, allDocsApproved, hasProject];
-  }, [client, onboarding, docs, docsGenerated]);
+  }, [client, onboarding, docs, docsGenerated, clientProjects]);
 
   const completedCount = stepStatuses.filter(Boolean).length;
 
@@ -328,18 +348,50 @@ export default function PortalOnboarding({ client }) {
     updateClientOnboarding(client.id, { documents: updatedDocs });
   };
 
-  // Sign proposal/contract
-  const handleSign = (docKey, signatureData) => {
+  // Sign proposal/contract — regenerate PDF with signature embedded
+  const handleSign = async (docKey, signatureData) => {
+    const signedAt = new Date().toISOString();
     const updatedDocs = { ...docs };
     updatedDocs[docKey] = {
       ...updatedDocs[docKey],
       status: 'uploaded',
       signatureData,
-      signedAt: new Date().toISOString(),
+      signedAt,
       signedBy: client.name,
-      uploadedAt: new Date().toISOString(),
+      uploadedAt: signedAt,
     };
     updateClientOnboarding(client.id, { documents: updatedDocs });
+
+    // Regenerate the PDF with signature embedded (async, non-blocking)
+    try {
+      const sigOpts = { signatureData, signedAt };
+      let signedPdf;
+      if (docKey === 'contract') {
+        signedPdf = await generateContractPdf(client, tierData, sigOpts);
+      } else if (docKey === 'proposal') {
+        signedPdf = await generateProposalPdf(client, tierData, existingIntake, {}, sigOpts);
+      }
+      if (signedPdf) {
+        updatedDocs[docKey].signedPdfData = signedPdf.fileData;
+        updatedDocs[docKey].signedPdfName = signedPdf.name;
+        updateClientOnboarding(client.id, { documents: updatedDocs });
+      }
+    } catch (err) {
+      console.error(`[Onboarding] Failed to regenerate signed ${docKey} PDF:`, err);
+    }
+  };
+
+  // Create first project
+  const handleCreateProject = () => {
+    if (!projectForm.title.trim()) return;
+    const created = addProject(client.id, {
+      title: projectForm.title.trim(),
+      description: projectForm.description.trim(),
+      status: 'planning',
+    });
+    // Track locally for instant UI update (before parent re-renders with new client.projects)
+    if (created) setLocalProjects((prev) => [...prev, created]);
+    setProjectForm({ title: '', description: '' });
   };
 
   /* ===== Render: Intake Form ===== */
@@ -358,10 +410,54 @@ export default function PortalOnboarding({ client }) {
         </div>
 
         {isComplete || intakeSubmitted ? (
-          <div className="portal-onboarding-doc-done">
-            <CheckCircle size={24} />
-            <p>Intake questionnaire submitted. Your account manager will review your responses.</p>
-          </div>
+          <>
+            <div className="portal-onboarding-doc-done">
+              <CheckCircle size={24} />
+              <p>Intake questionnaire submitted. Your account manager will review your responses.</p>
+            </div>
+            <button
+              type="button"
+              className="portal-onboarding-expand-btn"
+              onClick={() => toggleDocExpand('intake')}
+            >
+              <Eye size={14} />
+              {expandedDocs.intake ? 'Hide Responses' : 'View Responses'}
+              {expandedDocs.intake ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {expandedDocs.intake && (
+              <div className="portal-onboarding-intake-readonly">
+                {INTAKE_SECTIONS.map((section) => {
+                  const filled = section.fields.filter((f) => {
+                    const v = intakeForm[f.key];
+                    return v && v !== '' && v !== false;
+                  });
+                  if (filled.length === 0) return null;
+                  return (
+                    <div key={section.title} className="portal-onboarding-intake-section">
+                      <h5>{section.title}</h5>
+                      <div className="portal-onboarding-intake-grid">
+                        {filled.map((field) => {
+                          const val = intakeForm[field.key];
+                          const display = field.type === 'toggle'
+                            ? (val ? 'Yes' : 'No')
+                            : String(val);
+                          return (
+                            <div
+                              key={field.key}
+                              className={`portal-onboarding-intake-field ${field.type === 'textarea' ? 'full-width' : ''}`}
+                            >
+                              <label>{field.label}</label>
+                              <div className="portal-onboarding-readonly-value">{display}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : (
           <form className="portal-onboarding-intake-form" onSubmit={handleSubmitIntake}>
             {INTAKE_SECTIONS.map((section) => (
@@ -497,12 +593,13 @@ export default function PortalOnboarding({ client }) {
           </div>
         </div>
 
-        {isRead ? (
+        {isRead && (
           <div className="portal-onboarding-doc-done">
             <CheckCircle size={20} />
             <p>You've reviewed this welcome packet.</p>
           </div>
-        ) : (
+        )}
+        {!isRead && (
           <button
             className="btn btn-primary portal-onboarding-submit-btn"
             onClick={handleMarkWelcomeRead}
@@ -541,56 +638,7 @@ export default function PortalOnboarding({ client }) {
           </span>
         </div>
 
-        <div className="portal-onboarding-doc-view">
-          <div className="portal-onboarding-doc-meta-line">
-            <span>Prepared for: <strong>{client.name}{client.businessName ? ` \u2014 ${client.businessName}` : ''}</strong></span>
-            <span>Date: <strong>{today}</strong></span>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Executive Summary</h5>
-            <p>Based on our assessment, we have identified the following challenges: {painPoints}</p>
-            <p>Our goal is to help you achieve: {goals}</p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Proposed Services</h5>
-            <p><strong>Service Tier:</strong> {tierData.label || 'To be determined'}</p>
-            {tierData.description && <p>{tierData.description}</p>}
-            <p>Services included in this engagement:</p>
-            <ul>
-              {services.map((s, i) => <li key={i}>{s}</li>)}
-            </ul>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Timeline</h5>
-            <ol>
-              <li><strong>Phase 1: Discovery & Strategy (Week 1-2)</strong> \u2014 Intake review, competitor analysis, strategic planning</li>
-              <li><strong>Phase 2: Design & Development (Week 3-6)</strong> \u2014 Wireframes, mockups, development, content creation</li>
-              <li><strong>Phase 3: Testing & Launch (Week 7-8)</strong> \u2014 QA testing, client review, deployment</li>
-              <li><strong>Phase 4: Ongoing Optimization</strong> \u2014 Monthly reporting, SEO updates, content refreshes</li>
-            </ol>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Investment</h5>
-            <p>Pricing is based on the selected service tier and scope of work. Detailed pricing will be included in the final contract.</p>
-            <p><strong>Payment Terms:</strong> Net 15 \u2014 invoices due within 15 days of issue</p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Next Steps</h5>
-            <ol>
-              <li>Review this proposal and complete the Intake Questionnaire</li>
-              <li>Schedule a strategy call to discuss your goals</li>
-              <li>Sign the Service Contract to begin the engagement</li>
-              <li>Access your Client Portal for project tracking and communication</li>
-            </ol>
-          </div>
-        </div>
-
-        {isSigned ? (
+        {isSigned && (
           <div className="portal-onboarding-doc-done">
             <CheckCircle size={20} />
             <p>
@@ -599,9 +647,82 @@ export default function PortalOnboarding({ client }) {
               {docEntry.status === 'approved' && ' Approved.'}
             </p>
           </div>
-        ) : (
-          <SignaturePad onSign={(sig) => handleSign('proposal', sig)} />
         )}
+
+        {isSigned && (
+          <button type="button" className="portal-onboarding-expand-btn" onClick={() => toggleDocExpand('proposal')}>
+            <Eye size={14} />
+            {expandedDocs.proposal ? 'Hide Document' : 'View Document'}
+            {expandedDocs.proposal ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
+
+        {(!isSigned || expandedDocs.proposal) && (
+          <div className="portal-onboarding-doc-view">
+            <div className="portal-onboarding-doc-meta-line">
+              <span>Prepared for: <strong>{client.name}{client.businessName ? ` \u2014 ${client.businessName}` : ''}</strong></span>
+              <span>Date: <strong>{today}</strong></span>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Executive Summary</h5>
+              <p>Based on our assessment, we have identified the following challenges: {painPoints}</p>
+              <p>Our goal is to help you achieve: {goals}</p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Proposed Services</h5>
+              <p><strong>Service Tier:</strong> {tierData.label || 'To be determined'}</p>
+              {tierData.description && <p>{tierData.description}</p>}
+              <p>Services included in this engagement:</p>
+              <ul>
+                {services.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Timeline</h5>
+              <ol>
+                <li><strong>Phase 1: Discovery & Strategy (Week 1-2)</strong> \u2014 Intake review, competitor analysis, strategic planning</li>
+                <li><strong>Phase 2: Design & Development (Week 3-6)</strong> \u2014 Wireframes, mockups, development, content creation</li>
+                <li><strong>Phase 3: Testing & Launch (Week 7-8)</strong> \u2014 QA testing, client review, deployment</li>
+                <li><strong>Phase 4: Ongoing Optimization</strong> \u2014 Monthly reporting, SEO updates, content refreshes</li>
+              </ol>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Investment</h5>
+              <p>Pricing is based on the selected service tier and scope of work. Detailed pricing will be included in the final contract.</p>
+              <p><strong>Payment Terms:</strong> Net 15 \u2014 invoices due within 15 days of issue</p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Next Steps</h5>
+              <ol>
+                <li>Review this proposal and complete the Intake Questionnaire</li>
+                <li>Schedule a strategy call to discuss your goals</li>
+                <li>Sign the Service Contract to begin the engagement</li>
+                <li>Access your Client Portal for project tracking and communication</li>
+              </ol>
+            </div>
+
+            {isSigned && docEntry.signatureData && (
+              <div className="portal-onboarding-doc-section portal-onboarding-sig-record">
+                <h5>Signature</h5>
+                {docEntry.signatureData.startsWith('data:') ? (
+                  <img src={docEntry.signatureData} alt="Signature" style={{ maxWidth: '300px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px', background: '#fff' }} />
+                ) : (
+                  <div className="portal-onboarding-sig-typed-preview">{docEntry.signatureData}</div>
+                )}
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  Signed by {docEntry.signedBy || client.name}{docEntry.signedAt ? ` on ${new Date(docEntry.signedAt).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isSigned && <SignaturePad onSign={(sig) => handleSign('proposal', sig)} />}
       </div>
     );
   };
@@ -621,66 +742,7 @@ export default function PortalOnboarding({ client }) {
           </span>
         </div>
 
-        <div className="portal-onboarding-doc-view">
-          <div className="portal-onboarding-doc-section">
-            <h5>Parties</h5>
-            <p>
-              This Service Contract ("Agreement") is entered into as of {today} between:
-            </p>
-            <p><strong>Provider:</strong> {SITE_INFO.name || 'Three Seas Digital'}</p>
-            <p><strong>Client:</strong> {client.name}{client.businessName ? ` (${client.businessName})` : ''}</p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Service Tier</h5>
-            <p><strong>Selected Tier:</strong> {tierData.label || 'N/A'}</p>
-            {tierData.description && <p>{tierData.description}</p>}
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Terms</h5>
-            <p><strong>Effective Date:</strong> {today}</p>
-            <p><strong>Term:</strong> Month-to-month, renewable automatically</p>
-            <p><strong>Payment Terms:</strong> Net 15 \u2014 invoices due within 15 days of issue</p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Scope of Services</h5>
-            <p>
-              Provider agrees to deliver digital marketing, web development, and consulting services as outlined
-              in the associated Proposal document, subject to the selected Service Tier.
-            </p>
-            <p>
-              Any additional services beyond the agreed scope will be quoted separately and require written approval.
-            </p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Confidentiality</h5>
-            <p>
-              Both parties agree to keep confidential any proprietary information shared during the engagement.
-              This obligation survives termination of this Agreement.
-            </p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Limitation of Liability</h5>
-            <p>
-              Provider liability shall not exceed the total fees paid by Client in the twelve (12) months
-              preceding the claim. Neither party shall be liable for indirect, incidental, or consequential damages.
-            </p>
-          </div>
-
-          <div className="portal-onboarding-doc-section">
-            <h5>Termination</h5>
-            <p>
-              Either party may terminate this Agreement with 30 days written notice. Upon termination,
-              Client shall pay for all services rendered through the termination date.
-            </p>
-          </div>
-        </div>
-
-        {isSigned ? (
+        {isSigned && (
           <div className="portal-onboarding-doc-done">
             <CheckCircle size={20} />
             <p>
@@ -689,9 +751,92 @@ export default function PortalOnboarding({ client }) {
               {docEntry.status === 'approved' && ' Approved.'}
             </p>
           </div>
-        ) : (
-          <SignaturePad onSign={(sig) => handleSign('contract', sig)} />
         )}
+
+        {isSigned && (
+          <button type="button" className="portal-onboarding-expand-btn" onClick={() => toggleDocExpand('contract')}>
+            <Eye size={14} />
+            {expandedDocs.contract ? 'Hide Document' : 'View Document'}
+            {expandedDocs.contract ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
+
+        {(!isSigned || expandedDocs.contract) && (
+          <div className="portal-onboarding-doc-view">
+            <div className="portal-onboarding-doc-section">
+              <h5>Parties</h5>
+              <p>
+                This Service Contract ("Agreement") is entered into as of {today} between:
+              </p>
+              <p><strong>Provider:</strong> {SITE_INFO.name || 'Three Seas Digital'}</p>
+              <p><strong>Client:</strong> {client.name}{client.businessName ? ` (${client.businessName})` : ''}</p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Service Tier</h5>
+              <p><strong>Selected Tier:</strong> {tierData.label || 'N/A'}</p>
+              {tierData.description && <p>{tierData.description}</p>}
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Terms</h5>
+              <p><strong>Effective Date:</strong> {today}</p>
+              <p><strong>Term:</strong> Month-to-month, renewable automatically</p>
+              <p><strong>Payment Terms:</strong> Net 15 \u2014 invoices due within 15 days of issue</p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Scope of Services</h5>
+              <p>
+                Provider agrees to deliver digital marketing, web development, and consulting services as outlined
+                in the associated Proposal document, subject to the selected Service Tier.
+              </p>
+              <p>
+                Any additional services beyond the agreed scope will be quoted separately and require written approval.
+              </p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Confidentiality</h5>
+              <p>
+                Both parties agree to keep confidential any proprietary information shared during the engagement.
+                This obligation survives termination of this Agreement.
+              </p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Limitation of Liability</h5>
+              <p>
+                Provider liability shall not exceed the total fees paid by Client in the twelve (12) months
+                preceding the claim. Neither party shall be liable for indirect, incidental, or consequential damages.
+              </p>
+            </div>
+
+            <div className="portal-onboarding-doc-section">
+              <h5>Termination</h5>
+              <p>
+                Either party may terminate this Agreement with 30 days written notice. Upon termination,
+                Client shall pay for all services rendered through the termination date.
+              </p>
+            </div>
+
+            {isSigned && docEntry.signatureData && (
+              <div className="portal-onboarding-doc-section portal-onboarding-sig-record">
+                <h5>Signature</h5>
+                {docEntry.signatureData.startsWith('data:') ? (
+                  <img src={docEntry.signatureData} alt="Signature" style={{ maxWidth: '300px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px', background: '#fff' }} />
+                ) : (
+                  <div className="portal-onboarding-sig-typed-preview">{docEntry.signatureData}</div>
+                )}
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  Signed by {docEntry.signedBy || client.name}{docEntry.signedAt ? ` on ${new Date(docEntry.signedAt).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isSigned && <SignaturePad onSign={(sig) => handleSign('contract', sig)} />}
       </div>
     );
   };
@@ -758,6 +903,53 @@ export default function PortalOnboarding({ client }) {
           {docs.welcome_packet && renderWelcomePacket(docs.welcome_packet)}
           {docs.proposal && renderProposal(docs.proposal)}
           {docs.contract && renderContract(docs.contract)}
+        </div>
+      )}
+
+      {/* Create First Project */}
+      <h3 className="portal-onboarding-docs-title"><FolderKanban size={18} /> Create Your First Project</h3>
+      {clientProjects.length > 0 ? (
+        <div className="portal-onboarding-doc-card">
+          <div className="portal-onboarding-doc-done">
+            <CheckCircle size={24} />
+            <p>Project created! You can manage it from your portal dashboard.</p>
+          </div>
+          <div style={{ marginTop: '12px' }}>
+            {clientProjects.map((p) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '6px', marginBottom: '6px' }}>
+                <FolderKanban size={16} style={{ color: 'var(--emerald)' }} />
+                <strong style={{ fontSize: '0.9rem' }}>{p.title}</strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 'auto', textTransform: 'capitalize' }}>{p.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="portal-onboarding-doc-card">
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Set up your first project so your team can start tracking progress.
+          </p>
+          <div className="portal-onboarding-project-form">
+            <input
+              type="text"
+              placeholder="Project title (e.g. Website Redesign)"
+              value={projectForm.title}
+              onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+            />
+            <input
+              type="text"
+              placeholder="Brief description (optional)"
+              value={projectForm.description}
+              onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+            />
+            <button
+              className="portal-onboarding-project-btn"
+              onClick={handleCreateProject}
+              disabled={!projectForm.title.trim()}
+            >
+              <Plus size={14} /> Create Project
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -117,5 +117,5 @@ export default function LighthouseBeam({ originX = 0.5, originY = 0.75 }) {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [originX, originY]);
 
-  return <canvas ref={canvasRef} className="lighthouse-beam-canvas" />;
+  return <canvas ref={canvasRef} className="lighthouse-beam-canvas" aria-hidden="true" />;
 }

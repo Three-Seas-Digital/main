@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import '../styles/admin.css';
+import '../styles/client-portal.css';
 import {
   LogOut, CalendarDays, Clock, User, Mail, Phone, Trash2,
   CheckCircle, XCircle, AlertCircle, BarChart3, Users,
@@ -43,6 +45,7 @@ const TiersTab = lazy(() => import('../components/admin/TiersTab'));
 const ClientsDatabaseTab = lazy(() => import('../components/admin/ClientsDatabaseTab'));
 const KanbanView = lazy(() => import('../components/admin/KanbanView'));
 const TemplatesManagerTab = lazy(() => import('../components/admin/TemplatesManagerTab'));
+const EmailTemplatesTab = lazy(() => import('../components/admin/EmailTemplatesTab'));
 
 /* ===== Lazy-loaded Business Intelligence tabs ===== */
 const IntakeForm = lazy(() => import('../components/admin/BusinessIntelligence/IntakeForm'));
@@ -203,6 +206,29 @@ export default function Admin() {
   }, [view, filterStatus, selectedDate]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // These useMemo hooks MUST be before any early returns to satisfy Rules of Hooks
+  const filtered = useMemo(() => appointments
+    .filter((a) => (filterStatus === 'all' ? true : a.status === filterStatus))
+    .filter((a) => (selectedDate ? a.date === selectedDate : true))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+  [appointments, filterStatus, selectedDate]);
+
+  const { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, onboardingCount, pendingUserCount, unviewedClientCount } = useMemo(() => {
+    const pendingCount = appointments.filter((a) => a.status === 'pending').length;
+    const followUpCount = appointments.filter((a) => a.followUp && a.followUp.status !== 'completed' && a.followUp.status !== 'archived' && !a.sentToPipeline).length;
+    const archivedFollowUpCount = appointments.filter((a) => a.followUp && a.followUp.status === 'archived').length;
+    const archivedClientCount = clients.filter((c) => c.status === 'archived').length;
+    const archivedCount = archivedFollowUpCount + archivedClientCount;
+    const pipelineCount = prospects.filter((p) => !p.closedAt).length;
+    const pendingClientCount = clients.filter((c) => c.status === 'pending').length;
+    const clientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && (!c.onboarding || c.onboarding.complete)).length;
+    const vipCount = clients.filter((c) => c.status === 'vip').length;
+    const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
+    const pendingUserCount = users.filter((u) => u.status === 'pending').length;
+    const unviewedClientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && !viewedClients.has(c.id)).length;
+    return { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, onboardingCount, pendingUserCount, unviewedClientCount };
+  }, [appointments, clients, prospects, users, viewedClients]);
+
   if (needsSetup) return <AdminSetup />;
   if (!currentUser) return <AdminLogin />;
 
@@ -272,27 +298,6 @@ export default function Admin() {
   const canManageSettings = hasPermission('manage_settings');
   const hasSidebar = hasPermission('view_clients') || canViewSales || canViewFinance || canViewBI || canViewResearch || canManageUsers || canManageSettings;
 
-  const filtered = useMemo(() => appointments
-    .filter((a) => (filterStatus === 'all' ? true : a.status === filterStatus))
-    .filter((a) => (selectedDate ? a.date === selectedDate : true))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-  [appointments, filterStatus, selectedDate]);
-
-  const { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, pendingUserCount, unviewedClientCount } = useMemo(() => {
-    const pendingCount = appointments.filter((a) => a.status === 'pending').length;
-    const followUpCount = appointments.filter((a) => a.followUp && a.followUp.status !== 'completed' && a.followUp.status !== 'archived' && !a.sentToPipeline).length;
-    const archivedFollowUpCount = appointments.filter((a) => a.followUp && a.followUp.status === 'archived').length;
-    const archivedClientCount = clients.filter((c) => c.status === 'archived').length;
-    const archivedCount = archivedFollowUpCount + archivedClientCount;
-    const pipelineCount = prospects.filter((p) => !p.closedAt).length;
-    const pendingClientCount = clients.filter((c) => c.status === 'pending').length;
-    const clientCount = clients.filter((c) => c.status !== 'pending').length;
-    const vipCount = clients.filter((c) => c.status === 'vip').length;
-    const pendingUserCount = users.filter((u) => u.status === 'pending').length;
-    const unviewedClientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && !viewedClients.has(c.id)).length;
-    return { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, pendingUserCount, unviewedClientCount };
-  }, [appointments, clients, prospects, users, viewedClients]);
-
   // Badge counts for sidebar items — returns { count, color } or null
   // color: 'danger' = red (action needed), 'info' = blue (new/unviewed), 'warning' = amber (attention), 'neutral' = gray (informational)
   const getBadge = (tabId) => {
@@ -349,6 +354,7 @@ export default function Admin() {
           <div className="admin-stat-card"><CalendarDays size={24} /><div><h3>{selectedDate ? appointments.filter((a) => a.date === selectedDate).length : appointments.length}</h3><p>{selectedDate ? `Bookings on ${formatDisplayDate(selectedDate)}` : 'Total Bookings'}</p></div></div>
           <div className="admin-stat-card pending"><AlertCircle size={24} /><div><h3>{pendingCount}</h3><p>Pending</p></div></div>
           <div className="admin-stat-card" style={{ color: 'var(--accent)' }}><PhoneForwarded size={24} /><div><h3>{followUpCount}</h3><p>Open Follow-Ups</p></div></div>
+          <div className="admin-stat-card" style={{ color: 'var(--emerald, #10b981)' }}><ClipboardCheck size={24} /><div><h3>{onboardingCount}</h3><p>Onboarding</p></div></div>
           <div className="admin-stat-card confirmed"><UserCheck size={24} /><div><h3>{clientCount}</h3><p>Clients ({vipCount} VIP)</p></div></div>
 
         </div>
@@ -708,6 +714,7 @@ export default function Admin() {
         {activeTab === 'business-db' && canViewSales && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><BusinessDatabaseTab /></Suspense></ErrorBoundary>}
         {activeTab === 'research' && canViewResearch && <ResearchTab />}
         {activeTab === 'archived' && canManageClients && <ArchivedTab />}
+        {activeTab === 'email-templates' && canManageSettings && <EmailTemplatesTab />}
         {activeTab === 'tiers' && canManageSettings && <TiersTab />}
         {activeTab === 'templates-mgr' && canManageSettings && <TemplatesManagerTab />}
         {activeTab === 'clientsdb' && canViewClients && <ClientsDatabaseTab />}

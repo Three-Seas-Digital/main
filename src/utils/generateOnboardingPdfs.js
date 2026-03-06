@@ -100,6 +100,45 @@ function addParagraph(doc, y, text) {
   return y + lines.length * 5 + 3;
 }
 
+function addSignatureToDoc(doc, y, signatureData, signerName, signedAt) {
+  if (signatureData.startsWith('data:image')) {
+    // Drawn signature — embed as image
+    try {
+      doc.addImage(signatureData, 'PNG', MARGIN, y - 4, 60, 16);
+    } catch {
+      // Fallback if image fails
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(12);
+      doc.text('[Signed]', MARGIN, y + 6);
+    }
+  } else {
+    // Typed signature
+    doc.setFont('courier', 'bolditalic');
+    doc.setFontSize(14);
+    doc.setTextColor(...DARK);
+    doc.text(signatureData, MARGIN, y + 8);
+  }
+  doc.setDrawColor(...GRAY);
+  doc.line(MARGIN, y + 12, MARGIN + 70, y + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY);
+  doc.text(`${signerName} (Client)`, MARGIN, y + 18);
+
+  // Date
+  const dateStr = signedAt
+    ? new Date(signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...DARK);
+  doc.text(dateStr, MARGIN + 90, y + 8);
+  doc.line(MARGIN + 90, y + 12, MARGIN + CONTENT_WIDTH, y + 12);
+  doc.setFontSize(9);
+  doc.setTextColor(...GRAY);
+  doc.text('Date', MARGIN + 90, y + 18);
+}
+
 function toBase64Output(doc, name, type, description) {
   const pdfData = doc.output('datauristring');
   // Strip jsPDF's filename param from data URI — it triggers browser download instead of display
@@ -185,7 +224,7 @@ export async function generateIntakePdf(client, intakeData) {
 
 /* ===== 2. Service Contract ===== */
 
-export async function generateContractPdf(client, tierData) {
+export async function generateContractPdf(client, tierData, { signatureData, signedAt } = {}) {
   const JsPDF = await getJsPDF();
   const doc = new JsPDF();
   let y = addHeader(doc, 'Service Contract');
@@ -233,10 +272,17 @@ export async function generateContractPdf(client, tierData) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...DARK);
-  doc.line(MARGIN, y + 10, MARGIN + 70, y + 10);
-  doc.text('Client Signature', MARGIN, y + 16);
-  doc.line(MARGIN + 90, y + 10, MARGIN + CONTENT_WIDTH, y + 10);
-  doc.text('Date', MARGIN + 90, y + 16);
+
+  // Client signature
+  if (signatureData) {
+    addSignatureToDoc(doc, y, signatureData, client.name, signedAt);
+  } else {
+    doc.line(MARGIN, y + 10, MARGIN + 70, y + 10);
+    doc.text('Client Signature', MARGIN, y + 16);
+    doc.line(MARGIN + 90, y + 10, MARGIN + CONTENT_WIDTH, y + 10);
+    doc.text('Date', MARGIN + 90, y + 16);
+  }
+
   y += 26;
   doc.line(MARGIN, y + 10, MARGIN + 70, y + 10);
   doc.text(`${SITE_INFO.name || 'Three Seas Digital'} Representative`, MARGIN, y + 16);
@@ -249,12 +295,12 @@ export async function generateContractPdf(client, tierData) {
     addFooter(doc, i);
   }
 
-  return toBase64Output(doc, `Service_Contract_${client.name.replace(/\s+/g, '_')}.pdf`, 'contract', 'Service contract — please review terms, sign, and upload.');
+  return toBase64Output(doc, `Service_Contract_${client.name.replace(/\s+/g, '_')}.pdf`, 'contract', 'Service contract — signed and executed.');
 }
 
 /* ===== 3. Service Proposal ===== */
 
-export async function generateProposalPdf(client, tierData, intakeData, proposalOptions = {}) {
+export async function generateProposalPdf(client, tierData, intakeData, proposalOptions = {}, { signatureData, signedAt } = {}) {
   const JsPDF = await getJsPDF();
   const doc = new JsPDF();
   let y = addHeader(doc, 'Service Proposal');
@@ -351,13 +397,30 @@ export async function generateProposalPdf(client, tierData, intakeData, proposal
   y = addParagraph(doc, y, '3. Sign the Service Contract to begin the engagement');
   y = addParagraph(doc, y, '4. Access your Client Portal for project tracking and communication');
 
+  // Signature (if signed)
+  if (signatureData) {
+    y += 4;
+    y = addSection(doc, y, 'Acceptance');
+    y += 6;
+    addSignatureToDoc(doc, y, signatureData, client.name, signedAt);
+    y += 26;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...DARK);
+    doc.line(MARGIN, y + 10, MARGIN + 70, y + 10);
+    doc.text(`${SITE_INFO.name || 'Three Seas Digital'} Representative`, MARGIN, y + 16);
+    doc.line(MARGIN + 90, y + 10, MARGIN + CONTENT_WIDTH, y + 10);
+    doc.text('Date', MARGIN + 90, y + 16);
+  }
+
   addFooter(doc, 1);
   for (let i = 2; i <= doc.internal.getNumberOfPages(); i++) {
     doc.setPage(i);
     addFooter(doc, i);
   }
 
-  return toBase64Output(doc, `Service_Proposal_${client.name.replace(/\s+/g, '_')}.pdf`, 'proposal', 'Service proposal — review our recommended plan for your business.');
+  const desc = signatureData ? 'Service proposal — signed and accepted.' : 'Service proposal — review our recommended plan for your business.';
+  return toBase64Output(doc, `Service_Proposal_${client.name.replace(/\s+/g, '_')}.pdf`, 'proposal', desc);
 }
 
 /* ===== 4. Welcome Packet ===== */

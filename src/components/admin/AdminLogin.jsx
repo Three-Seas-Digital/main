@@ -13,7 +13,6 @@ export default function AdminLogin() {
   const [now, setNow] = useState(() => Date.now());
   const isLocked = lockedUntil && now < lockedUntil;
 
-  // Tick the countdown while locked
   useEffect(() => {
     if (!lockedUntil) return;
     const timer = setInterval(() => {
@@ -24,36 +23,47 @@ export default function AdminLogin() {
     return () => clearInterval(timer);
   }, [lockedUntil]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLocked) return;
-    const result = login(username, password);
+    const result = await login(username, password);
     if (!result.success) {
       const newCount = failCount + 1;
       setFailCount(newCount);
       if (newCount >= 3) {
-        setLockedUntil(Date.now() + 30000); // 30 second lockout
+        setLockedUntil(Date.now() + 30000);
         setError('Too many failed attempts. Please wait 30 seconds.');
       } else {
         setError(result.error);
       }
     }
   };
+
   const lockSeconds = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0;
+
   return (
-    <div className="admin-login-page">
-      <div className="admin-login-card">
-        <div className="admin-login-icon"><Lock size={32} /></div>
-        <h2>Admin Panel</h2>
-        <p>Sign in to manage your dashboard</p>
-        {error && <div className="login-error">{error}{isLocked ? ` (${lockSeconds}s)` : ''}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group"><label>Username</label><input type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(''); }} placeholder="Username" required /></div>
-          <div className="form-group"><label>Password</label><input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} placeholder="Password" required /></div>
-          <button type="submit" className="btn btn-primary btn-full" disabled={isLocked}>{isLocked ? `Locked (${lockSeconds}s)` : 'Sign In'}</button>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-icon"><Lock size={28} /></div>
+        <div className="auth-brand">Three Seas Digital</div>
+        <h2 className="auth-title">Admin Panel</h2>
+        <p className="auth-subtitle">Sign in to manage your dashboard</p>
+        {isLocked && <div className="auth-lockout">Account locked — try again in {lockSeconds}s</div>}
+        {error && !isLocked && <div className="auth-error">{error}</div>}
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label>Username</label>
+            <input type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(''); }} placeholder="Username" required />
+          </div>
+          <div className="auth-field">
+            <label>Password</label>
+            <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} placeholder="Password" required />
+          </div>
+          <button type="submit" className="auth-submit" disabled={isLocked}>
+            {isLocked ? `Locked (${lockSeconds}s)` : 'Sign In'}
+          </button>
         </form>
-        <p className="login-hint">Enter your credentials to sign in</p>
-        <div className="login-register-link">
+        <div className="auth-link">
           Don't have an account? <Link to="/register">Register here</Link>
         </div>
       </div>

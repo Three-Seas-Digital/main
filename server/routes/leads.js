@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 
@@ -37,13 +38,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // POST /api/leads — Create lead
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
-    const { businessName, address, phone, website, category, status, source } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO leads (business_name, address, phone, website, category, status, source, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [businessName, address || null, phone || null, website || null, category || null, status || 'new', source || 'manual']
+    const { id: bodyId, businessName, address, phone, website, category, status, source } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO leads (id, business_name, address, phone, website, category, status, source, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, businessName, address || null, phone || null, website || null, category || null, status || 'new', source || 'manual']
     );
-    res.status(201).json({ id: result.insertId, message: 'Lead created' });
+    res.status(201).json({ id, message: 'Lead created' });
   } catch (err) {
     console.error('[leads] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -84,11 +86,12 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'
 router.post('/:id/notes', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
     const { text } = req.body;
-    const [result] = await pool.query(
-      'INSERT INTO lead_notes (lead_id, text, author, created_at) VALUES (?, ?, ?, NOW())',
-      [req.params.id, text, req.user.username]
+    const noteId = generateId();
+    await pool.query(
+      'INSERT INTO lead_notes (id, lead_id, text, author, created_at) VALUES (?, ?, ?, ?, NOW())',
+      [noteId, req.params.id, text, req.user.username]
     );
-    res.status(201).json({ id: result.insertId, message: 'Note added' });
+    res.status(201).json({ id: noteId, message: 'Note added' });
   } catch (err) {
     console.error('[leads] Error:', err);
     res.status(500).json({ error: 'Server error' });

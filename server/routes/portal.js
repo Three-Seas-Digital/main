@@ -50,14 +50,14 @@ router.get('/dashboard', async (req, res) => {
     // Active projects count
     const [projCount] = await pool.query(
       `SELECT COUNT(*) AS count FROM projects
-       WHERE client_id = ? AND status IN ('planning', 'in_progress', 'review')`,
+       WHERE client_id = ? AND status IN ('planning', 'in-progress', 'review')`,
       [clientId]
     );
 
     // Open invoices count
     const [invCount] = await pool.query(
       `SELECT COUNT(*) AS count FROM invoices
-       WHERE client_id = ? AND status IN ('sent', 'overdue')`,
+       WHERE client_id = ? AND status IN ('unpaid', 'pending', 'overdue')`,
       [clientId]
     );
 
@@ -723,13 +723,15 @@ router.put('/notification-prefs', async (req, res) => {
         values
       );
     } else {
+      const prefId = generateId();
       await pool.query(
         `INSERT INTO client_notification_prefs
-         (client_id, email_digest, notify_new_scores, notify_new_recommendations,
+         (id, client_id, email_digest, notify_new_scores, notify_new_recommendations,
           notify_metric_milestones, notify_invoices, notify_documents,
           notify_project_updates, notify_admin_messages)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          prefId,
           clientId,
           safeDigest || 'weekly',
           notify_new_scores !== undefined ? !!notify_new_scores : true,
@@ -752,6 +754,110 @@ router.put('/notification-prefs', async (req, res) => {
     res.json({ success: true, data: prefs[0] });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// ============================================================
+// ONBOARDING (client self-update)
+// ============================================================
+
+// PUT /api/portal/profile - Client updates their own profile
+router.put('/profile', async (req, res) => {
+  try {
+    const clientId = req.client.clientId;
+    const { businessName, phone, street, city, state, zip, dateOfBirth, profileComplete } = req.body;
+    const fields = [];
+    const values = [];
+    if (businessName !== undefined) { fields.push('business_name = ?'); values.push(businessName); }
+    if (phone !== undefined) { fields.push('phone = ?'); values.push(phone); }
+    if (street !== undefined) { fields.push('street = ?'); values.push(street); }
+    if (city !== undefined) { fields.push('city = ?'); values.push(city); }
+    if (state !== undefined) { fields.push('state = ?'); values.push(state); }
+    if (zip !== undefined) { fields.push('zip = ?'); values.push(zip); }
+    if (dateOfBirth !== undefined) { fields.push('date_of_birth = ?'); values.push(dateOfBirth || null); }
+    if (profileComplete !== undefined) { fields.push('profile_complete = ?'); values.push(!!profileComplete); }
+    // Build composite business_address
+    if (street !== undefined || city !== undefined || state !== undefined || zip !== undefined) {
+      const parts = [street, city, state, zip].filter(Boolean);
+      if (parts.length) { fields.push('business_address = ?'); values.push(parts.join(', ')); }
+    }
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    values.push(clientId);
+    await pool.query(`UPDATE clients SET ${fields.join(', ')} WHERE id = ?`, values);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/portal/profile error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/portal/onboarding - Client updates their own onboarding data
+router.put('/onboarding', async (req, res) => {
+  try {
+    const clientId = req.client.clientId;
+    const { onboarding } = req.body;
+
+    if (!onboarding || typeof onboarding !== 'object') {
+      return res.status(400).json({ success: false, error: 'onboarding object required' });
+    }
+
+    // Get current onboarding data
+    const [clients] = await pool.query(
+      'SELECT onboarding FROM clients WHERE id = ?',
+      [clientId]
+    );
+
+    if (clients.length === 0) {
+      return res.status(404).json({ success: false, error: 'Client not found' });
+    }
+
+    let current = clients[0].onboarding;
+    if (typeof current === 'string') {
+      try { current = JSON.parse(current); } catch { current = {}; }
+    }
+    if (!current) current = {};
+
+    // Deep merge documents if provided
+    const merged = { ...current, ...onboarding };
+    if (onboarding.documents && current.documents) {
+      merged.documents = { ...current.documents, ...onboarding.documents };
+    }
+
+    await pool.query(
+      'UPDATE clients SET onboarding = ?, updated_at = NOW() WHERE id = ?',
+      [JSON.stringify(merged), clientId]
+    );
+
+    res.json({ success: true, data: merged });
+  } catch (err) {
+    console.error('PUT /api/portal/onboarding error:', err);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// POST /api/portal/projects - Client creates their first project
+router.post('/projects', async (req, res) => {
+  try {
+    const clientId = req.client.clientId;
+    const { title, description } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Project title is required' });
+    }
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO projects (id, client_id, name, title, description, status, created_at)
+       VALUES (?, ?, ?, ?, ?, 'planning', NOW())`,
+      [id, clientId, title.trim(), title.trim(), description || null]
+    );
+    res.status(201).json({
+      success: true,
+      data: { id, clientId, title: title.trim(), description: description || '', status: 'planning', progress: 0, tasks: [], milestones: [], developers: [], createdAt: new Date().toISOString() },
+    });
+  } catch (err) {
+    console.error('POST /api/portal/projects error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

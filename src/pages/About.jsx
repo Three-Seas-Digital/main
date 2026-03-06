@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
+import '../styles/home.css';
+import '../styles/about.css';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   ArrowRight,
@@ -35,7 +37,7 @@ const differentiators = [
 ];
 
 const stats = [
-  { value: '50+', label: 'Projects Delivered', suffix: '' },
+  { value: '847', label: 'Lines of Code Shipped', suffix: 'K' },
   { value: '98', label: 'Client Satisfaction', suffix: '%' },
   { value: '3', label: 'Years Experience', suffix: '+' },
   { value: '24', label: 'Hour Support', suffix: '/7' },
@@ -67,6 +69,7 @@ export default function About() {
 
   useEffect(() => {
     document.title = 'About Us — Three Seas Digital';
+    window.scrollTo(0, 0);
   }, []);
 
   // Dual-video ping-pong loop (seamless crossfade, no stutter)
@@ -179,6 +182,46 @@ export default function About() {
 
       // Section 2: Process + Differentiators
       if (processSectionRef.current) {
+        // "HOW WE WORK" micro-label — letter-spacing expand
+        const microLabel = processSectionRef.current.querySelector('.micro-label');
+        if (microLabel) {
+          gsap.from(microLabel, {
+            letterSpacing: '-0.1em',
+            opacity: 0,
+            y: 10,
+            duration: 0.7,
+            ease: 'power2.out',
+            scrollTrigger: { trigger: processSectionRef.current, start: 'top 78%' },
+          });
+        }
+
+        // Headline words — clip-path wipe reveal
+        const headlineWords = processSectionRef.current.querySelectorAll('.about-section-headline .word');
+        if (headlineWords.length) {
+          gsap.fromTo(headlineWords,
+            { clipPath: 'inset(0 100% 0 0)' },
+            {
+              clipPath: 'inset(0 0% 0 0)',
+              stagger: 0.2,
+              duration: 0.8,
+              ease: 'power3.out',
+              scrollTrigger: { trigger: processSectionRef.current, start: 'top 75%' },
+            }
+          );
+        }
+
+        // Description text — slide up
+        const sectionDesc = processSectionRef.current.querySelector('.about-section-desc');
+        if (sectionDesc) {
+          gsap.from(sectionDesc, {
+            y: 20,
+            opacity: 0,
+            duration: 0.7,
+            ease: 'power2.out',
+            scrollTrigger: { trigger: processSectionRef.current, start: 'top 72%' },
+          });
+        }
+
         const line = processSectionRef.current.querySelector('.about-process-line');
         if (line) {
           gsap.from(line, {
@@ -203,6 +246,34 @@ export default function About() {
             start: 'top 70%',
           },
         });
+
+        // Process step titles — emerald glow pulse after nodes fade in
+        const stepTitles = processSectionRef.current.querySelectorAll('.about-process-node h3');
+        if (stepTitles.length) {
+          gsap.fromTo(stepTitles,
+            { textShadow: '0 0 0px transparent' },
+            {
+              textShadow: '0 0 18px rgba(62, 207, 142, 0.45), 0 0 36px rgba(62, 207, 142, 0.15)',
+              stagger: 0.15,
+              duration: 1,
+              ease: 'power2.out',
+              scrollTrigger: { trigger: processSectionRef.current, start: 'top 62%' },
+            }
+          );
+        }
+
+        // Process numbers — scale in with bounce
+        const stepNumbers = processSectionRef.current.querySelectorAll('.about-process-number');
+        if (stepNumbers.length) {
+          gsap.from(stepNumbers, {
+            scale: 0.4,
+            opacity: 0,
+            stagger: 0.12,
+            duration: 0.9,
+            ease: 'back.out(1.7)',
+            scrollTrigger: { trigger: processSectionRef.current, start: 'top 65%' },
+          });
+        }
 
         const diffGrid = processSectionRef.current.querySelector('.about-diff-grid');
         if (diffGrid) {

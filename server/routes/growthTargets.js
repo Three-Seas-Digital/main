@@ -22,12 +22,13 @@ router.get('/:clientId/growth-targets', authenticateToken, async (req, res) => {
 // POST /api/clients/:clientId/growth-targets
 router.post('/:clientId/growth-targets', authenticateToken, async (req, res) => {
   try {
-    const { metric_name, metric_type, baseline_value, target_value, current_value, target_date, measurement_frequency, kpi_id, industry } = req.body;
+    const { metric_name, baseline_value, target_value, current_value, target_date, measurement_frequency, unit } = req.body;
     const id = generateId();
+    const metric_slug = (metric_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     await pool.query(
-      `INSERT INTO growth_targets (id, client_id, metric_name, metric_type, baseline_value, target_value, current_value, target_date, measurement_frequency, kpi_id, industry, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
-      [id, req.params.clientId, metric_name, metric_type || 'percentage', baseline_value || 0, target_value || 0, current_value || 0, target_date || null, measurement_frequency || 'monthly', kpi_id || null, industry || null]
+      `INSERT INTO growth_targets (id, client_id, metric_name, metric_slug, unit, baseline_value, target_value, current_value, target_date, measurement_frequency, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
+      [id, req.params.clientId, metric_name, metric_slug, unit || 'number', baseline_value || 0, target_value || 0, current_value || 0, target_date || null, measurement_frequency || 'monthly']
     );
     res.status(201).json({ success: true, data: { id } });
   } catch (err) {
@@ -73,7 +74,7 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
     const targetId = req.params.id;
     // Get previous value
     const [prev] = await pool.query(
-      'SELECT value FROM growth_snapshots WHERE target_id = ? ORDER BY snapshot_date DESC LIMIT 1',
+      'SELECT value FROM growth_snapshots WHERE target_id = ? ORDER BY recorded_at DESC LIMIT 1',
       [targetId]
     );
     const previousValue = prev.length > 0 ? prev[0].value : null;
@@ -88,9 +89,9 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
 
     const id = generateId();
     await pool.query(
-      `INSERT INTO growth_snapshots (id, target_id, value, previous_value, change_percent, progress_percent, notes, snapshot_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [id, targetId, value, previousValue, changePct, progressPct, notes || null]
+      `INSERT INTO growth_snapshots (id, target_id, client_id, value, previous_value, change_percent, progress_percent, notes, recorded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, targetId, req.params.clientId, value, previousValue, changePct, Math.min(progressPct, 999), notes || null]
     );
     // Update current_value on the target
     await pool.query('UPDATE growth_targets SET current_value = ?, updated_at = NOW() WHERE id = ?', [value, targetId]);
@@ -105,7 +106,7 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
 router.get('/:clientId/growth-targets/:id/snapshots', authenticateToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM growth_snapshots WHERE target_id = ? ORDER BY snapshot_date ASC',
+      'SELECT * FROM growth_snapshots WHERE target_id = ? ORDER BY recorded_at ASC',
       [req.params.id]
     );
     res.json({ success: true, data: rows });

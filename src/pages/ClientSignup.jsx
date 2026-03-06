@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import '../styles/client-portal.css';
 import {
   Mail, Lock, User, Check, Zap, Eye, EyeOff,
   LogOut, Printer, DollarSign, FolderKanban, FileText,
@@ -9,8 +10,10 @@ import {
   BarChart3, TrendingUp, Lightbulb, Bell, Star, Activity, Crosshair,
   ClipboardCheck,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { clientAuthApi } from '../api/clientAuth';
 import { SITE_INFO, escapeHtml } from '../constants';
 
 /* ===== LAZY-LOADED PORTAL COMPONENTS ===== */
@@ -43,6 +46,7 @@ function TierBadge({ tier }) {
 function SignUpStep() {
   const { registerClient, checkClientEmail, clientLogin, login } = useAppContext();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -55,6 +59,47 @@ function SignUpStep() {
     businessName: '', phone: '', street: '', city: '', state: '', zip: '', dateOfBirth: '',
   });
   const [registrationComplete, setRegistrationComplete] = useState(false);
+
+  // Email verification state
+  const [verifyStatus, setVerifyStatus] = useState(null); // 'verifying' | 'success' | 'already' | 'error'
+  const [verifyMessage, setVerifyMessage] = useState('');
+  const [resendEmail, setResendEmail] = useState('');
+  const [resendSent, setResendSent] = useState(false);
+
+  // Handle ?verify=TOKEN in URL
+  useEffect(() => {
+    const token = searchParams.get('verify');
+    if (!token) return;
+    setVerifyStatus('verifying');
+    clientAuthApi.verifyEmail(token)
+      .then((data) => {
+        if (data.alreadyVerified) {
+          setVerifyStatus('already');
+          setVerifyMessage('Your email is already verified. You can sign in below.');
+        } else {
+          setVerifyStatus('success');
+          setVerifyMessage(data.message || 'Email verified successfully!');
+        }
+      })
+      .catch((err) => {
+        setVerifyStatus('error');
+        setVerifyMessage(err.response?.data?.error || 'Verification failed. The link may be expired.');
+      })
+      .finally(() => {
+        // Remove token from URL
+        setSearchParams({}, { replace: true });
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleResendVerification = async () => {
+    if (!resendEmail) return;
+    try {
+      await clientAuthApi.resendVerification(resendEmail);
+      setResendSent(true);
+    } catch {
+      setResendSent(true); // Don't reveal errors
+    }
+  };
 
   const handleSignUp = (e) => {
     e.preventDefault();
@@ -105,16 +150,56 @@ function SignUpStep() {
     if (result.pendingApproval) { setRegistrationComplete(true); }
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    const clientResult = clientLogin(formData.email, formData.password);
-    if (clientResult.success) return;
-    const adminResult = login(formData.email, formData.password);
+    // Try client API login first (bcrypt on server)
+    try {
+      const data = await clientAuthApi.login({ email: formData.email, password: formData.password });
+      if (data.accessToken) {
+        localStorage.setItem('threeseas_access_token', data.accessToken);
+        localStorage.setItem('threeseas_refresh_token', data.refreshToken);
+        // Set client in localStorage auth state so AuthContext picks it up
+        const clientData = data.client || { email: formData.email };
+        localStorage.setItem('threeseas_current_client', JSON.stringify(clientData));
+        window.location.reload(); // reload to pick up auth state
+        return;
+      }
+    } catch (err) {
+      const code = err.response?.data?.code;
+      const msg = err.response?.data?.error;
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        setError('Please verify your email address first. Check your inbox for the verification link.');
+        setResendEmail(formData.email);
+        return;
+      }
+      if (err.response?.status === 403) {
+        setError(msg || 'Account is not active');
+        return;
+      }
+      // 401 = invalid credentials, fall through to admin login
+    }
+    // Try admin login as fallback
+    const adminResult = await login(formData.email, formData.password);
     if (adminResult.success) { navigate('/admin'); return; }
     setError('Invalid email/username or password');
   };
 
+  // Email verification result screen
+  if (verifyStatus === 'verifying') {
+    return (
+      <div className="portal-auth-card">
+        <div className="portal-auth-brand">
+          <div className="portal-auth-logo">Three Seas Digital</div>
+          <div className="portal-auth-subtitle">CLIENT PORTAL</div>
+        </div>
+        <div className="portal-auth-pending">
+          <div className="portal-auth-pending-icon"><Mail size={40} /></div>
+          <h2>Verifying your email...</h2>
+        </div>
+      </div>
+    );
+  }
 
   if (registrationComplete) {
     return (
@@ -125,10 +210,11 @@ function SignUpStep() {
         </div>
         <div className="portal-auth-pending">
           <div className="portal-auth-pending-icon">
-            <Clock size={40} />
+            <Mail size={40} />
           </div>
-          <h2>Access Request Submitted</h2>
-          <p>Your access request has been submitted. Our team will review and respond within 24 hours.</p>
+          <h2>Check Your Email</h2>
+          <p>We've sent a verification link to <strong>{pendingRegistration?.email}</strong>. Please click the link to verify your email address.</p>
+          <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '12px' }}>After verification, your account will be reviewed by our team. You'll be able to sign in once approved.</p>
         </div>
         <button className="portal-auth-btn portal-auth-btn-secondary" onClick={() => { setRegistrationComplete(false); setProfileStep(false); setIsLogin(true); }}>
           Return to Sign In
@@ -188,7 +274,38 @@ function SignUpStep() {
           <div className="portal-auth-logo">Three Seas Digital</div>
           <div className="portal-auth-subtitle">CLIENT PORTAL</div>
         </div>
+        {/* Email verification result banner */}
+        {verifyStatus === 'success' && (
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', textAlign: 'center' }}>
+            <CheckCircle size={20} style={{ color: '#16a34a', marginBottom: '4px' }} />
+            <p style={{ color: '#16a34a', fontWeight: 600, margin: '4px 0 0', fontSize: '0.9rem' }}>{verifyMessage}</p>
+          </div>
+        )}
+        {verifyStatus === 'already' && (
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', textAlign: 'center' }}>
+            <p style={{ color: '#2563eb', fontWeight: 500, margin: 0, fontSize: '0.9rem' }}>{verifyMessage}</p>
+          </div>
+        )}
+        {verifyStatus === 'error' && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', textAlign: 'center' }}>
+            <AlertCircle size={20} style={{ color: '#ef4444', marginBottom: '4px' }} />
+            <p style={{ color: '#ef4444', fontWeight: 500, margin: '4px 0 0', fontSize: '0.9rem' }}>{verifyMessage}</p>
+          </div>
+        )}
         {error && <div className="portal-auth-error">{error}</div>}
+        {/* Resend verification link */}
+        {resendEmail && (
+          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', textAlign: 'center' }}>
+            {resendSent ? (
+              <p style={{ color: '#92400e', fontSize: '0.85rem', margin: 0 }}>If that email is registered, a new verification link has been sent.</p>
+            ) : (
+              <>
+                <p style={{ color: '#92400e', fontSize: '0.85rem', margin: '0 0 8px' }}>Didn't receive the verification email?</p>
+                <button type="button" className="portal-auth-link" style={{ fontSize: '0.85rem' }} onClick={handleResendVerification}>Resend verification email</button>
+              </>
+            )}
+          </div>
+        )}
         <form onSubmit={handleLogin} className="portal-auth-form">
           <div className="portal-auth-form-group">
             <label>Email</label>
@@ -1301,68 +1418,221 @@ function ProfileGate() {
     });
   };
 
+  const filledFields = [profileData.businessName, profileData.phone, profileData.street, profileData.city, profileData.state, profileData.zip].filter(v => v.trim()).length;
+  const totalFields = 6;
+
   return (
-    <div className="page client-portal-page">
-      <section className="portal-hero">
-        <div className="container">
-          <h1>Welcome, {liveClient.name}</h1>
-          <p>Complete your profile to get started</p>
-        </div>
-      </section>
-      <div className="container">
-        <div className="portal-auth-wrapper">
-          <div className="signup-card profile-gate-card">
-            <div className="signup-header">
-              <div className="profile-gate-icon">
-                <User size={28} />
-              </div>
-              <h2>Complete Your Profile</h2>
-              <p>Please fill in all required fields to access your dashboard</p>
-            </div>
-            {profileError && <div className="signup-error">{profileError}</div>}
-            <form onSubmit={handleProfileSubmit} className="signup-form">
-              <div className="form-group">
-                <label>Business Name *</label>
-                <div className="input-icon-wrap">
-                  <Building2 size={16} />
-                  <input type="text" value={profileData.businessName} onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })} placeholder="Your company name" required />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Phone *</label>
-                <div className="input-icon-wrap">
-                  <Phone size={16} />
-                  <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} placeholder="(555) 123-4567" required />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Street Address *</label>
-                <div className="input-icon-wrap">
-                  <MapPin size={16} />
-                  <input type="text" value={profileData.street} onChange={(e) => setProfileData({ ...profileData, street: e.target.value })} placeholder="123 Main St" required />
-                </div>
-              </div>
-              <div className="signup-address-row">
-                <div className="form-group">
-                  <label>City *</label>
-                  <input type="text" value={profileData.city} onChange={(e) => setProfileData({ ...profileData, city: e.target.value })} placeholder="City" required />
-                </div>
-                <div className="form-group">
-                  <label>State *</label>
-                  <input type="text" value={profileData.state} onChange={(e) => setProfileData({ ...profileData, state: e.target.value })} placeholder="State" required />
-                </div>
-                <div className="form-group">
-                  <label>Zip Code *</label>
-                  <input type="text" value={profileData.zip} onChange={(e) => setProfileData({ ...profileData, zip: e.target.value })} placeholder="12345" required />
-                </div>
-              </div>
-              <button type="submit" className="btn btn-primary btn-full">Save & Continue</button>
-            </form>
-            <button type="button" className="profile-gate-back" onClick={clientLogout}>
-              <Lock size={14} />
-              Back to Sign In
-            </button>
+    <div className="page client-portal-page portal-auth-page">
+      <div className="portal-auth-wrapper">
+        <div className="portal-auth-card">
+          <div className="portal-auth-brand">
+            <div className="portal-auth-logo">Three Seas Digital</div>
+            <div className="portal-auth-subtitle">COMPLETE YOUR PROFILE</div>
           </div>
+
+          {/* Icon + welcome message */}
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(62, 207, 142, 0.15), rgba(62, 207, 142, 0.05))',
+              border: '1px solid rgba(62, 207, 142, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <User size={24} style={{ color: 'var(--emerald)' }} />
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0 }}>
+              Welcome, <strong style={{ color: 'var(--text-primary)' }}>{liveClient.name || 'there'}</strong>. Fill in your business details to access your dashboard.
+            </p>
+            {/* Progress indicator */}
+            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', marginTop: '14px' }}>
+              {Array.from({ length: totalFields }).map((_, i) => (
+                <div key={i} style={{
+                  width: '32px', height: '3px', borderRadius: '2px',
+                  background: i < filledFields ? 'var(--emerald)' : 'rgba(255,255,255,0.08)',
+                  transition: 'background 0.2s ease',
+                }} />
+              ))}
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '6px' }}>{filledFields} of {totalFields} fields</p>
+          </div>
+
+          {profileError && <div className="portal-auth-error">{profileError}</div>}
+
+          <form onSubmit={handleProfileSubmit} className="portal-auth-form">
+            <div className="portal-auth-form-group">
+              <label>Business Name</label>
+              <input type="text" className="portal-auth-input" value={profileData.businessName} onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })} placeholder="Your company name" required />
+            </div>
+            <div className="portal-auth-form-group">
+              <label>Phone</label>
+              <input type="tel" className="portal-auth-input" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} placeholder="(555) 123-4567" required />
+            </div>
+            <div className="portal-auth-form-group">
+              <label>Street Address</label>
+              <input type="text" className="portal-auth-input" value={profileData.street} onChange={(e) => setProfileData({ ...profileData, street: e.target.value })} placeholder="123 Main St" required />
+            </div>
+            <div className="portal-auth-address-row">
+              <div className="portal-auth-form-group">
+                <label>City</label>
+                <input type="text" className="portal-auth-input" value={profileData.city} onChange={(e) => setProfileData({ ...profileData, city: e.target.value })} placeholder="City" required />
+              </div>
+              <div className="portal-auth-form-group">
+                <label>State</label>
+                <input type="text" className="portal-auth-input" value={profileData.state} onChange={(e) => setProfileData({ ...profileData, state: e.target.value })} placeholder="ST" required maxLength={2} style={{ textTransform: 'uppercase' }} />
+              </div>
+              <div className="portal-auth-form-group">
+                <label>Zip Code</label>
+                <input type="text" className="portal-auth-input" value={profileData.zip} onChange={(e) => setProfileData({ ...profileData, zip: e.target.value })} placeholder="12345" required />
+              </div>
+            </div>
+            <button type="submit" className="portal-auth-btn" disabled={filledFields < totalFields}>
+              Save & Continue
+            </button>
+          </form>
+
+          <div className="portal-auth-divider"><span>or</span></div>
+          <button type="button" className="portal-auth-link" onClick={clientLogout}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== CHANGE PASSWORD GATE ===== */
+function ChangePasswordGate() {
+  const { currentClient, updateClient } = useAppContext();
+  const { setCurrentClient } = useAuth();
+  const [form, setForm] = useState({ current: '', newPass: '', confirm: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (form.newPass.length < 8) { setError('New password must be at least 8 characters'); return; }
+    if (form.newPass !== form.confirm) { setError('Passwords do not match'); return; }
+    if (!form.current) { setError('Current/temporary password is required'); return; }
+
+    setLoading(true);
+    try {
+      await clientAuthApi.changePassword(form.current, form.newPass);
+      // Update both currentClient and the clients array
+      setCurrentClient((prev) => ({ ...prev, mustChangePassword: false }));
+      updateClient(currentClient.id, { mustChangePassword: false });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const passLength = form.newPass.length;
+  const passMatch = form.newPass && form.confirm && form.newPass === form.confirm;
+  const passStrong = passLength >= 8;
+
+  return (
+    <div className="page client-portal-page portal-auth-page">
+      <div className="portal-auth-wrapper">
+        <div className="portal-auth-card">
+          <div className="portal-auth-brand">
+            <div className="portal-auth-logo">Three Seas Digital</div>
+            <div className="portal-auth-subtitle">SECURE YOUR ACCOUNT</div>
+          </div>
+
+          {/* Shield icon + message */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(62, 207, 142, 0.15), rgba(62, 207, 142, 0.05))',
+              border: '1px solid rgba(62, 207, 142, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <ShieldCheck size={24} style={{ color: 'var(--emerald)' }} />
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0 }}>
+              Welcome, <strong style={{ color: 'var(--text-primary)' }}>{currentClient?.name || 'there'}</strong>. For your security, please set a personal password to replace the temporary one.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="portal-auth-form">
+            <div className="portal-auth-form-group">
+              <label>Temporary Password</label>
+              <div className="portal-auth-input-wrap">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="portal-auth-input"
+                  value={form.current}
+                  onChange={(e) => setForm({ ...form, current: e.target.value })}
+                  placeholder="Enter the password you were given"
+                  required
+                />
+                <button type="button" className="portal-auth-toggle" onClick={() => setShowPassword(!showPassword)} aria-label="Toggle password visibility">
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="portal-auth-form-group">
+              <label>New Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="portal-auth-input"
+                value={form.newPass}
+                onChange={(e) => setForm({ ...form, newPass: e.target.value })}
+                placeholder="Choose a strong password"
+                required
+              />
+            </div>
+
+            <div className="portal-auth-form-group">
+              <label>Confirm New Password</label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="portal-auth-input"
+                value={form.confirm}
+                onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+                placeholder="Re-enter your new password"
+                required
+              />
+            </div>
+
+            {/* Password strength indicators */}
+            {form.newPass && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px 14px', background: 'var(--bg-muted)', borderRadius: 'var(--radius)', border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
+                  {passStrong
+                    ? <CheckCircle size={14} style={{ color: 'var(--emerald)' }} />
+                    : <Circle size={14} style={{ color: 'var(--text-muted)' }} />}
+                  <span style={{ color: passStrong ? 'var(--emerald)' : 'var(--text-muted)' }}>At least 8 characters</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
+                  {passMatch
+                    ? <CheckCircle size={14} style={{ color: 'var(--emerald)' }} />
+                    : <Circle size={14} style={{ color: 'var(--text-muted)' }} />}
+                  <span style={{ color: passMatch ? 'var(--emerald)' : 'var(--text-muted)' }}>Passwords match</span>
+                </div>
+              </div>
+            )}
+
+            {error && <div className="portal-auth-error"><AlertCircle size={14} /> {error}</div>}
+
+            <button type="submit" className="portal-auth-btn" disabled={loading || !passStrong || !passMatch}>
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                  <span className="portal-spinner" /> Updating...
+                </span>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                  <ShieldCheck size={16} /> Set New Password
+                </span>
+              )}
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -1376,7 +1646,11 @@ export default function ClientSignup() {
 
   if (currentClient) {
     const liveClient = clients.find(c => c.id === currentClient.id) || currentClient;
-    if (!liveClient.profileComplete) {
+    if (liveClient.mustChangePassword) {
+      return <ChangePasswordGate />;
+    }
+    const hasProfile = !!(liveClient.businessName && liveClient.phone && (liveClient.street || liveClient.city));
+    if (!liveClient.profileComplete && !hasProfile) {
       return <ProfileGate />;
     }
     return (

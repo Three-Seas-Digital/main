@@ -1,24 +1,39 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
-  FileText, Download, Eye, X, Search, Inbox, Calendar, User,
+  FileText, Download, Eye, X, Search, Inbox, Calendar, User, Loader,
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { downloadDocumentFromR2 } from '../../utils/documentStorage';
 
 const formatFileSize = (bytes) => {
-  if (!bytes) return '—';
+  if (!bytes) return '\u2014';
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
 
-const downloadDocument = (doc) => {
-  const link = document.createElement('a');
-  link.href = doc.fileData;
-  link.download = doc.name;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+/** Normalize server-side snake_case doc to camelCase */
+function normalizeDoc(doc) {
+  return {
+    id: doc.id,
+    name: doc.name,
+    type: doc.type || 'other',
+    description: doc.description || '',
+    fileData: doc.fileData || doc.file_data || null,
+    filePath: doc.filePath || doc.file_path || null,
+    fileType: doc.fileType || doc.mime_type || 'application/pdf',
+    fileSize: doc.fileSize || doc.file_size || 0,
+    uploadedBy: doc.uploadedBy || doc.uploaded_by || 'System',
+    uploadedAt: doc.uploadedAt || doc.created_at || new Date().toISOString(),
+  };
+}
+
+/** Get viewable URL for a document — base64 data URI or R2 URL */
+function getDocViewUrl(doc) {
+  if (doc.fileData) return doc.fileData;
+  if (doc.filePath) return doc.filePath;
+  return null;
+}
 
 export default function Documents({ client }) {
   const { DOCUMENT_TYPES } = useAppContext();
@@ -26,8 +41,12 @@ export default function Documents({ client }) {
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingDocument, setViewingDocument] = useState(null);
+  const [loadingDoc, setLoadingDoc] = useState(null);
 
-  const allDocs = client?.documents || [];
+  const allDocs = useMemo(() =>
+    (client?.documents || []).map(normalizeDoc),
+    [client?.documents]
+  );
 
   const availableTypes = useMemo(() => {
     const types = new Set(allDocs.map((d) => d.type));
@@ -58,6 +77,50 @@ export default function Documents({ client }) {
     filtered.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
     return filtered;
   }, [allDocs, filterType, searchQuery]);
+
+  const handleView = useCallback(async (doc) => {
+    // If we already have inline base64 data, show it directly
+    if (doc.fileData) {
+      setViewingDocument(doc);
+      return;
+    }
+    // Fetch from R2 (works for both filePath R2 URLs and docs with just an ID)
+    setLoadingDoc(doc.id);
+    try {
+      const dataUri = await downloadDocumentFromR2(doc.id);
+      if (dataUri) {
+        setViewingDocument({ ...doc, fileData: dataUri });
+      } else {
+        setViewingDocument(doc); // Show "no preview" state
+      }
+    } catch {
+      setViewingDocument(doc);
+    } finally {
+      setLoadingDoc(null);
+    }
+  }, []);
+
+  const handleDownload = useCallback(async (doc) => {
+    let href = doc.fileData;
+    if (!href) {
+      // Fetch from R2
+      setLoadingDoc(doc.id);
+      try {
+        href = await downloadDocumentFromR2(doc.id);
+      } catch { /* ignore */ }
+      setLoadingDoc(null);
+    }
+    if (!href) return;
+
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = doc.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
+
+  const viewUrl = viewingDocument ? getDocViewUrl(viewingDocument) : null;
 
   return (
     <div className="portal-documents">
@@ -126,6 +189,7 @@ export default function Documents({ client }) {
         <div className="portal-docs-list">
           {documents.map((doc) => {
             const dt = DOCUMENT_TYPES[doc.type];
+            const isLoading = loadingDoc === doc.id;
             return (
               <div key={doc.id} className="portal-doc-card">
                 <div
@@ -147,25 +211,27 @@ export default function Documents({ client }) {
                   {doc.description && <p className="portal-doc-desc">{doc.description}</p>}
                   <div className="portal-doc-meta">
                     <span><FileText size={12} /> {formatFileSize(doc.fileSize)}</span>
-                    {doc.uploadedBy && <><span className="portal-doc-meta-dot">·</span><span><User size={12} /> {doc.uploadedBy}</span></>}
-                    <span className="portal-doc-meta-dot">·</span>
+                    {doc.uploadedBy && <><span className="portal-doc-meta-dot">&middot;</span><span><User size={12} /> {doc.uploadedBy}</span></>}
+                    <span className="portal-doc-meta-dot">&middot;</span>
                     <span><Calendar size={12} /> {new Date(doc.uploadedAt).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <div className="portal-doc-actions">
                   <button
                     className="portal-doc-btn"
-                    onClick={() => setViewingDocument(doc)}
+                    onClick={() => handleView(doc)}
                     title="Preview"
                     aria-label={`Preview ${doc.name}`}
+                    disabled={isLoading}
                   >
-                    <Eye size={16} />
+                    {isLoading ? <Loader size={16} className="spin" /> : <Eye size={16} />}
                   </button>
                   <button
                     className="portal-doc-btn portal-doc-btn-primary"
-                    onClick={() => downloadDocument(doc)}
+                    onClick={() => handleDownload(doc)}
                     title="Download"
                     aria-label={`Download ${doc.name}`}
+                    disabled={isLoading}
                   >
                     <Download size={16} />
                   </button>
@@ -200,15 +266,25 @@ export default function Documents({ client }) {
               <span><Calendar size={14} /> {new Date(viewingDocument.uploadedAt).toLocaleString()}</span>
             </div>
             <div className="portal-doc-modal-content">
-              {viewingDocument.fileType?.startsWith('image/') ? (
-                <img src={viewingDocument.fileData} alt={viewingDocument.name} />
-              ) : viewingDocument.fileType === 'application/pdf' ? (
-                <iframe src={viewingDocument.fileData} title={viewingDocument.name} />
+              {viewUrl ? (
+                viewingDocument.fileType?.startsWith('image/') ? (
+                  <img src={viewUrl} alt={viewingDocument.name} />
+                ) : viewingDocument.fileType === 'application/pdf' ? (
+                  <iframe src={viewUrl} title={viewingDocument.name} />
+                ) : (
+                  <div className="portal-doc-no-preview">
+                    <FileText size={48} />
+                    <p>Preview not available for this file type</p>
+                    <button className="portal-doc-btn portal-doc-btn-primary" onClick={() => handleDownload(viewingDocument)}>
+                      <Download size={16} /> Download to View
+                    </button>
+                  </div>
+                )
               ) : (
                 <div className="portal-doc-no-preview">
                   <FileText size={48} />
-                  <p>Preview not available for this file type</p>
-                  <button className="portal-doc-btn portal-doc-btn-primary" onClick={() => downloadDocument(viewingDocument)}>
+                  <p>Document stored remotely. Download to view.</p>
+                  <button className="portal-doc-btn portal-doc-btn-primary" onClick={() => handleDownload(viewingDocument)}>
                     <Download size={16} /> Download to View
                   </button>
                 </div>

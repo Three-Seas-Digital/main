@@ -37,7 +37,10 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('threeseas_refresh_token');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post(`${API_BASE}/auth/refresh`, {
+        // Use the correct refresh endpoint based on session type
+        const isClientSession = !!localStorage.getItem('threeseas_current_client');
+        const refreshUrl = isClientSession ? `${API_BASE}/client-auth/refresh` : `${API_BASE}/auth/refresh`;
+        const { data } = await axios.post(refreshUrl, {
           refreshToken,
         });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 
@@ -40,13 +41,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // POST /api/appointments — Create appointment
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
-    const { clientName, email, phone, date, time, type, notes, status } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO appointments (client_name, email, phone, date, time, type, notes, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [clientName, email || null, phone || null, date, time, type || 'consultation', notes || null, status || 'pending']
+    const { id: bodyId, clientName, email, phone, date, time, type, notes, status } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO appointments (id, client_name, email, phone, date, time, type, notes, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, clientName, email || null, phone || null, date, time, type || 'consultation', notes || null, status || 'pending']
     );
-    res.status(201).json({ id: result.insertId, message: 'Appointment created' });
+    res.status(201).json({ id, message: 'Appointment created' });
   } catch (err) {
     console.error('[appointments] Error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -86,11 +88,12 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'
 router.post('/:id/follow-up-notes', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req, res) => {
   try {
     const { text } = req.body;
-    const [result] = await pool.query(
-      'INSERT INTO appointment_notes (appointment_id, text, author, created_at) VALUES (?, ?, ?, NOW())',
-      [req.params.id, text, req.user.username]
+    const noteId = generateId();
+    await pool.query(
+      'INSERT INTO follow_up_notes (id, appointment_id, text, author, created_at) VALUES (?, ?, ?, ?, NOW())',
+      [noteId, req.params.id, text, req.user.username]
     );
-    res.status(201).json({ id: result.insertId, message: 'Follow-up note added' });
+    res.status(201).json({ id: noteId, message: 'Follow-up note added' });
   } catch (err) {
     console.error('[appointments] Error:', err);
     res.status(500).json({ error: 'Server error' });

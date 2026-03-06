@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send, Clock, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
+import '../styles/home.css';
+import '../styles/contact.css';
 import Calendar from '../components/Calendar';
 import { useAppContext } from '../context/AppContext';
 import { SITE_INFO } from '../constants';
-import FallbackImg from '../components/FallbackImg';
+import SonarPulse from '../components/SonarPulse';
 
 const timeSlots = [
   '9:00 AM', '10:00 AM', '11:00 AM',
@@ -71,17 +73,19 @@ export default function Contact() {
 
   return (
     <div className="page">
-      <section className="page-hero">
-        <div className="page-hero-bg">
-          <FallbackImg
-            src="/images/contact-hero.jpg"
-            alt="Contact"
-          />
-          <div className="hero-overlay" />
+      <section className="contact-hero">
+        <div className="contact-hero-bg">
+          <SonarPulse />
+          <div className="contact-hero-overlay" />
         </div>
-        <div className="page-hero-content">
-          <h1>Initiate Contact</h1>
-          <p>Open a communication frequency and let's explore the depths together</p>
+        <div className="contact-hero-content">
+          <span className="micro-label">// Establish Connection</span>
+          <h1 className="contact-hero-title">Initiate Contact</h1>
+          <p className="contact-hero-subtitle">
+            <span className="glass-pill">
+              Open a communication frequency and let's explore the depths together
+            </span>
+          </p>
         </div>
       </section>
 

@@ -5,10 +5,12 @@ import {
   FileArchive, Cloud, CloudOff, Settings
 } from 'lucide-react';
 import JSZip from 'jszip';
+import html2canvas from 'html2canvas';
 import { useAppContext } from '../../context/AppContext';
 import { ALL_TEMPLATES, TEMPLATE_TIERS } from '../../data/templates';
-import { storeTemplateZip, deleteTemplateZip, storeTemplateImage, deleteTemplateImage, getTemplateImage, syncMetadataToR2 } from '../../utils/templateStorage';
+import { storeTemplateZip, deleteTemplateZip, getTemplateZip, storeTemplateImage, deleteTemplateImage, getTemplateImage, syncMetadataToR2 } from '../../utils/templateStorage';
 import { getR2Config, setR2Config, isR2Enabled } from '../../config/r2Config';
+import { getTemplatePreviewUrl } from '../TemplateTube/useGradientTextures';
 
 const TIER_OPTIONS = [
   { value: 'Starter', color: '#6b7280' },
@@ -74,6 +76,7 @@ export default function TemplatesManagerTab() {
   const [imageError, setImageError] = useState('');
   const [zipError, setZipError] = useState('');
   const [zipValidating, setZipValidating] = useState(false);
+  const [generatingPreview, setGeneratingPreview] = useState(false);
   const fileInputRef = useRef(null);
   const zipInputRef = useRef(null);
 
@@ -191,6 +194,17 @@ export default function TemplatesManagerTab() {
 
   useEffect(() => { loadImages(); }, [loadImages]);
 
+  // Canvas-rendered preview URLs for templates without uploaded images
+  const canvasPreviewUrls = useMemo(() => {
+    const urls = {};
+    [...builtInTemplates, ...customTemplates].forEach((t) => {
+      if (!t.image && !t.hasImage) {
+        urls[t.id] = getTemplatePreviewUrl(t);
+      }
+    });
+    return urls;
+  }, [builtInTemplates, customTemplates]);
+
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -283,6 +297,121 @@ export default function TemplatesManagerTab() {
       setZipError('Invalid ZIP file — could not read contents');
     }
     setZipValidating(false);
+
+    // Auto-generate preview if user hasn't uploaded an image
+    if (!form.imageBlob && !form.hasImage) {
+      generatePreviewFromZip(zip);
+    }
+  };
+
+  const generatePreviewFromZip = async (zip) => {
+    setGeneratingPreview(true);
+    const blobUrls = [];
+    let iframe = null;
+    try {
+      // Build path→blobUrl map from all ZIP files
+      const assetMap = new Map();
+      for (const [path, zipEntry] of Object.entries(zip.files)) {
+        if (zipEntry.dir) continue;
+        const blob = await zipEntry.async('blob');
+        const url = URL.createObjectURL(blob);
+        blobUrls.push(url);
+        assetMap.set(path, url);
+        // Also store without leading subdirectory prefix
+        const shortPath = path.includes('/') ? path.split('/').slice(1).join('/') : path;
+        if (shortPath !== path) assetMap.set(shortPath, url);
+      }
+
+      // Find index.html
+      let indexFile = zip.file('index.html');
+      if (!indexFile) {
+        const entries = Object.keys(zip.files);
+        const nested = entries.find((e) => e.endsWith('/index.html') && e.split('/').length === 2);
+        if (nested) indexFile = zip.file(nested);
+      }
+      if (!indexFile) throw new Error('No index.html found');
+
+      // Read and rewrite HTML asset references
+      let html = await indexFile.async('string');
+
+      // Inline <link> CSS files with rewritten asset URLs
+      const linkRegex = /<link[^>]+rel=["']stylesheet["'][^>]+href=["']([^"']+)["'][^>]*>/gi;
+      const linkMatches = [...html.matchAll(linkRegex)];
+      for (const linkMatch of linkMatches) {
+        const cssPath = linkMatch[1];
+        const cssKey = cssPath.replace('./', '');
+        const cssEntry = zip.file(cssKey) || zip.file(cssPath);
+        if (cssEntry) {
+          let cssContent = await cssEntry.async('string');
+          // Rewrite url() references inside CSS
+          cssContent = cssContent.replace(/url\(["']?([^"')]+)["']?\)/g, (m, u) => {
+            const blobUrl = assetMap.get(u) || assetMap.get(u.replace('./', ''));
+            return blobUrl ? `url(${blobUrl})` : m;
+          });
+          html = html.replace(linkMatch[0], `<style>${cssContent}</style>`);
+        }
+      }
+
+      // Replace src="...", href="..." references
+      html = html.replace(/(src|href)=["']([^"']+)["']/g, (match, attr, url) => {
+        const blobUrl = assetMap.get(url) || assetMap.get(url.replace('./', ''));
+        return blobUrl ? `${attr}="${blobUrl}"` : match;
+      });
+      // Replace url(...) references in inline styles
+      html = html.replace(/url\(["']?([^"')]+)["']?\)/g, (match, url) => {
+        const blobUrl = assetMap.get(url) || assetMap.get(url.replace('./', ''));
+        return blobUrl ? `url(${blobUrl})` : match;
+      });
+
+      // Create hidden iframe
+      iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1280px;height:900px;border:none;opacity:0;pointer-events:none;';
+      document.body.appendChild(iframe);
+      iframe.srcdoc = html;
+      await new Promise((resolve) => { iframe.onload = resolve; });
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Capture with html2canvas
+      const capture = await html2canvas(iframe.contentDocument.body, {
+        width: 1280, height: 900, useCORS: true, logging: false,
+        windowWidth: 1280, windowHeight: 900,
+      });
+
+      // Resize to 800×600
+      const resized = document.createElement('canvas');
+      resized.width = 800;
+      resized.height = 600;
+      resized.getContext('2d').drawImage(capture, 0, 0, 800, 600);
+
+      // Convert to JPEG blob
+      const blob = await new Promise((resolve) => resized.toBlob(resolve, 'image/jpeg', 0.85));
+      const previewUrl = URL.createObjectURL(blob);
+
+      setForm((prev) => {
+        // Don't overwrite if user uploaded an image while we were generating
+        if (prev.imageBlob || prev.hasImage) return prev;
+        return { ...prev, image: previewUrl, imageBlob: blob, hasImage: true, imageName: 'auto-preview.jpg' };
+      });
+    } catch (err) {
+      console.warn('Auto-preview generation failed:', err);
+    } finally {
+      if (iframe) document.body.removeChild(iframe);
+      blobUrls.forEach((url) => URL.revokeObjectURL(url));
+      setGeneratingPreview(false);
+    }
+  };
+
+  const generatePreviewFromStoredZip = async (templateId) => {
+    setGeneratingPreview(true);
+    try {
+      const blob = await getTemplateZip(templateId);
+      if (!blob) throw new Error('ZIP not found in storage');
+      const zip = await JSZip.loadAsync(blob);
+      await generatePreviewFromZip(zip);
+    } catch (err) {
+      console.warn('Failed to generate preview from stored ZIP:', err);
+      setGeneratingPreview(false);
+    }
   };
 
   const resetForm = () => {
@@ -696,16 +825,39 @@ export default function TemplatesManagerTab() {
                       </button>
                       <span className="tmgr-image-name">{form.imageName}</span>
                     </div>
+                  ) : generatingPreview ? (
+                    <div className="tmgr-image-upload-btn tmgr-generating-preview">
+                      <div className="tmgr-generating-spinner" />
+                      <span>Generating preview from ZIP...</span>
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      className="tmgr-image-upload-btn"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload size={20} />
-                      <span>Upload Design</span>
-                      <span className="tmgr-image-hint">JPG, PNG, WebP — Max 2MB</span>
-                    </button>
+                    <div className="tmgr-image-upload-actions">
+                      <button
+                        type="button"
+                        className="tmgr-image-upload-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload size={20} />
+                        <span>Upload Design</span>
+                        <span className="tmgr-image-hint">JPG, PNG, WebP — Max 2MB</span>
+                      </button>
+                      {(form.hasZip || form.zipFile) && (
+                        <button
+                          type="button"
+                          className="tmgr-auto-preview-btn"
+                          onClick={() => {
+                            if (form.zipFile) {
+                              JSZip.loadAsync(form.zipFile).then(generatePreviewFromZip).catch(() => setGeneratingPreview(false));
+                            } else if (editId) {
+                              generatePreviewFromStoredZip(editId);
+                            }
+                          }}
+                        >
+                          <Eye size={14} />
+                          <span>Auto-generate from ZIP</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                   <input
                     ref={fileInputRef}
@@ -816,7 +968,7 @@ export default function TemplatesManagerTab() {
               <tr key={`${t.source}-${t.id}`} className={t.source === 'custom' && t.status === 'draft' ? 'tmgr-row-draft' : ''}>
                 <td>
                   {(() => {
-                    const imgSrc = imageUrls[t.id] || t.image;
+                    const imgSrc = imageUrls[t.id] || t.image || canvasPreviewUrls[t.id];
                     return (
                       <div
                         className="tmgr-thumb"

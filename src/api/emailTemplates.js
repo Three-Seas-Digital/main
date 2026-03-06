@@ -6,4 +6,6 @@ export const emailTemplatesApi = {
   create: (data) => api.post('/email-templates', data).then(r => r.data),
   update: (id, data) => api.put(`/email-templates/${id}`, data).then(r => r.data),
   delete: (id) => api.delete(`/email-templates/${id}`).then(r => r.data),
+  sendWelcome: (clientId, options = {}) =>
+    api.post('/email-templates/send-welcome', { clientId, ...options }).then(r => r.data),
 };

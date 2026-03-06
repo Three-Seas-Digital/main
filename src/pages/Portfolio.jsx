@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
+import '../styles/portfolio.css';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
   ArrowRight, 
@@ -124,7 +125,7 @@ export default function Portfolio() {
       <section className="portfolio-hero" ref={heroRef}>
         <div className="portfolio-hero-bg">
           <FallbackImg src="/images/lighthouse2.jpeg" alt="Website templates" />
-          <LighthouseBeam originX={0.5} originY={0.75} />
+          <LighthouseBeam originX={0.5} originY={0.77} />
           <div className="portfolio-hero-overlay" />
         </div>
         <div className="hero-content">
@@ -145,7 +146,7 @@ export default function Portfolio() {
             <a href="#pricing" className="btn btn-glow btn-lg">
               View Packages <ArrowRight size={20} />
             </a>
-            <Link to="/contact" className="btn btn-outline-light">
+            <Link to="/contact" className="btn btn-outline">
               Get Custom Quote
             </Link>
           </div>

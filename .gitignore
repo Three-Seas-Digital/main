@@ -1,3 +1,40 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Environment
+.env
+.env.*
+*.local
+
+# Build
+dist/
+dist-ssr/
+
+# Uploads
+uploads/
+
+# Claude / Ralph / Agents
+.claude/
+.ralph/
+.agents/
+skills-lock.json
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
 # Logs
 logs
 *.log
@@ -7,29 +44,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Keys / Secrets
+*.pem
+*.key
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Environment variables
-.env
-.env.*
-
-# Uploads (user-uploaded files)
-uploads/
-
-# Claude / Ralph
-.claude/
-.ralph/
+# Supabase local
+supabase/.temp/
+supabase/.branches/

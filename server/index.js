@@ -20,6 +20,10 @@ app.use(cors({
   credentials: true,
 }));
 
+// Stripe webhook needs raw body — mount BEFORE json parser
+import paymentProcessingRoutes from './routes/paymentProcessing.js';
+app.use('/api/payment-processing/stripe/webhook', express.raw({ type: 'application/json' }));
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -87,6 +91,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/clients', growthTargetsRouter);
 app.use('/api/clients', executionPlansRouter);
 app.use('/api/ai-recommendations', aiRecommendationsRouter);
+app.use('/api/payment-processing', paymentProcessingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

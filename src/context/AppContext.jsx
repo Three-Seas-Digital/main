@@ -7,6 +7,7 @@ import { generateBiDiscoveryPdf } from '../utils/generateOnboardingPdfs';
 import { generateKpisForClient } from '../components/admin/BusinessIntelligence/kpiRegistry';
 import { syncToApi } from '../api/apiSync.js';
 import { syncMetadataToR2, fetchMetadataFromR2, fetchOverridesFromR2, discoverR2Templates } from '../utils/templateStorage';
+import { uploadDocumentToR2, getDocumentR2Url, downloadDocumentFromR2 } from '../utils/documentStorage';
 import { appointmentsApi } from '../api/appointments.js';
 import { clientsApi } from '../api/clients.js';
 import { invoicesApi } from '../api/invoices.js';
@@ -16,6 +17,7 @@ import { emailTemplatesApi } from '../api/emailTemplates.js';
 import { notificationsApi } from '../api/notifications.js';
 import { paymentsApi } from '../api/payments.js';
 import { clientAuthApi } from '../api/clientAuth.js';
+import { portalApi } from '../api/portal.js';
 
 const AppContext = createContext();
 
@@ -39,6 +41,55 @@ const createDefaultOnboarding = () => ({
   },
   documentsGeneratedAt: null, documentsGeneratedBy: null,
 });
+
+const ONBOARDING_DOC_LABELS = {
+  intake: 'Intake Questionnaire',
+  contract: 'Service Contract',
+  proposal: 'Service Proposal',
+  welcome_packet: 'Welcome Packet',
+};
+
+/**
+ * Ensure onboarding document entries appear in client.documents.
+ * If the onboarding JSON has a generatedDocId or approvedDocId, check
+ * if that ID is already in the documents array. If not, synthesize
+ * a metadata entry so it shows up in admin and client document views.
+ */
+function mergeOnboardingDocs(client) {
+  const onb = client.onboarding;
+  if (!onb?.documents || !onb.documentsGeneratedAt) return client;
+
+  // Deduplicate by document type — if a real document of this type already
+  // exists in the array (from DB or local state), skip synthesizing a duplicate
+  const existingTypes = new Set((client.documents || []).map(d => d.type));
+  const additions = [];
+
+  for (const [key, entry] of Object.entries(onb.documents)) {
+    if (!entry || entry.status === 'pending') continue;
+    const docId = entry.approvedDocId || entry.generatedDocId;
+    if (!docId || existingTypes.has(key)) continue;
+
+    // Synthesize a document entry from onboarding metadata
+    // Include R2 URL so Documents view can fetch the file
+    const r2Url = getDocumentR2Url(docId);
+    additions.push({
+      id: docId,
+      name: `${ONBOARDING_DOC_LABELS[key] || key}${entry.signedPdfName ? ' (Signed)' : ''}`,
+      type: key,
+      description: entry.approvedDocId
+        ? `${ONBOARDING_DOC_LABELS[key]} — signed and approved`
+        : `${ONBOARDING_DOC_LABELS[key]} — generated during onboarding`,
+      filePath: r2Url,
+      fileType: 'application/pdf',
+      fileSize: 0,
+      uploadedBy: entry.reviewedBy || onb.documentsGeneratedBy || 'System',
+      uploadedAt: entry.reviewedAt || entry.generatedAt || onb.documentsGeneratedAt,
+    });
+  }
+
+  if (additions.length === 0) return client;
+  return { ...client, documents: [...(client.documents || []), ...additions] };
+}
 
 const STORAGE_KEY = 'threeseas_appointments';
 const CLIENTS_KEY = 'threeseas_clients';
@@ -112,12 +163,14 @@ Three Seas Digital`,
   {
     id: 'welcome',
     name: 'Welcome New Client',
-    subject: 'Welcome to Three Seas Digital!',
+    subject: 'Welcome to Three Seas Digital, {clientName}!',
     body: `Hi {clientName},
 
-Welcome aboard! We're excited to have you as a client.
+Welcome to Three Seas Digital! We're thrilled to have you on board. Your client account is ready and we've set up everything you need to get started.
 
-Your account has been set up and you can access your portal anytime.
+Here's what happens next: log in to your client portal, set a permanent password, and complete your business profile. From there, we'll review your onboarding documents together and schedule a kickoff call to map out your project roadmap.
+
+We're committed to making this a great experience. If you have any questions at all, just reply to this email.
 
 Best regards,
 Three Seas Digital`,
@@ -146,18 +199,34 @@ export function AppProvider({ children }) {
   }, [appointments]);
 
   useEffect(() => {
-    safeSetItem(CLIENTS_KEY, JSON.stringify(clients));
+    // Strip large base64 fileData from documents before saving to localStorage
+    // to prevent quota exceeded errors. Documents are persisted in R2 + DB.
+    const stripped = clients.map(c => {
+      if (!c.documents?.length) return c;
+      return {
+        ...c,
+        documents: c.documents.map(d => {
+          if (!d.fileData || d.fileData.length < 1000) return d;
+          const { fileData, ...rest } = d;
+          return rest;
+        }),
+      };
+    });
+    safeSetItem(CLIENTS_KEY, JSON.stringify(stripped));
   }, [clients]);
+
+  // Enrich clients with onboarding docs merged into documents array
+  const enrichedClients = useMemo(() => clients.map(mergeOnboardingDocs), [clients]);
 
   // Keep currentClient in sync when clients array changes
   useEffect(() => {
     if (!currentClient) return;
-    const fresh = clients.find(c => c.id === currentClient.id);
+    const fresh = enrichedClients.find(c => c.id === currentClient.id);
     if (fresh && fresh !== currentClient) {
       const changed = JSON.stringify(fresh) !== JSON.stringify(currentClient);
       if (changed) setCurrentClient(fresh);
     }
-  }, [clients, currentClient, setCurrentClient]);
+  }, [enrichedClients, currentClient, setCurrentClient]);
 
   useEffect(() => {
     safeSetItem(ACTIVITY_LOG_KEY, JSON.stringify(activityLog));
@@ -623,7 +692,12 @@ export function AppProvider({ children }) {
     setClients((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
     );
-    syncToApi(() => clientsApi.update(id, updates), 'updateClient');
+    const isClientSession = !!localStorage.getItem('threeseas_current_client');
+    if (isClientSession) {
+      syncToApi(() => portalApi.updateProfile(updates), 'updateClient');
+    } else {
+      syncToApi(() => clientsApi.update(id, updates), 'updateClient');
+    }
   };
 
   const addClientNote = (id, note) => {
@@ -699,7 +773,7 @@ export function AppProvider({ children }) {
       name: document.name,
       type: document.type || 'other',
       description: document.description || '',
-      fileData: document.fileData, // base64 encoded file
+      fileData: document.fileData, // base64 encoded file (kept for local display)
       fileType: document.fileType, // mime type
       fileSize: document.fileSize,
       uploadedBy: currentUser?.name || 'System',
@@ -712,7 +786,28 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => clientsApi.uploadDocument(clientId, document), 'addClientDocument');
+
+    if (document instanceof FormData || document.file) {
+      // File upload — use multipart endpoint
+      syncToApi(() => clientsApi.uploadDocument(clientId, document), 'addClientDocument');
+    } else if (document.fileData) {
+      // Base64 document — upload to R2 and save metadata to DB
+      syncToApi(async () => {
+        const r2Result = await uploadDocumentToR2(newDoc.id, document.fileData, document.fileType);
+        const filePath = r2Result.success ? r2Result.url : null;
+        await clientsApi.saveDocumentMetadata(clientId, {
+          id: newDoc.id,
+          name: newDoc.name,
+          type: newDoc.type,
+          description: newDoc.description,
+          filePath,
+          fileSize: newDoc.fileSize,
+          mimeType: newDoc.fileType,
+          uploadedBy: newDoc.uploadedBy,
+        });
+      }, 'addClientDocument');
+    }
+
     return { success: true, document: newDoc };
   };
 
@@ -870,7 +965,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => invoicesApi.create(clientId, newInvoice), 'addInvoice');
+    syncToApi(() => invoicesApi.create({ ...newInvoice, clientId }), 'addInvoice');
     logActivity('invoice_created', { clientId, clientName: client?.name, amount: newInvoice.amount, title: invoice.title });
     return newInvoice;
   };
@@ -906,7 +1001,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => invoicesApi.generateRecurring(clientId, invoiceId), 'generateRecurringInvoice');
+    syncToApi(() => invoicesApi.generateRecurring(invoiceId), 'generateRecurringInvoice');
 
     // Update the original invoice's nextDueDate
     updateInvoice(clientId, invoiceId, { nextDueDate: nextDate.toISOString().split('T')[0] });
@@ -928,7 +1023,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => invoicesApi.update(clientId, invoiceId, updates), 'updateInvoice');
+    syncToApi(() => invoicesApi.update(invoiceId, updates), 'updateInvoice');
   };
 
   const markInvoicePaid = (clientId, invoiceId) => {
@@ -966,7 +1061,7 @@ export function AppProvider({ children }) {
             : c
         )
       );
-      syncToApi(() => invoicesApi.markPaid(clientId, invoiceId), 'markInvoicePaid');
+      syncToApi(() => invoicesApi.markPaid(invoiceId), 'markInvoicePaid');
 
       // Log activity
       logActivity('invoice_paid', { clientId, clientName: client.name, amount: invoice.amount, invoiceId });
@@ -995,7 +1090,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => invoicesApi.unmarkPaid(clientId, invoiceId), 'unmarkInvoicePaid');
+    syncToApi(() => invoicesApi.unmarkPaid(invoiceId), 'unmarkInvoicePaid');
   };
 
   const deleteInvoice = (clientId, invoiceId) => {
@@ -1009,7 +1104,7 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => invoicesApi.delete(clientId, invoiceId), 'deleteInvoice');
+    syncToApi(() => invoicesApi.delete(invoiceId), 'deleteInvoice');
   };
 
   // Projects (all clients)
@@ -1034,7 +1129,12 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => projectsApi.create({ ...newProject, clientId }), 'addProject');
+    const isClientSession = !!localStorage.getItem('threeseas_current_client');
+    if (isClientSession) {
+      syncToApi(() => portalApi.createProject({ title: newProject.title, description: newProject.description }), 'addProject');
+    } else {
+      syncToApi(() => projectsApi.create({ ...newProject, clientId }), 'addProject');
+    }
     return newProject;
   };
 
@@ -1355,6 +1455,22 @@ export function AppProvider({ children }) {
     }
   };
 
+  const reopenOnboarding = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    const updatedOnboarding = { ...client.onboarding, complete: false, completedAt: null, completedBy: null, reopenedAt: new Date().toISOString(), reopenedBy: currentUser?.name || 'Admin' };
+    setClients((prev) =>
+      prev.map((c) =>
+        c.id === clientId
+          ? { ...c, onboarding: updatedOnboarding }
+          : c
+      )
+    );
+    syncToApi(() => clientsApi.update(clientId, { onboarding: updatedOnboarding }), 'reopenOnboarding');
+    logActivity('onboarding_reopened', { clientId, clientName: client.name });
+    addNotification({ type: 'info', title: 'Onboarding Reopened', message: `${client.name} has been sent back to onboarding` });
+  };
+
   const updateClientOnboarding = (clientId, updates) => {
     setClients((prev) =>
       prev.map((c) =>
@@ -1363,7 +1479,13 @@ export function AppProvider({ children }) {
           : c
       )
     );
-    syncToApi(() => clientsApi.update(clientId, { onboarding: updates }), 'updateClientOnboarding');
+    // Use portal endpoint for client sessions, admin endpoint otherwise
+    const isClientSession = !!localStorage.getItem('threeseas_current_client');
+    if (isClientSession && currentClient?.id === clientId) {
+      syncToApi(() => portalApi.updateOnboarding(updates), 'updateClientOnboarding');
+    } else {
+      syncToApi(() => clientsApi.update(clientId, { onboarding: updates }), 'updateClientOnboarding');
+    }
   };
 
   // Convert prospect to client (cross-context: reads from SalesContext, writes to clients)
@@ -1475,11 +1597,12 @@ export function AppProvider({ children }) {
     return { success: true, client: newClient, pendingApproval: true };
   };
 
-  const changeClientPassword = (clientId, newPassword) => {
+  const changeClientPassword = (clientId, newPassword, mustChangePassword = true, skipApi = false) => {
     if (!newPassword || newPassword.length < 6) return { success: false, error: 'Password must be at least 6 characters' };
-    const hashed = hashPassword(newPassword);
-    setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, password: hashed } : c));
-    syncToApi(() => clientsApi.update(clientId, { password: newPassword }), 'changeClientPassword');
+    setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, hasPassword: true, mustChangePassword } : c));
+    if (!skipApi) {
+      syncToApi(() => clientsApi.setPassword(clientId, newPassword, mustChangePassword), 'changeClientPassword');
+    }
     return { success: true };
   };
 
@@ -1536,10 +1659,10 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     appointments, addAppointment, updateAppointmentStatus, updateAppointment, assignAppointment,
     markFollowUp, updateFollowUp, addFollowUpNote, deleteFollowUpNote, deleteAppointment, getAppointmentsForDate, getBookedTimesForDate,
-    clients, convertToClient, addClientManually, updateClient, addClientNote, deleteClientNote,
+    clients: enrichedClients, convertToClient, addClientManually, updateClient, addClientNote, deleteClientNote,
     addClientTag, removeClientTag, addClientDocument, updateClientDocument, deleteClientDocument, DOCUMENT_TYPES,
     deleteClient, archiveClient, restoreClient, permanentlyDeleteClient, approveClient, rejectClient,
-    completeOnboarding, updateClientOnboarding, submitClientIntake,
+    completeOnboarding, reopenOnboarding, updateClientOnboarding, submitClientIntake,
     addInvoice, updateInvoice, markInvoicePaid, unmarkInvoicePaid, deleteInvoice,
     addProject, updateProject, deleteProject, addProjectTask, updateProjectTask, deleteProjectTask,
     addMilestone, toggleMilestone, deleteMilestone, assignDeveloperToProject, removeDeveloperFromProject, completeProject,
@@ -1552,7 +1675,7 @@ export function AppProvider({ children }) {
     generateRecurringInvoice,
     adminTemplates, addAdminTemplate, updateAdminTemplate, deleteAdminTemplate,
     builtInOverrides, setBuiltInOverride, clearBuiltInOverride,
-  }), [appointments, clients, activityLog, notifications, timeEntries, emailTemplates, adminTemplates, builtInOverrides]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [appointments, enrichedClients, activityLog, notifications, timeEntries, emailTemplates, adminTemplates, builtInOverrides]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AppContext.Provider value={value}>

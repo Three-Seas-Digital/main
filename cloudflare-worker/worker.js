@@ -13,6 +13,12 @@
  *   DELETE /images/:id      — Delete a template image
  *   HEAD   /images/:id      — Check if image exists
  *
+ *   PUT    /documents/:id   — Upload a client document (PDF, etc.)
+ *   GET    /documents/:id   — Download a client document
+ *   DELETE /documents/:id   — Delete a client document
+ *   HEAD   /documents/:id   — Check if document exists
+ *   GET    /documents       — List all stored document IDs
+ *
  * Auth: X-API-Key header must match the R2_API_KEY secret
  * CORS: Configured for your frontend origin
  *
@@ -79,6 +85,19 @@ export default {
     if (imageMatch) {
       const imageId = imageMatch[1];
       const key = `images/${imageId}.jpg`;
+      return handleRoute(request, key, env);
+    }
+
+    // List all document keys
+    if (path === '/documents' && request.method === 'GET') {
+      return handleList('documents/', '', env);
+    }
+
+    // Route: /documents/:id
+    const docMatch = path.match(/^\/documents\/(.+)$/);
+    if (docMatch) {
+      const docId = docMatch[1];
+      const key = `documents/${docId}`;
       return handleRoute(request, key, env);
     }
 

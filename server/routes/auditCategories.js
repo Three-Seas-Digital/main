@@ -32,9 +32,10 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), as
   try {
     const { name, description, max_score, sort_order } = req.body;
     const id = generateId();
+    const slug = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     await pool.query(
-      'INSERT INTO audit_categories (id, name, description, max_score, is_base, sort_order) VALUES (?, ?, ?, ?, false, ?)',
-      [id, name, description || null, max_score || 10, sort_order || 999]
+      'INSERT INTO audit_categories (id, name, slug, description, max_score, is_base, sort_order, display_order) VALUES (?, ?, ?, ?, ?, false, ?, ?)',
+      [id, name, slug, description || null, max_score || 10, sort_order || 999, sort_order || 999]
     );
     res.status(201).json({ success: true, data: { id, message: 'Category created' } });
   } catch (err) {

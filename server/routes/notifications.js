@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 
 const router = Router();
 
@@ -35,12 +36,13 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
 // POST /api/notifications — Create notification
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req, res) => {
   try {
-    const { userId, type, title, message, link } = req.body;
-    const [result] = await pool.query(
-      'INSERT INTO notifications (user_id, type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, ?, FALSE, NOW())',
-      [userId || req.user.userId, type, title || 'Notification', message, link || null]
+    const { id: bodyId, userId, type, title, message, link } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      'INSERT INTO notifications (id, user_id, type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, FALSE, NOW())',
+      [id, userId || req.user.userId, type, title || 'Notification', message, link || null]
     );
-    res.status(201).json({ id: result.insertId, message: 'Notification created' });
+    res.status(201).json({ id, message: 'Notification created' });
   } catch (err) {
     console.error('[notifications] Error:', err);
     res.status(500).json({ error: 'Server error' });

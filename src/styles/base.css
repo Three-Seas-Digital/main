@@ -1,5 +1,4 @@
 /* ===== BIOLUMINESCENT DEPTHS — Jellyfish, Ocean, Luminescence, Sirius ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 *, *::before, *::after {
   margin: 0;
@@ -105,14 +104,14 @@
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
 
-  /* Typography Scale */
-  --font-xs: 0.75rem;
-  --font-sm: 0.85rem;
-  --font-base: 1rem;
-  --font-lg: 1.1rem;
-  --font-xl: 1.25rem;
-  --font-2xl: 1.75rem;
-  --font-3xl: clamp(2.5rem, 5vw, 4.5rem);
+  /* Typography Scale — sharpened & enlarged */
+  --font-xs: 0.8rem;
+  --font-sm: 0.9rem;
+  --font-base: 1.05rem;
+  --font-lg: 1.2rem;
+  --font-xl: 1.4rem;
+  --font-2xl: 2rem;
+  --font-3xl: clamp(2.8rem, 5.5vw, 5rem);
 
   /* Sizing — Supabase: rounded */
   --radius: 6px;
@@ -373,11 +372,15 @@ body {
   font-family: var(--font-body);
   background: var(--abyss);
   color: var(--text-primary);
+  font-size: var(--font-base);
   line-height: 1.7;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* ===== DEEP OCEAN BACKGROUND WITH LUMINESCENCE ===== */
@@ -450,7 +453,7 @@ input, select, textarea, button {
 
 .section-header h2 {
   font-family: var(--font-heading);
-  font-size: 3.2rem;
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
   font-weight: 600;
   color: var(--text-bright);
   margin-bottom: 16px;
@@ -459,11 +462,11 @@ input, select, textarea, button {
 }
 
 .section-header p {
-  font-size: 1.1rem;
+  font-size: var(--font-lg);
   color: var(--text-muted);
-  max-width: 450px;
+  max-width: 500px;
   margin: 0 auto;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 /* ===== BUTTONS WITH LUMINESCENCE ===== */
@@ -473,14 +476,14 @@ input, select, textarea, button {
   gap: 8px;
   padding: 16px 36px;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   border: none;
   cursor: pointer;
   transition: all var(--transition);
   text-decoration: none;
   position: relative;
   overflow: hidden;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -524,6 +527,51 @@ input, select, textarea, button {
   box-shadow: none;
   transform: none;
   color: var(--text-bright);
+}
+
+/* ── 404 Page ── */
+.not-found-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 24px 80px;
+}
+.not-found-content {
+  text-align: center;
+  max-width: 480px;
+}
+.not-found-content h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-amber));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  margin: 16px 0 8px;
+}
+.not-found-content h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.not-found-content p {
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+.not-found-icon {
+  border-radius: 50%;
+  opacity: 0.6;
+}
+.not-found-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .btn-glow {
@@ -693,8 +741,32 @@ input, select, textarea, button {
   }
 }
 
-/* ===== RESPONSIVE ===== */
+/* ===== RESPONSIVE TYPOGRAPHY ===== */
+@media (max-width: 768px) {
+  :root {
+    --font-xs: 0.78rem;
+    --font-sm: 0.88rem;
+    --font-base: 1rem;
+    --font-lg: 1.1rem;
+    --font-xl: 1.25rem;
+    --font-2xl: 1.75rem;
+    --font-3xl: clamp(2.2rem, 7vw, 3.5rem);
+  }
+  .section-header p {
+    font-size: var(--font-base);
+  }
+}
+
 @media (max-width: 480px) {
+  :root {
+    --font-xs: 0.75rem;
+    --font-sm: 0.85rem;
+    --font-base: 0.95rem;
+    --font-lg: 1.05rem;
+    --font-xl: 1.15rem;
+    --font-2xl: 1.5rem;
+    --font-3xl: clamp(1.8rem, 8vw, 2.8rem);
+  }
   .container {
     padding: 0 16px;
   }
@@ -704,8 +776,9 @@ input, select, textarea, button {
   .section-header {
     margin-bottom: 36px;
   }
-  .section-header h2 {
-    font-size: 2.2rem;
+  .btn {
+    font-size: 0.8rem;
+    padding: 14px 28px;
   }
   .btn-lg {
     padding: 14px 28px;

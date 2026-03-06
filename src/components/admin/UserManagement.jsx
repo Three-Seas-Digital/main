@@ -30,7 +30,7 @@ export default function UserManagement() {
     }
     resetForm();
   };
-  const startEdit = (user) => { setForm({ username: user.username, password: '', name: user.name, email: user.email, role: user.role }); setEditingId(user.id); setShowForm(true); setError(''); };
+  const startEdit = (user) => { setForm({ username: user.username || '', password: '', name: user.name || '', email: user.email || '', role: user.role || 'developer' }); setEditingId(user.id); setShowForm(true); setError(''); };
 
   const pendingUsers = useMemo(() => users.filter((u) => u.status === 'pending'), [users]);
   const approvedUsers = useMemo(() => users.filter((u) => u.status !== 'pending' && u.status !== 'rejected'), [users]);
@@ -61,7 +61,7 @@ export default function UserManagement() {
             {pendingUsers.map((user) => (
               <div key={user.id} className="pending-card">
                 <div className="pending-card-top">
-                  <div className="user-avatar pending-avatar">{user.name.charAt(0).toUpperCase()}</div>
+                  <div className="user-avatar pending-avatar">{(user.name || user.username || '?').charAt(0).toUpperCase()}</div>
                   <div className="user-info">
                     <div className="user-name-row"><strong>{user.name}</strong><span className="pending-status-tag">Pending</span></div>
                     <span className="user-username">@{user.username}</span>
@@ -116,7 +116,7 @@ export default function UserManagement() {
             {rejectedUsers.map((user) => (
               <div key={user.id} className="pending-card rejected-card">
                 <div className="pending-card-top">
-                  <div className="user-avatar rejected-avatar">{user.name.charAt(0).toUpperCase()}</div>
+                  <div className="user-avatar rejected-avatar">{(user.name || user.username || '?').charAt(0).toUpperCase()}</div>
                   <div className="user-info">
                     <div className="user-name-row"><strong>{user.name}</strong><span className="rejected-status-tag">Rejected</span></div>
                     <span className="user-username">@{user.username}</span>
@@ -194,7 +194,7 @@ export default function UserManagement() {
         {approvedUsers.map((user) => (
           <div key={user.id} className={`user-card ${user.id === currentUser?.id ? 'current-user' : ''}`}>
             <div className="user-card-top">
-              <div className="user-avatar">{user.name.charAt(0).toUpperCase()}</div>
+              <div className="user-avatar">{(user.name || user.username || '?').charAt(0).toUpperCase()}</div>
               <div className="user-info">
                 <div className="user-name-row"><strong>{user.name}</strong>{user.id === currentUser?.id && <span className="you-badge">You</span>}</div>
                 <span className="user-username">@{user.username}</span>

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { generateContent, generateChat, generateJSON } from '../utils/gemini.js';
 
@@ -122,6 +123,70 @@ Respond in JSON format with: { "findings": [...], "recommendations": [...], "qui
   } catch (err) {
     console.error('[ai/audit-suggestions] Error:', err.message);
     res.status(500).json({ error: 'Audit suggestions failed', details: err.message });
+  }
+});
+
+// ─── POST /api/ai/recommend/:clientId ─────────────────────────────
+// Generate AI recommendations via xAI
+router.post('/recommend/:clientId', authenticateToken, requireRole('owner', 'admin', 'manager', 'it', 'analyst'), async (req, res) => {
+  try {
+    const { generateRecommendations } = await import('../services/aiRecommendationEngine.js');
+    const result = await generateRecommendations(req.params.clientId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[ai/recommend] Error:', err.message);
+    res.status(500).json({ error: 'Recommendation generation failed', details: err.message });
+  }
+});
+
+// ─── POST /api/ai/swot/:clientId ─────────────────────────────────
+// Generate AI SWOT analysis via xAI
+router.post('/swot/:clientId', authenticateToken, requireRole('owner', 'admin', 'manager', 'it', 'analyst'), async (req, res) => {
+  try {
+    const { generateSWOT } = await import('../services/aiRecommendationEngine.js');
+    const result = await generateSWOT(req.params.clientId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[ai/swot] Error:', err.message);
+    res.status(500).json({ error: 'SWOT generation failed', details: err.message });
+  }
+});
+
+// ─── GET /api/ai/swot/:clientId ──────────────────────────────────
+// Get latest SWOT analysis for a client
+router.get('/swot/:clientId', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM swot_analyses WHERE client_id = ? ORDER BY generated_at DESC LIMIT 1',
+      [req.params.clientId]
+    );
+    if (rows.length === 0) return res.json({ success: true, data: null });
+
+    const swot = rows[0];
+    // Parse JSON strings if needed
+    for (const key of ['strengths', 'weaknesses', 'opportunities', 'threats']) {
+      if (typeof swot[key] === 'string') swot[key] = JSON.parse(swot[key]);
+    }
+
+    res.json({ success: true, data: swot });
+  } catch (err) {
+    console.error('[ai/swot] GET Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch SWOT', details: err.message });
+  }
+});
+
+// ─── GET /api/ai/swot/:clientId/history ──────────────────────────
+// Get all SWOT analyses for a client
+router.get('/swot/:clientId/history', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, client_id, ai_generated, generated_at, updated_at FROM swot_analyses WHERE client_id = ? ORDER BY generated_at DESC LIMIT 20',
+      [req.params.clientId]
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error('[ai/swot/history] Error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch SWOT history' });
   }
 });
 

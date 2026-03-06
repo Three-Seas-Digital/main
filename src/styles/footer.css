@@ -1,12 +1,11 @@
 /* ===== FOOTER ===== */
 .footer {
-  background: rgba(8, 8, 10, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #08080a;
   color: var(--text-secondary);
   padding: 96px 0 0;
   border-top: 1px solid rgba(200, 164, 62, 0.08);
   position: relative;
+  z-index: 1;
 }
 
 .footer::before {
@@ -56,17 +55,17 @@
 }
 
 .footer-section p {
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.7;
   color: var(--text-muted);
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .footer-section h4 {
   color: rgba(200, 164, 62, 0.45);
   font-weight: 600;
   margin-bottom: 20px;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.25em;
 }
@@ -79,7 +78,7 @@
 
 .footer-section ul a {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
   transition: all var(--transition-fast);
   font-weight: 400;
 }
@@ -93,7 +92,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 
@@ -111,7 +110,7 @@
 }
 
 .footer-bottom p {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-weight: 400;
   letter-spacing: 0.15em;
@@ -127,7 +126,7 @@
 
 /* ===== LIGHT THEME — Footer ===== */
 :root.light-theme .footer {
-  background: rgba(245, 245, 248, 0.98);
+  background: #f5f5f8;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 :root.light-theme .footer::before {

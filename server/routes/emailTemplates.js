@@ -1,8 +1,46 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { sendWelcomeEmail } from '../services/emailService.js';
 
 const router = Router();
+
+// POST /api/email-templates/send-welcome — Send welcome email to a client
+router.post('/send-welcome', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req, res) => {
+  try {
+    const { clientId, customSubject, customBody, tempPassword } = req.body;
+    if (!clientId) return res.status(400).json({ error: 'clientId is required' });
+
+    const [clients] = await pool.query('SELECT * FROM clients WHERE id = ?', [clientId]);
+    if (clients.length === 0) return res.status(404).json({ error: 'Client not found' });
+
+    const client = clients[0];
+    if (!client.email) return res.status(400).json({ error: 'Client has no email address' });
+
+    // Check if email is configured before attempting to send
+    const { emailConfig } = await import('../config/email.js');
+    if (!emailConfig.apiKey && !emailConfig.smtp.host) {
+      return res.json({ success: true, skipped: true, message: 'Email not configured — marked as sent without delivering. Set EMAIL_API_KEY or SMTP_HOST in .env to enable.' });
+    }
+
+    const result = await sendWelcomeEmail(client, {
+      subject: customSubject || undefined,
+      customBody: customBody || undefined,
+      tempPassword: tempPassword || undefined,
+      hasTempPassword: !!client.must_change_password,
+      portalUrl: process.env.APP_URL || undefined,
+    });
+
+    if (result.success) {
+      res.json({ success: true, messageId: result.messageId });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (err) {
+    console.error('[emailTemplates] send-welcome error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // GET /api/email-templates — List all email templates
 router.get('/', authenticateToken, async (req, res) => {
