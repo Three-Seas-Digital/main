@@ -1,8 +1,11 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/thretnah/public_html
-    - /bin/cp -R dist/index.html $DEPLOYPATH/
-    - /bin/cp -R dist/.htaccess $DEPLOYPATH/
-    - /bin/cp -R dist/assets $DEPLOYPATH/
-    - /bin/cp -R dist/images $DEPLOYPATH/
+    - export DEPLOYPATH=/home/thretnah/public_html/
+    - /bin/cp dist/index.html $DEPLOYPATH
+    - /bin/cp dist/.htaccess $DEPLOYPATH
+    - /bin/cp dist/robots.txt $DEPLOYPATH
+    - /bin/cp dist/sitemap.xml $DEPLOYPATH
+    - /bin/cp dist/favicon.svg $DEPLOYPATH
+    - /bin/cp -R dist/assets $DEPLOYPATH
+    - /bin/cp -R dist/images $DEPLOYPATH
