@@ -32,6 +32,33 @@ export default function UserManagement() {
   };
   const startEdit = (user) => { setForm({ username: user.username || '', password: '', name: user.name || '', email: user.email || '', role: user.role || 'developer' }); setEditingId(user.id); setShowForm(true); setError(''); };
 
+  const isOwner = currentUser?.role === 'owner';
+  const isAdmin = currentUser?.role === 'admin';
+  const ROLE_RANK = { owner: 0, admin: 1, manager: 2, sales: 3, accountant: 3, it: 3, developer: 3, analyst: 3, viewer: 4 };
+  const canEditUser = (user) => {
+    if (isOwner) return true;
+    if (user.role === 'owner') return false; // nobody but owner edits owner
+    if (isAdmin && user.id === currentUser?.id) return true; // admin can edit self
+    if (isAdmin) return ROLE_RANK[user.role] > ROLE_RANK['admin']; // admin can edit lower roles
+    return false;
+  };
+  const canDeleteUser = (user) => {
+    if (user.id === currentUser?.id) return false; // can't delete yourself
+    if (isOwner) return user.role !== 'owner'; // owner can delete anyone except other owners
+    if (isAdmin) return user.role !== 'owner' && user.role !== 'admin'; // admin can delete below admin
+    return false;
+  };
+  // Filter roles available in the selector based on current user
+  const availableRoles = useMemo(() => {
+    if (isOwner) return ROLES;
+    // Admins can't assign owner or admin roles
+    const filtered = {};
+    for (const [key, role] of Object.entries(ROLES)) {
+      if (key !== 'owner' && key !== 'admin') filtered[key] = role;
+    }
+    return filtered;
+  }, [isOwner, ROLES]);
+
   const pendingUsers = useMemo(() => users.filter((u) => u.status === 'pending'), [users]);
   const approvedUsers = useMemo(() => users.filter((u) => u.status !== 'pending' && u.status !== 'rejected'), [users]);
   const rejectedUsers = useMemo(() => users.filter((u) => u.status === 'rejected'), [users]);
@@ -79,7 +106,7 @@ export default function UserManagement() {
                       onChange={(e) => setApproveRoles((prev) => ({ ...prev, [user.id]: e.target.value }))}
                       className="filter-select"
                     >
-                      {Object.entries(ROLES).map(([key, role]) => (
+                      {Object.entries(availableRoles).map(([key, role]) => (
                         <option key={key} value={key}>{role.label}</option>
                       ))}
                     </select>
@@ -131,7 +158,7 @@ export default function UserManagement() {
                       onChange={(e) => setApproveRoles((prev) => ({ ...prev, [user.id]: e.target.value }))}
                       className="filter-select"
                     >
-                      {Object.entries(ROLES).map(([key, role]) => (
+                      {Object.entries(availableRoles).map(([key, role]) => (
                         <option key={key} value={key}>{role.label}</option>
                       ))}
                     </select>
@@ -172,7 +199,7 @@ export default function UserManagement() {
             <div className="form-group">
               <label>Role *</label>
               <div className="role-selector">
-                {Object.entries(ROLES).map(([key, role]) => (
+                {Object.entries(availableRoles).map(([key, role]) => (
                   <label key={key} className={`role-option ${form.role === key ? 'selected' : ''}`}>
                     <input type="radio" name="role" value={key} checked={form.role === key} onChange={(e) => setForm({ ...form, role: e.target.value })} />
                     <div><strong>{role.label}</strong><span>{role.description}</span></div>
@@ -212,8 +239,8 @@ export default function UserManagement() {
               )}
             </div>
             <div className="user-card-actions">
-              <button className="btn btn-sm btn-outline" onClick={() => startEdit(user)}><Edit3 size={14} /> Edit</button>
-              {user.id !== '1' && user.id !== currentUser?.id && (
+              {canEditUser(user) && <button className="btn btn-sm btn-outline" onClick={() => startEdit(user)}><Edit3 size={14} /> Edit</button>}
+              {canDeleteUser(user) && (
                 deleteConfirm === user.id ? (
                   <div className="delete-confirm-inline">
                     <span>Delete?</span>

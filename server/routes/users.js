@@ -50,6 +50,11 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
       return res.status(409).json({ error: 'Username already exists' });
     }
 
+    // Role hierarchy: only owner can assign owner/admin roles
+    if ((role === 'owner' || role === 'admin') && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the owner can assign owner or admin roles' });
+    }
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : 'viewer';
@@ -77,7 +82,26 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req, r
 // PUT /api/users/:id — Update user
 router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req, res) => {
   try {
+    // Look up target user to enforce role hierarchy
+    const [target] = await pool.query('SELECT role FROM users WHERE id = ?', [req.params.id]);
+    if (target.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // Only owner can edit owner accounts
+    if (target[0].role === 'owner' && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the owner can modify owner accounts' });
+    }
+    // Admin can't edit other admins (only owner can)
+    if (target[0].role === 'admin' && req.user.role === 'admin' && req.user.userId !== req.params.id) {
+      return res.status(403).json({ error: 'Admins cannot modify other admin accounts' });
+    }
+
     const { username, role, displayName, name, email, status } = req.body;
+
+    // Only owner can assign owner/admin roles
+    if ((role === 'owner' || role === 'admin') && req.user.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the owner can assign owner or admin roles' });
+    }
+
     const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
     const userRole = validRoles.includes(role) ? role : undefined;
     const resolvedName = displayName || name; // frontend sends "name", accept both
