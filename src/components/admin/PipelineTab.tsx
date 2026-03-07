@@ -78,32 +78,32 @@ export default function PipelineTab() {
   });
 
   // Active prospects (not closed)
-  const activeProspects = prospects.filter(($1: any) => p.stage !== 'closed');
-  const closedProspects = prospects.filter(($1: any) => p.stage === 'closed');
+  const activeProspects = prospects.filter((p: any) => p.stage !== 'closed');
+  const closedProspects = prospects.filter((p: any) => p.stage === 'closed');
 
   // Filter active prospects
   const filteredProspects = activeProspects
-    .filter(($1: any) => stageFilter === 'all' || p.stage === stageFilter)
-    .filter(($1: any) => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.email.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter((p: any) => stageFilter === 'all' || p.stage === stageFilter)
+    .filter((p: any) => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
   // Pipeline stats
   const stats = useMemo(() => {
-    const active_ = prospects.filter(($1: any) => p.stage !== 'closed');
-    const closed_ = prospects.filter(($1: any) => p.stage === 'closed');
+    const active_ = prospects.filter((p: any) => p.stage !== 'closed');
+    const closed_ = prospects.filter((p: any) => p.stage === 'closed');
     const total = prospects.length;
     const active = active_.length;
-    const won = closed_.filter(($1: any) => p.outcome === 'won').length;
-    const lost = closed_.filter(($1: any) => p.outcome === 'lost').length;
-    const deferred = closed_.filter(($1: any) => p.outcome === 'deferred').length;
+    const won = closed_.filter((p: any) => p.outcome === 'won').length;
+    const lost = closed_.filter((p: any) => p.outcome === 'lost').length;
+    const deferred = closed_.filter((p: any) => p.outcome === 'deferred').length;
     // Average deal time (for won deals)
-    const wonDeals = closed_.filter(($1: any) => p.outcome === 'won' && p.closedAt);
+    const wonDeals = closed_.filter((p: any) => p.outcome === 'won' && p.closedAt);
     const avgDealTime = wonDeals.length > 0
       ? Math.round(wonDeals.reduce((sum: number, p: any) => sum + ((new Date(p.closedAt).getTime() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24)), 0) / wonDeals.length)
       : 0;
 
     // Loss reasons breakdown
     const lossReasons = {};
-    closed_.filter(($1: any) => p.outcome === 'lost').forEach(($1: any) => {
+    closed_.filter((p: any) => p.outcome === 'lost').forEach((p: any) => {
       const reason = p.lossReason || 'other';
       lossReasons[reason] = (lossReasons[reason] || 0) + 1;
     });
@@ -111,13 +111,13 @@ export default function PipelineTab() {
     // Upcoming revisits
     const today = new Date().toISOString().split('T')[0];
     const upcomingRevisits = closed_
-      .filter(($1: any) => p.outcome === 'deferred' && p.revisitDate && p.revisitDate <= today)
+      .filter((p: any) => p.outcome === 'deferred' && p.revisitDate && p.revisitDate <= today)
       .sort((a, b) => a.revisitDate.localeCompare(b.revisitDate));
 
     // Stage counts
     const stageCounts = {};
-    PROSPECT_STAGES.forEach(($1: any) => {
-      stageCounts[s.value] = active_.filter(($1: any) => p.stage === s.value).length;
+    PROSPECT_STAGES.forEach((s: any) => {
+      stageCounts[s.value] = active_.filter((p: any) => p.stage === s.value).length;
     });
 
     return { total, active, won, lost, deferred, avgDealTime, lossReasons, upcomingRevisits, stageCounts };
@@ -350,7 +350,7 @@ export default function PipelineTab() {
         <div className="pipeline-filters">
           <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="filter-select">
             <option value="all">All Stages</option>
-            {PROSPECT_STAGES.filter(($1: any) => s.value !== 'closed').map(($1: any) => (
+            {PROSPECT_STAGES.filter((s: any) => s.value !== 'closed').map((s: any) => (
               <option key={s.value} value={s.value}>{s.label} ({stats.stageCounts[s.value] || 0})</option>
             ))}
           </select>
@@ -407,7 +407,7 @@ export default function PipelineTab() {
           {filteredProspects.length === 0 ? (
             <div className="empty-state-sm"><p>No prospects found</p></div>
           ) : (
-            filteredProspects.map(($1: any) => (
+            filteredProspects.map((p: any) => (
               <div key={p.id} className={`pipeline-card ${selectedProspect === p.id ? 'selected' : ''}`} onClick={() => { setSelectedProspect(p.id); setShowScheduler(false); setShowNewAppt(false); setShowApptNotes(false); setCancelApptConfirm(false); }}>
                 <div className="pipeline-card-header">
                   <strong>{p.name}</strong>
@@ -436,7 +436,7 @@ export default function PipelineTab() {
             <div className="detail-section">
               <label>Stage</label>
               <select value={prospect.stage} onChange={(e) => updateProspect(prospect.id, { stage: e.target.value })} className="stage-select">
-                {PROSPECT_STAGES.filter(($1: any) => s.value !== 'closed').map(($1: any) => (
+                {PROSPECT_STAGES.filter((s: any) => s.value !== 'closed').map((s: any) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
@@ -536,8 +536,8 @@ export default function PipelineTab() {
                       {showApptNotes && (
                         <div className="appt-notes-panel">
                           <div className="appt-notes-list">
-                            {(prospect.notes || []).filter(($1: any) => n.text.startsWith(APPT_NOTE_PREFIX)).length > 0 ? (
-                              (prospect.notes || []).filter(($1: any) => n.text.startsWith(APPT_NOTE_PREFIX)).map(($1: any) => (
+                            {(prospect.notes || []).filter((n: any) => n.text.startsWith(APPT_NOTE_PREFIX)).length > 0 ? (
+                              (prospect.notes || []).filter((n: any) => n.text.startsWith(APPT_NOTE_PREFIX)).map((n: any) => (
                                 <div key={n.id} className="appt-note-item">
                                   <p>{n.text.replace(`${APPT_NOTE_PREFIX} `, '')}</p>
                                   <span className="appt-note-meta">{n.author} &middot; {new Date(n.createdAt).toLocaleDateString()}</span>
@@ -624,7 +624,7 @@ export default function PipelineTab() {
             <div className="detail-section">
               <label>Activity Notes ({prospect.notes?.length || 0})</label>
               <div className="notes-list">
-                {prospect.notes?.map(($1: any) => (
+                {prospect.notes?.map((n: any) => (
                   <div key={n.id} className="note-item">
                     <p>{n.text}</p>
                     <div className="note-meta">
@@ -925,7 +925,7 @@ export default function PipelineTab() {
                     <label>Loss Reason</label>
                     <select value={closeForm.lossReason} onChange={(e) => setCloseForm({ ...closeForm, lossReason: e.target.value })}>
                       <option value="">Select reason...</option>
-                      {LOSS_REASONS.map(($1: any) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      {LOSS_REASONS.map((r: any) => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                 )}
@@ -957,7 +957,7 @@ export default function PipelineTab() {
             {closedProspects.length === 0 ? (
               <p className="empty-text">No closed prospects yet</p>
             ) : (
-              closedProspects.map(($1: any) => (
+              closedProspects.map((p: any) => (
                 <div key={p.id} className={`past-prospect-card outcome-${p.outcome}`}>
                   <div className="past-card-main">
                     <strong>{p.name}</strong>

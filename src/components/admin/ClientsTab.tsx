@@ -81,7 +81,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
   };
 
   // Staff members for kanban
-  const staffMembers = useMemo(() => users.filter(($1: any) => u.status === 'approved' && u.role !== 'pending'), [users]);
+  const staffMembers = useMemo(() => users.filter((u: any) => u.status === 'approved' && u.role !== 'pending'), [users]);
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, client: any) => {
@@ -105,12 +105,12 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
 
   // Active clients (exclude pending and archived)
   const filtered = useMemo(() => clients
-    .filter(($1: any) => c.status !== 'pending' && c.status !== 'archived')
-    .filter(($1: any) => !c.onboarding || c.onboarding.complete)
-    .filter(($1: any) => filterStatus === 'all' || c.status === filterStatus)
-    .filter(($1: any) => filterTier === 'all' || (c.tier || 'free') === filterTier)
-    .filter(($1: any) => filterService === 'all' || c.service === filterService)
-    .filter(($1: any) => c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()))
+    .filter((c: any) => c.status !== 'pending' && c.status !== 'archived')
+    .filter((c: any) => !c.onboarding || c.onboarding.complete)
+    .filter((c: any) => filterStatus === 'all' || c.status === filterStatus)
+    .filter((c: any) => filterTier === 'all' || (c.tier || 'free') === filterTier)
+    .filter((c: any) => filterService === 'all' || c.service === filterService)
+    .filter((c: any) => c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       switch (sortBy) {
         case 'oldest': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -121,10 +121,10 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
     }), [clients, filterStatus, filterTier, filterService, search, sortBy]);
 
   // Archived clients
-  const archivedClients = useMemo(() => clients.filter(($1: any) => c.status === 'archived'), [clients]);
+  const archivedClients = useMemo(() => clients.filter((c: any) => c.status === 'archived'), [clients]);
 
   const client = useMemo(() => selectedClient ? clients.find((c) => c.id === selectedClient) : null, [selectedClient, clients]);
-  const clientAppointments = useMemo(() => client ? appointments.filter(($1: any) => a.clientId === client.id || a.email?.toLowerCase() === client.email?.toLowerCase()) : [], [client, appointments]);
+  const clientAppointments = useMemo(() => client ? appointments.filter((a: any) => a.clientId === client.id || a.email?.toLowerCase() === client.email?.toLowerCase()) : [], [client, appointments]);
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -621,7 +621,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
                     </label>
                     {invoiceForm.recurring && (
                       <select value={invoiceForm.frequency} onChange={(e) => setInvoiceForm({ ...invoiceForm, frequency: e.target.value })} className="frequency-select">
-                        {RECURRING_FREQUENCIES.map(($1: any) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        {RECURRING_FREQUENCIES.map((f: any) => <option key={f.value} value={f.value}>{f.label}</option>)}
                       </select>
                     )}
                   </div>
@@ -700,12 +700,12 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
 
           {/* Payment History */}
           {(() => {
-            const clientPayments = payments.filter(($1: any) => p.clientId === client.id);
+            const clientPayments = payments.filter((p: any) => p.clientId === client.id);
             return clientPayments.length > 0 ? (
               <div className="client-section payment-history-section">
                 <h4><DollarSign size={16} /> Payment History ({clientPayments.length})</h4>
                 <div className="payment-history-list">
-                  {[...clientPayments].reverse().map(($1: any) => (
+                  {[...clientPayments].reverse().map((p: any) => (
                     <div key={p.id} className="payment-history-item">
                       <div className="payment-history-info">
                         <strong>{p.service} — {p.serviceTier}</strong>
@@ -1097,7 +1097,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
               <p className="text-muted">No notes yet</p>
             ) : (
               <div className="notes-list">
-                {[...(client.notes || [])].reverse().map(($1: any) => (
+                {[...(client.notes || [])].reverse().map((n: any) => (
                   <div key={n.id} className="note-card">
                     <div className="note-header">
                       <strong>{n.author}</strong>
@@ -1126,7 +1126,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
   }
 
   // Clients list view
-  const activeFilters = [filterStatus, filterTier, filterService].filter(($1: any) => f !== 'all').length + (search ? 1 : 0);
+  const activeFilters = [filterStatus, filterTier, filterService].filter((f: any) => f !== 'all').length + (search ? 1 : 0);
 
   return (
     <div className="clients-tab">
@@ -1152,10 +1152,10 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
               >
                 <div className="kanban-column-header">
                   <h4>Unassigned</h4>
-                  <span className="kanban-count">{filtered.filter(($1: any) => !c.assignedTo).length}</span>
+                  <span className="kanban-count">{filtered.filter((c: any) => !c.assignedTo).length}</span>
                 </div>
                 <div className="kanban-column-content">
-                  {filtered.filter(($1: any) => !c.assignedTo).map((client) => (
+                  {filtered.filter((c: any) => !c.assignedTo).map((client) => (
                     <div
                       key={client.id}
                       className={`kanban-card client-kanban-card ${draggedClient?.id === client.id ? 'dragging' : ''}`}
@@ -1175,13 +1175,13 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
                       {client.service && <div className="kanban-card-service">{client.service.replace('-', ' ')}</div>}
                     </div>
                   ))}
-                  {filtered.filter(($1: any) => !c.assignedTo).length === 0 && <p className="kanban-empty">No unassigned clients</p>}
+                  {filtered.filter((c: any) => !c.assignedTo).length === 0 && <p className="kanban-empty">No unassigned clients</p>}
                 </div>
               </div>
 
               {/* Staff Columns */}
               {staffMembers.map((staff, index) => {
-                const staffClients = filtered.filter(($1: any) => c.assignedTo === staff.id);
+                const staffClients = filtered.filter((c: any) => c.assignedTo === staff.id);
                 const staffColor = staff.color || STAFF_COLORS[index % STAFF_COLORS.length];
                 return (
                   <div
@@ -1303,7 +1303,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
         <div className="empty-state"><UserCheck size={48} /><p>No clients found</p></div>
       ) : (
         <div className="clients-grid">
-          {filtered.map(($1: any) => (
+          {filtered.map((c: any) => (
             <div key={c.id} className={`client-card ${c.status === 'vip' ? 'vip-card' : ''}`} onClick={() => handleSelectClient(c.id)}>
               <div className="client-card-top">
                 <div className={`client-avatar ${c.status === 'vip' ? 'vip-avatar' : ''}`}>{c.name.charAt(0).toUpperCase()}</div>
@@ -1332,7 +1332,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
                 )}
                 {(c.tags || []).length > 0 && (
                   <div className="client-card-tags">
-                    {(c.tags || []).slice(0, 3).map(($1: any) => <span key={t} className="mini-tag">{t}</span>)}
+                    {(c.tags || []).slice(0, 3).map((t: any) => <span key={t} className="mini-tag">{t}</span>)}
                     {(c.tags || []).length > 3 && <span className="mini-tag">+{(c.tags || []).length - 3}</span>}
                   </div>
                 )}
@@ -1357,7 +1357,7 @@ export default function ClientsTab({ onClientViewed }: ClientsTabProps) {
           </button>
           {showArchivedClients && (
             <div className="archived-clients-list">
-              {archivedClients.map(($1: any) => (
+              {archivedClients.map((c: any) => (
                 <div key={c.id} className="archived-client-card">
                   <div className="archived-client-info">
                     <div className="client-avatar archived">{c.name.charAt(0).toUpperCase()}</div>

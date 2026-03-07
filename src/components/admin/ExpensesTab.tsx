@@ -106,21 +106,21 @@ export default function ExpensesTab() {
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const prevMonth = `${now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()}-${String(now.getMonth() === 0 ? 12 : now.getMonth()).padStart(2, '0')}`;
 
-  const monthExpenses = expenses.filter(($1: any) => e.date.startsWith(currentMonth));
-  const prevMonthExpenses = expenses.filter(($1: any) => e.date.startsWith(prevMonth));
+  const monthExpenses = expenses.filter((e: any) => e.date.startsWith(currentMonth));
+  const prevMonthExpenses = expenses.filter((e: any) => e.date.startsWith(prevMonth));
   const monthTotal = monthExpenses.reduce((s, e) => s + e.amount, 0);
   const prevMonthTotal = prevMonthExpenses.reduce((s, e) => s + e.amount, 0);
   const monthChange = prevMonthTotal > 0 ? ((monthTotal - prevMonthTotal) / prevMonthTotal * 100).toFixed(1) : null;
 
   const categoryBreakdown = EXPENSE_CATEGORIES.map((cat) => {
-    const total = monthExpenses.filter(($1: any) => e.category === cat.value).reduce((s, e) => s + e.amount, 0);
+    const total = monthExpenses.filter((e: any) => e.category === cat.value).reduce((s, e) => s + e.amount, 0);
     return { ...cat, total };
-  }).filter(($1: any) => c.total > 0);
-  const maxCatTotal = Math.max(...categoryBreakdown.map(($1: any) => c.total), 1);
+  }).filter((c: any) => c.total > 0);
+  const maxCatTotal = Math.max(...categoryBreakdown.map((c: any) => c.total), 1);
 
   // Filtered & sorted list
   const filtered = expenses
-    .filter(($1: any) => filterCat === 'all' || e.category === filterCat)
+    .filter((e: any) => filterCat === 'all' || e.category === filterCat)
     .sort((a, b) => {
       if (sortBy === 'date-desc') return b.date.localeCompare(a.date);
       if (sortBy === 'date-asc') return a.date.localeCompare(b.date);
@@ -135,7 +135,7 @@ export default function ExpensesTab() {
   // Get available months and years for dropdowns
   const availableMonths = useMemo(() => {
     const months = new Set();
-    expenses.forEach(($1: any) => {
+    expenses.forEach((e: any) => {
       const [year, month] = e.date.split('-');
       months.add(`${year}-${month}`);
     });
@@ -144,7 +144,7 @@ export default function ExpensesTab() {
 
   const availableYears = useMemo(() => {
     const years = new Set();
-    expenses.forEach(($1: any) => years.add(parseInt(e.date.split('-')[0])));
+    expenses.forEach((e: any) => years.add(parseInt(e.date.split('-')[0])));
     if (years.size === 0) years.add(new Date().getFullYear());
     return Array.from(years).sort((a: any, b: any) => b - a);
   }, [expenses]);
@@ -155,16 +155,16 @@ export default function ExpensesTab() {
 
     // Filter by date range/type
     if (printSettings.reportType === 'month') {
-      result = result.filter(($1: any) => e.date.startsWith(printSettings.selectedMonth));
+      result = result.filter((e: any) => e.date.startsWith(printSettings.selectedMonth));
     } else if (printSettings.reportType === 'year') {
-      result = result.filter(($1: any) => e.date.startsWith(printSettings.selectedYear.toString()));
+      result = result.filter((e: any) => e.date.startsWith(printSettings.selectedYear.toString()));
     } else if (printSettings.reportType === 'dateRange' && printSettings.startDate && printSettings.endDate) {
-      result = result.filter(($1: any) => e.date >= printSettings.startDate && e.date <= printSettings.endDate);
+      result = result.filter((e: any) => e.date >= printSettings.startDate && e.date <= printSettings.endDate);
     }
 
     // Filter by category
     if (printSettings.category !== 'all') {
-      result = result.filter(($1: any) => e.category === printSettings.category);
+      result = result.filter((e: any) => e.category === printSettings.category);
     }
 
     return result.sort((a, b) => a.date.localeCompare(b.date));
@@ -190,7 +190,7 @@ export default function ExpensesTab() {
     if (printSettings.groupBy === 'none') return null;
 
     const groups = {};
-    expenseList.forEach(($1: any) => {
+    expenseList.forEach((e: any) => {
       let key;
       if (printSettings.groupBy === 'category') {
         key = getCatLabel(e.category);
@@ -214,9 +214,9 @@ export default function ExpensesTab() {
     const reportTotal = reportExpenses.reduce((s, e) => s + e.amount, 0);
     const catTotals = EXPENSE_CATEGORIES.map((cat) => ({
       ...cat,
-      total: reportExpenses.filter(($1: any) => e.category === cat.value).reduce((s, e) => s + e.amount, 0),
-      count: reportExpenses.filter(($1: any) => e.category === cat.value).length,
-    })).filter(($1: any) => c.total > 0);
+      total: reportExpenses.filter((e: any) => e.category === cat.value).reduce((s, e) => s + e.amount, 0),
+      count: reportExpenses.filter((e: any) => e.category === cat.value).length,
+    })).filter((c: any) => c.total > 0);
 
     const groups = groupExpenses(reportExpenses);
     const periodLabel = getPeriodLabel();
@@ -242,7 +242,7 @@ export default function ExpensesTab() {
             <table class="expense-table">
               <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Description</th><th class="amount">Amount</th></tr></thead>
               <tbody>
-                ${items.map(($1: any) => `
+                ${items.map((e: any) => `
                   <tr>
                     <td>${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
                     <td>${escapeHtml(getCatLabel(e.category))}</td>
@@ -324,7 +324,7 @@ export default function ExpensesTab() {
         <table class="category-table">
           <thead><tr><th>Category</th><th>Count</th><th style="text-align:right">Amount</th><th style="text-align:right">% of Total</th></tr></thead>
           <tbody>
-            ${catTotals.map(($1: any) => `
+            ${catTotals.map((c: any) => `
               <tr>
                 <td>${escapeHtml(c.label)}</td>
                 <td>${c.count}</td>
@@ -346,7 +346,7 @@ export default function ExpensesTab() {
           <table class="expense-table">
             <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Description</th><th class="amount">Amount</th></tr></thead>
             <tbody>
-              ${reportExpenses.map(($1: any) => `
+              ${reportExpenses.map((e: any) => `
                 <tr>
                   <td>${new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td>${escapeHtml(getCatLabel(e.category))}</td>
@@ -417,7 +417,7 @@ export default function ExpensesTab() {
             <label>Category *</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required>
               <option value="">Select category...</option>
-              {EXPENSE_CATEGORIES.map(($1: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {EXPENSE_CATEGORIES.map((c: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
           <div className="expense-form-group">
@@ -483,7 +483,7 @@ export default function ExpensesTab() {
             </button>
             <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}>
               <option value="all">All Categories</option>
-              {EXPENSE_CATEGORIES.map(($1: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {EXPENSE_CATEGORIES.map((c: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
               <option value="date-desc">Newest First</option>
@@ -643,7 +643,7 @@ export default function ExpensesTab() {
                   className="print-select"
                 >
                   <option value="all">All Categories</option>
-                  {EXPENSE_CATEGORIES.map(($1: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  {EXPENSE_CATEGORIES.map((c: any) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
 

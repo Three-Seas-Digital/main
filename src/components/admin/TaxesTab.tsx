@@ -18,8 +18,8 @@ export default function TaxesTab() {
   // Get available years
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    expenses.forEach(($1: any) => years.add(parseInt(e.date.split('-')[0])));
-    payments.forEach(($1: any) => years.add(getPaymentYear(p)));
+    expenses.forEach((e: any) => years.add(parseInt(e.date.split('-')[0])));
+    payments.forEach((p: any) => years.add(getPaymentYear(p)));
     if (years.size === 0) years.add(new Date().getFullYear());
     return Array.from(years).sort((a, b) => b - a);
   }, [expenses, payments]);
@@ -29,22 +29,22 @@ export default function TaxesTab() {
     const yearStr = taxYear.toString();
 
     // Revenue from payments (uses createdAt ISO string)
-    const yearPayments = payments.filter(($1: any) => getPaymentYear(p) === taxYear && p.status === 'completed');
+    const yearPayments = payments.filter((p: any) => getPaymentYear(p) === taxYear && p.status === 'completed');
     const grossRevenue = yearPayments.reduce((sum, p) => sum + p.amount, 0);
 
     // Expenses by category
-    const yearExpenses = expenses.filter(($1: any) => e.date.startsWith(yearStr));
+    const yearExpenses = expenses.filter((e: any) => e.date.startsWith(yearStr));
     const totalExpenses = yearExpenses.reduce((sum, e) => sum + e.amount, 0);
 
     const expensesByCategory = EXPENSE_CATEGORIES.map((cat) => {
-      const catExpenses = yearExpenses.filter(($1: any) => e.category === cat.value);
+      const catExpenses = yearExpenses.filter((e: any) => e.category === cat.value);
       return {
         ...cat,
         total: catExpenses.reduce((sum, e) => sum + e.amount, 0),
         count: catExpenses.length,
         items: catExpenses,
       };
-    }).filter(($1: any) => c.total > 0);
+    }).filter((c: any) => c.total > 0);
 
     // Net income
     const netIncome = grossRevenue - totalExpenses;
@@ -55,12 +55,12 @@ export default function TaxesTab() {
       { name: 'Q2', months: ['04', '05', '06'] },
       { name: 'Q3', months: ['07', '08', '09'] },
       { name: 'Q4', months: ['10', '11', '12'] },
-    ].map(($1: any) => {
+    ].map((q: any) => {
       const qRevenue = yearPayments
-        .filter(($1: any) => q.months.includes(getPaymentMonth(p)))
+        .filter((p: any) => q.months.includes(getPaymentMonth(p)))
         .reduce((sum, p) => sum + p.amount, 0);
       const qExpenses = yearExpenses
-        .filter(($1: any) => q.months.some((m) => e.date.startsWith(`${yearStr}-${m}`)))
+        .filter((e: any) => q.months.some((m) => e.date.startsWith(`${yearStr}-${m}`)))
         .reduce((sum, e) => sum + e.amount, 0);
       return { ...q, revenue: qRevenue, expenses: qExpenses, net: qRevenue - qExpenses };
     });
@@ -68,7 +68,7 @@ export default function TaxesTab() {
     // Estimated quarterly tax (self-employment + income)
     const selfEmploymentRate = 0.153; // 15.3% SE tax
     const estimatedTaxRate = 0.22; // Estimated income tax bracket
-    const estimatedQuarterlyTax = quarters.map(($1: any) => ({
+    const estimatedQuarterlyTax = quarters.map((q: any) => ({
       ...q,
       seTax: Math.max(0, q.net * selfEmploymentRate),
       incomeTax: Math.max(0, q.net * estimatedTaxRate),
@@ -79,8 +79,8 @@ export default function TaxesTab() {
     const months = Array.from({ length: 12 }, (_, i) => {
       const monthStr = `${yearStr}-${String(i + 1).padStart(2, '0')}`;
       const monthNum = String(i + 1).padStart(2, '0');
-      const mRevenue = yearPayments.filter(($1: any) => getPaymentMonth(p) === monthNum).reduce((sum, p) => sum + p.amount, 0);
-      const mExpenses = yearExpenses.filter(($1: any) => e.date.startsWith(monthStr)).reduce((sum, e) => sum + e.amount, 0);
+      const mRevenue = yearPayments.filter((p: any) => getPaymentMonth(p) === monthNum).reduce((sum, p) => sum + p.amount, 0);
+      const mExpenses = yearExpenses.filter((e: any) => e.date.startsWith(monthStr)).reduce((sum, e) => sum + e.amount, 0);
       return {
         name: new Date(taxYear, i).toLocaleString('en-US', { month: 'short' }),
         revenue: mRevenue,
@@ -125,7 +125,7 @@ export default function TaxesTab() {
       scheduleC,
       transactionCount: yearPayments.length,
       expenseCount: yearExpenses.length,
-      clientCount: clients.filter(($1: any) => c.tier && c.tier !== 'free').length,
+      clientCount: clients.filter((c: any) => c.tier && c.tier !== 'free').length,
     };
   }, [taxYear, expenses, payments, clients, EXPENSE_CATEGORIES]);
 
@@ -194,7 +194,7 @@ export default function TaxesTab() {
         <table>
           <thead><tr><th>Quarter</th><th class="amount">Revenue</th><th class="amount">Expenses</th><th class="amount">Net Income</th><th class="amount">Est. Tax Due</th></tr></thead>
           <tbody>
-            ${taxData.estimatedQuarterlyTax.map(($1: any) => `
+            ${taxData.estimatedQuarterlyTax.map((q: any) => `
               <tr>
                 <td>${q.name}</td>
                 <td class="amount">${formatCurrency(q.revenue)}</td>
@@ -210,7 +210,7 @@ export default function TaxesTab() {
         <table>
           <thead><tr><th>Category</th><th>Count</th><th class="amount">Total</th></tr></thead>
           <tbody>
-            ${taxData.expensesByCategory.map(($1: any) => `
+            ${taxData.expensesByCategory.map((c: any) => `
               <tr><td>${escapeHtml(c.label)}</td><td>${c.count}</td><td class="amount">${formatCurrency(c.total)}</td></tr>
             `).join('')}
             <tr style="font-weight:bold;border-top:2px solid #1e3a5f">
@@ -290,7 +290,7 @@ export default function TaxesTab() {
         </div>
         <div className="taxes-header-actions">
           <select value={taxYear} onChange={(e) => setTaxYear(parseInt(e.target.value))} className="taxes-year-select">
-            {availableYears.map(($1: any) => <option key={y} value={y}>{y}</option>)}
+            {availableYears.map((y: any) => <option key={y} value={y}>{y}</option>)}
           </select>
           <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="taxes-type-select">
             <option value="sole_proprietor">Sole Proprietor</option>
@@ -343,7 +343,7 @@ export default function TaxesTab() {
       <div className="taxes-section">
         <h3><CalendarIcon size={18} /> Quarterly Tax Estimates</h3>
         <div className="taxes-quarterly-grid">
-          {taxData.estimatedQuarterlyTax.map(($1: any) => (
+          {taxData.estimatedQuarterlyTax.map((q: any) => (
             <div key={q.name} className="taxes-quarter-card">
               <div className="taxes-quarter-header">
                 <span className="taxes-quarter-name">{q.name}</span>
