@@ -11,8 +11,7 @@ const SALT_ROUNDS = 12;
 // GET /api/users — List all users (admin/manager only)
 router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users ORDER BY created_at DESC'
     );
     res.json(rows);
@@ -25,8 +24,7 @@ router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), asy
 // GET /api/users/:id — Get single user
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users WHERE id = ?',
       [req.params.id]
     );
@@ -52,8 +50,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req: a
     }
 
     // Check if username exists
-    const [existing] = await // @ts-ignore
-  pool.query('SELECT id FROM users WHERE username = ?', [username]);
+    const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
     if (existing.length > 0) {
       res.status(409).json({ error: 'Username already exists' });
       return;
@@ -71,8 +68,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req: a
 
     const id = generateId();
     const resolvedName = displayName || (req.body as any).name || username;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
       [id, username, passwordHash, userRole, resolvedName, resolvedName, email || null]
@@ -95,8 +91,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin'), async (req: a
 router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req: any, res: Response): Promise<void> => {
   try {
     // Look up target user to enforce role hierarchy
-    const [target] = await // @ts-ignore
-  pool.query('SELECT role FROM users WHERE id = ?', [req.params.id]);
+    const [target] = await pool.query('SELECT role FROM users WHERE id = ?', [req.params.id]);
     if (target.length === 0) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -128,12 +123,10 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin'), async (req:
     // Handle password update if provided (raw plaintext from admin — hash it)
     if (password) {
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      await // @ts-ignore
-  pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, req.params.id]);
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, req.params.id]);
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE users SET username = COALESCE(?, username), role = COALESCE(?, role),
        display_name = COALESCE(?, display_name), email = COALESCE(?, email),
        status = COALESCE(?, status), updated_at = NOW() WHERE id = ?`,
@@ -164,8 +157,7 @@ router.put('/:id/password', authenticateToken, async (req: any, res: Response): 
 
     // If not admin, verify current password
     if (req.user?.role !== 'admin') {
-      const [users] = await // @ts-ignore
-  pool.query('SELECT password_hash FROM users WHERE id = ?', [req.params.id]);
+      const [users] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.params.id]);
       if (users.length === 0) {
         res.status(404).json({ error: 'User not found' });
         return;
@@ -179,8 +171,7 @@ router.put('/:id/password', authenticateToken, async (req: any, res: Response): 
     }
 
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await // @ts-ignore
-  pool.query('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [passwordHash, req.params.id]);
+    await pool.query('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [passwordHash, req.params.id]);
 
     res.json({ message: 'Password changed' });
   } catch (err) {
@@ -197,8 +188,7 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin'), async (r
       res.status(400).json({ error: 'Cannot delete your own account' });
       return;
     }
-    await // @ts-ignore
-  pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
     res.json({ message: 'User deleted' });
   } catch (err) {
     console.error('[users] Error:', err);

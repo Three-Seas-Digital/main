@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/payments — List all payments
 router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT p.*, c.name AS client_name, c.business_name
        FROM payments p
        LEFT JOIN clients c ON p.client_id = c.id
@@ -26,8 +25,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 // GET /api/payments/:id — Get single payment
 router.get('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT p.*, c.name AS client_name, c.business_name
        FROM payments p
        LEFT JOIN clients c ON p.client_id = c.id
@@ -51,24 +49,21 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
 
     // Validate FK references exist to prevent constraint errors from stale localStorage
     if (clientId) {
-      const [clientCheck] = await // @ts-ignore
-  pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
+      const [clientCheck] = await pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
       const clientArray = Array.isArray(clientCheck) ? clientCheck : [];
       if (clientArray.length === 0) {
         return res.status(400).json({ error: 'Client not found' });
       }
     }
     if (invoiceId) {
-      const [invoiceCheck] = await // @ts-ignore
-  pool.query('SELECT id FROM invoices WHERE id = ?', [invoiceId]);
+      const [invoiceCheck] = await pool.query('SELECT id FROM invoices WHERE id = ?', [invoiceId]);
       const invoiceArray = Array.isArray(invoiceCheck) ? invoiceCheck : [];
       if (invoiceArray.length === 0) {
         return res.status(400).json({ error: 'Invoice not found' });
       }
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO payments (id, client_id, invoice_id, amount, method, notes, created_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [id, clientId, invoiceId || null, amount, method || 'other', notes || null]
@@ -84,8 +79,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response) => {
   try {
     const { amount, method, notes } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE payments SET amount = ?, method = ?, notes = ?, updated_at = NOW() WHERE id = ?',
       [amount, method, notes, req.params.id]
     );
@@ -99,8 +93,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/payments/:id — Delete payment
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM payments WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM payments WHERE id = ?', [req.params.id]);
     res.json({ message: 'Payment deleted' });
   } catch (err) {
     console.error('[payments] Error:', err);

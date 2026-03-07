@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/audits/client/:clientId - List all audit versions for client
 router.get('/client/:clientId', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, client_id, version, status, overall_score, audit_date,
               published_at, created_by, created_at, updated_at
        FROM business_audits WHERE client_id = ? ORDER BY version DESC`,
@@ -30,16 +29,14 @@ router.post('/client/:clientId', authenticateToken, requireRole('owner', 'admin'
     const { audit_date, notes } = req.body;
 
     // Get next version number
-    const [last] = await // @ts-ignore
-  pool.query(
+    const [last] = await pool.query(
       'SELECT MAX(version) as maxVersion FROM business_audits WHERE client_id = ?',
       [clientId]
     );
     const nextVersion = (last[0].maxVersion || 0) + 1;
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO business_audits (id, client_id, version, status, audit_date, notes, created_by, created_at)
        VALUES (?, ?, ?, 'draft', ?, ?, ?, NOW())`,
       [id, clientId, nextVersion, audit_date || new Date().toISOString().slice(0, 10), notes || null, req.user?.userId]
@@ -54,8 +51,7 @@ router.post('/client/:clientId', authenticateToken, requireRole('owner', 'admin'
 // GET /api/audits/:id - Get audit detail with all scores
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [audits] = await // @ts-ignore
-  pool.query(
+    const [audits] = await pool.query(
       'SELECT * FROM business_audits WHERE id = ?',
       [req.params.id]
     );
@@ -67,8 +63,7 @@ router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<v
     const audit = audits[0];
 
     // Fetch category scores with category names
-    const [scores] = await // @ts-ignore
-  pool.query(
+    const [scores] = await pool.query(
       `SELECT s.*, c.name as category_name, c.max_score
        FROM audit_scores s
        JOIN audit_categories c ON s.category_id = c.id
@@ -79,8 +74,7 @@ router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<v
 
     // Fetch subcriteria scores for each category score
     for (const score of scores) {
-      const [subScores] = await // @ts-ignore
-  pool.query(
+      const [subScores] = await pool.query(
         `SELECT ss.*, sub.name as subcriteria_name, sub.max_score as sub_max_score
          FROM audit_subcriteria_scores ss
          JOIN audit_subcriteria sub ON ss.subcriteria_id = sub.id
@@ -106,8 +100,7 @@ router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<v
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response): Promise<void> => {
   try {
     const { audit_date, notes } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE business_audits SET audit_date = ?, notes = ?, updated_at = NOW() WHERE id = ?',
       [audit_date || null, notes || null, req.params.id]
     );
@@ -121,8 +114,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), 
 // POST /api/audits/:id/publish - Publish audit
 router.post('/:id/publish', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       "UPDATE business_audits SET status = 'published', published_at = NOW(), updated_at = NOW() WHERE id = ?",
       [req.params.id]
     );
@@ -146,15 +138,13 @@ router.post('/:id/scores', authenticateToken, requireRole('owner', 'admin', 'man
 
     for (const s of scores) {
       // Check if score exists for this audit + category
-      const [existing] = await // @ts-ignore
-  pool.query(
+      const [existing] = await pool.query(
         'SELECT id FROM audit_scores WHERE audit_id = ? AND category_id = ?',
         [auditId, s.category_id]
       );
 
       if (existing.length > 0) {
-        await // @ts-ignore
-  pool.query(
+        await pool.query(
           `UPDATE audit_scores SET score = ?, weight = ?, internal_notes = ?,
            client_summary = ?, evidence_urls = ? WHERE id = ?`,
           [s.score, s.weight || 1, s.internal_notes || null,
@@ -163,8 +153,7 @@ router.post('/:id/scores', authenticateToken, requireRole('owner', 'admin', 'man
         );
       } else {
         const scoreId = generateId();
-        await // @ts-ignore
-  pool.query(
+        await pool.query(
           `INSERT INTO audit_scores (id, audit_id, category_id, score, weight, internal_notes, client_summary, evidence_urls)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [scoreId, auditId, s.category_id, s.score, s.weight || 1, s.internal_notes || null,
@@ -174,8 +163,7 @@ router.post('/:id/scores', authenticateToken, requireRole('owner', 'admin', 'man
     }
 
     // Auto-calculate overall_score as weighted average
-    const [allScores] = await // @ts-ignore
-  pool.query(
+    const [allScores] = await pool.query(
       'SELECT score, weight FROM audit_scores WHERE audit_id = ?',
       [auditId]
     );
@@ -186,8 +174,7 @@ router.post('/:id/scores', authenticateToken, requireRole('owner', 'admin', 'man
       weightedSum += r.score * r.weight;
     }
     const overall = totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) / 100 : 0;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE business_audits SET overall_score = ?, updated_at = NOW() WHERE id = ?',
       [overall, auditId]
     );
@@ -210,22 +197,19 @@ router.post('/:id/subcriteria-scores', authenticateToken, requireRole('owner', '
     }
 
     for (const s of scores) {
-      const [existing] = await // @ts-ignore
-  pool.query(
+      const [existing] = await pool.query(
         'SELECT id FROM audit_subcriteria_scores WHERE audit_score_id = ? AND subcriteria_id = ?',
         [s.audit_score_id, s.subcriteria_id]
       );
 
       if (existing.length > 0) {
-        await // @ts-ignore
-  pool.query(
+        await pool.query(
           'UPDATE audit_subcriteria_scores SET score = ?, notes = ? WHERE id = ?',
           [s.score, s.notes || null, existing[0].id]
         );
       } else {
         const subScoreId = generateId();
-        await // @ts-ignore
-  pool.query(
+        await pool.query(
           'INSERT INTO audit_subcriteria_scores (id, audit_score_id, subcriteria_id, score, notes) VALUES (?, ?, ?, ?, ?)',
           [subScoreId, s.audit_score_id, s.subcriteria_id, s.score, s.notes || null]
         );
@@ -245,16 +229,14 @@ router.post('/:auditId/recommendations', authenticateToken, requireRole('owner',
     const { auditId } = req.params;
     const { category_id, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
     // Look up client_id from the audit
-    const [auditRow] = await // @ts-ignore
-  pool.query('SELECT client_id FROM business_audits WHERE id = ?', [auditId]);
+    const [auditRow] = await pool.query('SELECT client_id FROM business_audits WHERE id = ?', [auditId]);
     if (auditRow.length === 0) {
       res.status(404).json({ success: false, error: 'Audit not found' });
       return;
     }
     const clientId = auditRow[0].client_id;
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO audit_recommendations (id, audit_id, client_id, category_id, title, description, priority,
        estimated_cost_min, estimated_cost_max, estimated_timeline, status, created_by, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,

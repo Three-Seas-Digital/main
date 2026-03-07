@@ -34,8 +34,7 @@ router.get('/:clientId/interventions/summary', authenticateToken, async (req: an
     const { clientId } = req.params;
 
     // Total count and status breakdown
-    const [statusRows] = await // @ts-ignore
-  pool.query(
+    const [statusRows] = await pool.query(
       `SELECT status, COUNT(*) as count
        FROM interventions WHERE client_id = ?
        GROUP BY status`,
@@ -43,8 +42,7 @@ router.get('/:clientId/interventions/summary', authenticateToken, async (req: an
     );
 
     // ROI stats for completed interventions
-    const [roiRows] = await // @ts-ignore
-  pool.query(
+    const [roiRows] = await pool.query(
       `SELECT
          COUNT(*) as total_completed,
          AVG(overall_roi) as avg_roi,
@@ -57,8 +55,7 @@ router.get('/:clientId/interventions/summary', authenticateToken, async (req: an
     );
 
     // Type breakdown
-    const [typeRows] = await // @ts-ignore
-  pool.query(
+    const [typeRows] = await pool.query(
       `SELECT intervention_type, COUNT(*) as count
        FROM interventions WHERE client_id = ?
        GROUP BY intervention_type`,
@@ -66,8 +63,7 @@ router.get('/:clientId/interventions/summary', authenticateToken, async (req: an
     );
 
     // Effectiveness distribution
-    const [effectivenessRows] = await // @ts-ignore
-  pool.query(
+    const [effectivenessRows] = await pool.query(
       `SELECT effectiveness_rating, COUNT(*) as count
        FROM interventions
        WHERE client_id = ? AND effectiveness_rating != 'pending'
@@ -147,8 +143,7 @@ router.get('/:clientId/interventions', authenticateToken, async (req: any, res: 
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
     sql += ` ORDER BY ${sortCol} ${sortOrder}`;
 
-    const [rows] = await // @ts-ignore
-  pool.query(sql, params);
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('Error listing interventions:', err);
@@ -195,8 +190,7 @@ router.post('/:clientId/interventions', authenticateToken, requireRole('owner', 
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO interventions (
         id, client_id, title, description, intervention_type, status,
         planned_date, implementation_date, measurement_start, measurement_end,
@@ -261,8 +255,7 @@ router.put('/:clientId/interventions/:id', authenticateToken, requireRole('owner
     } = req.body;
 
     // Verify the intervention exists and belongs to this client
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -295,20 +288,20 @@ router.put('/:clientId/interventions/:id', authenticateToken, requireRole('owner
     // Auto-calculate effectiveness from metrics if status is completing
     let effectiveness_rating = null;
     if (status === 'completed' || status === 'measured') {
-      const [metrics] = await // @ts-ignore
-  pool.query(
+      const [metrics] = await pool.query(
         'SELECT baseline_value, current_value FROM intervention_metrics WHERE intervention_id = ? AND current_value IS NOT NULL',
         [id]
       );
       if (metrics.length > 0) {
         const pairs = metrics.map((m: any) => ({ before: m.baseline_value, after: m.current_value }));
-        const { rating } = calculateEffectiveness(pairs);
+        // calculateEffectiveness accepts either (before[], after[]) or (pairs[]).
+        // Passing undefined as the second arg selects the single-array branch.
+        const { rating } = calculateEffectiveness(pairs, undefined);
         effectiveness_rating = ratingToDbEnum(rating);
       }
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE interventions SET
         title = COALESCE(?, title),
         description = COALESCE(?, description),
@@ -385,8 +378,7 @@ router.delete('/:clientId/interventions/:id', authenticateToken, requireRole('ow
   try {
     const { clientId, id } = req.params;
 
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -396,8 +388,7 @@ router.delete('/:clientId/interventions/:id', authenticateToken, requireRole('ow
     }
 
     // FK CASCADE handles metrics, snapshots, alerts deletion
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'DELETE FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -424,8 +415,7 @@ router.post('/:clientId/interventions/:id/metrics', authenticateToken, requireRo
     } = req.body;
 
     // Validate intervention belongs to client
-    const [intervention] = await // @ts-ignore
-  pool.query(
+    const [intervention] = await pool.query(
       'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -464,8 +454,7 @@ router.post('/:clientId/interventions/:id/metrics', authenticateToken, requireRo
     ];
 
     const metricId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO intervention_metrics (
         id, intervention_id, metric_name, metric_slug, unit, baseline_value,
         baseline_period_start, baseline_period_end, baseline_source,
@@ -522,8 +511,7 @@ router.put('/:clientId/interventions/:id/metrics/:metricId', authenticateToken, 
     } = req.body;
 
     // Validate intervention belongs to client
-    const [intervention] = await // @ts-ignore
-  pool.query(
+    const [intervention] = await pool.query(
       'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -533,8 +521,7 @@ router.put('/:clientId/interventions/:id/metrics/:metricId', authenticateToken, 
     }
 
     // Validate metric belongs to intervention
-    const [existingMetric] = await // @ts-ignore
-  pool.query(
+    const [existingMetric] = await pool.query(
       'SELECT id, baseline_value FROM intervention_metrics WHERE id = ? AND intervention_id = ?',
       [metricId, id]
     );
@@ -556,8 +543,7 @@ router.put('/:clientId/interventions/:id/metrics/:metricId', authenticateToken, 
       }
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE intervention_metrics SET
         metric_name = COALESCE(?, metric_name),
         unit = COALESCE(?, unit),
@@ -619,8 +605,7 @@ router.post('/:clientId/interventions/:id/snapshots', authenticateToken, require
     const { checkpoint, notes } = req.body;
 
     // Validate intervention belongs to client
-    const [intervention] = await // @ts-ignore
-  pool.query(
+    const [intervention] = await pool.query(
       'SELECT id, implementation_date FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -630,8 +615,7 @@ router.post('/:clientId/interventions/:id/snapshots', authenticateToken, require
     }
 
     // Fetch all metrics for this intervention
-    const [metrics] = await // @ts-ignore
-  pool.query(
+    const [metrics] = await pool.query(
       'SELECT id, current_value, baseline_value FROM intervention_metrics WHERE intervention_id = ?',
       [id]
     );
@@ -652,57 +636,45 @@ router.post('/:clientId/interventions/:id/snapshots', authenticateToken, require
     const snapshotCheckpoint = (checkpoint && validCheckpoints.includes(checkpoint)) ? checkpoint : 'custom';
 
     // Insert a snapshot row for each metric
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
+    const insertedIds: string[] = [];
+    for (const metric of metrics) {
+      if (metric.current_value === null) continue; // skip metrics without current readings
 
-      const insertedIds: string[] = [];
-      for (const metric of metrics) {
-        if (metric.current_value === null) continue; // skip metrics without current readings
+      const changeFromBaseline = metric.baseline_value !== 0
+        ? Math.round(((metric.current_value - metric.baseline_value) / Math.abs(metric.baseline_value)) * 10000) / 100
+        : null;
 
-        const changeFromBaseline = metric.baseline_value !== 0
-          ? Math.round(((metric.current_value - metric.baseline_value) / Math.abs(metric.baseline_value)) * 10000) / 100
-          : null;
-
-        const snapshotId = generateId();
-        await conn.query(
-          `INSERT INTO intervention_snapshots (
-            id, intervention_metric_id, intervention_id, value,
-            change_from_baseline, days_since_launch, checkpoint,
-            source, notes, recorded_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?, NOW())`,
-          [
-            snapshotId,
-            metric.id,
-            id,
-            metric.current_value,
-            changeFromBaseline,
-            daysSinceLaunch,
-            snapshotCheckpoint,
-            notes || null,
-          ]
-        );
-        insertedIds.push(snapshotId);
-      }
-
-      await conn.commit();
-
-      res.status(201).json({
-        success: true,
-        data: {
-          snapshot_count: insertedIds.length,
-          snapshot_ids: insertedIds,
-          days_since_launch: daysSinceLaunch,
-          checkpoint: snapshotCheckpoint,
-          message: 'Snapshot captured',
-        },
-      });
-    } catch (txErr) {
-      await conn.rollback();
-      throw txErr;
-    } finally {
-      conn.release();
+      const snapshotId = generateId();
+      await pool.query(
+        `INSERT INTO intervention_snapshots (
+          id, intervention_metric_id, intervention_id, value,
+          change_from_baseline, days_since_launch, checkpoint,
+          source, notes, recorded_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'manual', ?, NOW())`,
+        [
+          snapshotId,
+          metric.id,
+          id,
+          metric.current_value,
+          changeFromBaseline,
+          daysSinceLaunch,
+          snapshotCheckpoint,
+          notes || null,
+        ]
+      );
+      insertedIds.push(snapshotId);
     }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        snapshot_count: insertedIds.length,
+        snapshot_ids: insertedIds,
+        days_since_launch: daysSinceLaunch,
+        checkpoint: snapshotCheckpoint,
+        message: 'Snapshot captured',
+      },
+    });
   } catch (err) {
     console.error('Error capturing snapshot:', err);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -718,8 +690,7 @@ router.get('/:clientId/interventions/:id/snapshots', authenticateToken, async (r
     const { clientId, id } = req.params;
 
     // Validate intervention belongs to client
-    const [intervention] = await // @ts-ignore
-  pool.query(
+    const [intervention] = await pool.query(
       'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -728,8 +699,7 @@ router.get('/:clientId/interventions/:id/snapshots', authenticateToken, async (r
       return;
     }
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT s.id, s.intervention_metric_id, s.value, s.change_from_baseline,
               s.days_since_launch, s.checkpoint, s.source, s.notes, s.recorded_at,
               m.metric_name, m.metric_slug, m.unit, m.baseline_value
@@ -766,8 +736,7 @@ router.post(
       const { clientId, id } = req.params;
 
       // Validate intervention belongs to client
-      const [intervention] = await // @ts-ignore
-  pool.query(
+      const [intervention] = await pool.query(
         'SELECT id FROM interventions WHERE id = ? AND client_id = ?',
         [id, clientId]
       );
@@ -800,8 +769,7 @@ router.post(
       setClauses.push('updated_at = NOW()');
       params.push(id, clientId);
 
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `UPDATE interventions SET ${setClauses.join(', ')} WHERE id = ? AND client_id = ?`,
         params
       );

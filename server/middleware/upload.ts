@@ -1,7 +1,18 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
+import { randomUUID } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+
+// Augment Express Request to carry uploadType (set by setUploadType middleware)
+declare global {
+  namespace Express {
+    interface Request {
+      uploadType?: string;
+    }
+  }
+}
 
 interface UploadOptions {
   destination?: string;
@@ -119,6 +130,69 @@ export const generalUpload = createUpload({
   maxFileSize: 5 * 1024 * 1024, // 5MB
   maxFiles: 3,
 });
+
+// ---------------------------------------------------------------------------
+// Legacy-compatible exports: upload, setUploadType
+// These match the upload.js API that routes import as:
+//   import { upload, setUploadType } from '../middleware/upload.js';
+// Routes use: setUploadType('receipt'), upload.single('receipt')
+// The uploadType controls which subdirectory files are saved to.
+// ---------------------------------------------------------------------------
+
+const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || '5242880'); // 5MB
+
+// Ensure upload directories exist at startup
+const uploadSubDirs = ['documents', 'receipts', 'screenshots'].map(d => path.join(UPLOAD_DIR, d));
+uploadSubDirs.forEach(dir => {
+  if (!fsSync.existsSync(dir)) {
+    fsSync.mkdirSync(dir, { recursive: true });
+  }
+});
+
+const legacyStorage = multer.diskStorage({
+  destination: (req: Express.Request, _file: Express.Multer.File, cb: any) => {
+    let subDir = 'documents';
+    if ((req as any).uploadType === 'receipt') subDir = 'receipts';
+    else if ((req as any).uploadType === 'screenshot') subDir = 'screenshots';
+    cb(null, path.join(UPLOAD_DIR, subDir));
+  },
+  filename: (_req: Express.Request, file: Express.Multer.File, cb: any) => {
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9\-_]/g, '_');
+    cb(null, `${randomUUID()}-${basename}${ext}`);
+  },
+});
+
+const legacyFileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv',
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`File type ${file.mimetype} not allowed`));
+  }
+};
+
+/** General-purpose multer instance with uploadType-based destination routing. */
+export const upload = multer({
+  storage: legacyStorage,
+  fileFilter: legacyFileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});
+
+/** Middleware to set req.uploadType before the multer middleware runs. */
+export function setUploadType(type: string) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    (req as any).uploadType = type;
+    next();
+  };
+}
 
 // Error handling middleware for upload errors
 export function handleUploadError(err: Error, req: Request, res: Response, next: NextFunction): void {

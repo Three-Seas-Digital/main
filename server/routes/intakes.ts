@@ -21,15 +21,13 @@ router.post('/:clientId', authenticateToken, requireRole('owner', 'admin', 'mana
       timeline_expectations, decision_makers, notes
     } = req.body;
 
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM business_intakes WHERE client_id = ?',
       [clientId]
     );
 
     if (existing.length > 0) {
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `UPDATE business_intakes SET
           industry = ?, sub_industry = ?, years_in_operation = ?, employee_count_range = ?,
           annual_revenue_range = ?, target_market = ?, business_model = ?, competitors = ?,
@@ -64,8 +62,7 @@ router.post('/:clientId', authenticateToken, requireRole('owner', 'admin', 'mana
       res.json({ success: true, data: { id: existing[0].id, message: 'Intake updated' } });
     } else {
       const id = generateId();
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `INSERT INTO business_intakes (
           id, client_id, industry, sub_industry, years_in_operation, employee_count_range,
           annual_revenue_range, target_market, business_model, competitors,
@@ -110,8 +107,7 @@ router.post('/:clientId', authenticateToken, requireRole('owner', 'admin', 'mana
 // GET /api/intakes/:clientId - Get intake for client
 router.get('/:clientId', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM business_intakes WHERE client_id = ?',
       [req.params.clientId]
     );
@@ -149,8 +145,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), 
       timeline_expectations, decision_makers, notes
     } = req.body;
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE business_intakes SET
         industry = ?, sub_industry = ?, years_in_operation = ?, employee_count_range = ?,
         annual_revenue_range = ?, target_market = ?, business_model = ?, competitors = ?,
@@ -192,8 +187,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), 
 // DELETE /api/intakes/:id - Delete intake
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM business_intakes WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM business_intakes WHERE id = ?', [req.params.id]);
     res.json({ success: true, data: { message: 'Intake deleted' } });
   } catch (err) {
     console.error('DELETE /api/intakes/:id error:', err);

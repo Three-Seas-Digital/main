@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/notifications — List notifications for current user
 router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
       [req.user?.id]
     );
@@ -24,8 +23,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 // GET /api/notifications/unread-count — Get unread count
 router.get('/unread-count', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = FALSE',
       [req.user?.id]
     );
@@ -42,8 +40,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), as
   try {
     const { id: bodyId, userId, type, title, message, link } = req.body;
     const id = bodyId || generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'INSERT INTO notifications (id, user_id, type, title, message, link, is_read, created_at) VALUES (?, ?, ?, ?, ?, ?, FALSE, NOW())',
       [id, userId || req.user?.id, type, title || 'Notification', message, link || null]
     );
@@ -57,8 +54,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), as
 // PUT /api/notifications/:id/read — Mark notification as read
 router.put('/:id/read', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE notifications SET is_read = TRUE WHERE id = ? AND user_id = ?',
       [req.params.id, req.user?.id]
     );
@@ -72,8 +68,7 @@ router.put('/:id/read', authenticateToken, async (req: any, res: Response) => {
 // PUT /api/notifications/read-all — Mark all as read
 router.put('/read-all', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE notifications SET is_read = TRUE WHERE user_id = ? AND is_read = FALSE',
       [req.user?.id]
     );
@@ -87,8 +82,7 @@ router.put('/read-all', authenticateToken, async (req: any, res: Response) => {
 // DELETE /api/notifications/:id — Delete notification (admin only for others' notifications)
 router.delete('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM notifications WHERE id = ? AND user_id = ?', [req.params.id, req.user?.id]);
+    await pool.query('DELETE FROM notifications WHERE id = ? AND user_id = ?', [req.params.id, req.user?.id]);
     res.json({ message: 'Notification deleted' });
   } catch (err) {
     console.error('[notifications] Error:', err);

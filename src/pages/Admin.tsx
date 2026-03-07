@@ -210,24 +210,24 @@ export default function Admin() {
 
   // These useMemo hooks MUST be before any early returns to satisfy Rules of Hooks
   const filtered = useMemo(() => appointments
-    .filter((a) => (filterStatus === 'all' ? true : a.status === filterStatus))
-    .filter((a) => (selectedDate ? a.date === selectedDate : true))
+    .filter(($1: any) => (filterStatus === 'all' ? true : a.status === filterStatus))
+    .filter(($1: any) => (selectedDate ? a.date === selectedDate : true))
     .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
   [appointments, filterStatus, selectedDate]);
 
   const { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, onboardingCount, pendingUserCount, unviewedClientCount } = useMemo(() => {
-    const pendingCount = appointments.filter((a) => a.status === 'pending').length;
-    const followUpCount = appointments.filter((a) => a.followUp && a.followUp.status !== 'completed' && a.followUp.status !== 'archived' && !a.sentToPipeline).length;
-    const archivedFollowUpCount = appointments.filter((a) => a.followUp && a.followUp.status === 'archived').length;
-    const archivedClientCount = clients.filter((c) => c.status === 'archived').length;
+    const pendingCount = appointments.filter(($1: any) => a.status === 'pending').length;
+    const followUpCount = appointments.filter(($1: any) => a.followUp && a.followUp.status !== 'completed' && a.followUp.status !== 'archived' && !a.sentToPipeline).length;
+    const archivedFollowUpCount = appointments.filter(($1: any) => a.followUp && a.followUp.status === 'archived').length;
+    const archivedClientCount = clients.filter(($1: any) => c.status === 'archived').length;
     const archivedCount = archivedFollowUpCount + archivedClientCount;
-    const pipelineCount = prospects.filter((p) => !p.closedAt).length;
-    const pendingClientCount = clients.filter((c) => c.status === 'pending').length;
-    const clientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && (!c.onboarding || c.onboarding.complete)).length;
-    const vipCount = clients.filter((c) => c.status === 'vip').length;
-    const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
-    const pendingUserCount = users.filter((u) => u.status === 'pending').length;
-    const unviewedClientCount = clients.filter((c) => c.status !== 'pending' && c.status !== 'archived' && !viewedClients.has(c.id)).length;
+    const pipelineCount = prospects.filter(($1: any) => !p.closedAt).length;
+    const pendingClientCount = clients.filter(($1: any) => c.status === 'pending').length;
+    const clientCount = clients.filter(($1: any) => c.status !== 'pending' && c.status !== 'archived' && (!c.onboarding || c.onboarding.complete)).length;
+    const vipCount = clients.filter(($1: any) => c.status === 'vip').length;
+    const onboardingCount = clients.filter(($1: any) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
+    const pendingUserCount = users.filter(($1: any) => u.status === 'pending').length;
+    const unviewedClientCount = clients.filter(($1: any) => c.status !== 'pending' && c.status !== 'archived' && !viewedClients.has(c.id)).length;
     return { pendingCount, followUpCount, archivedCount, pipelineCount, pendingClientCount, clientCount, vipCount, onboardingCount, pendingUserCount, unviewedClientCount };
   }, [appointments, clients, prospects, users, viewedClients]);
 
@@ -248,7 +248,7 @@ export default function Admin() {
     if (selectedAppointments.size === filtered.length) {
       setSelectedAppointments(new Set());
     } else {
-      setSelectedAppointments(new Set(filtered.map((a) => a.id)));
+      setSelectedAppointments(new Set(filtered.map(($1: any) => a.id)));
     }
   };
 
@@ -283,7 +283,7 @@ export default function Admin() {
   };
 
   const bulkExportSelected = () => {
-    const selected = filtered.filter((a) => selectedAppointments.has(a.id));
+    const selected = filtered.filter(($1: any) => selectedAppointments.has(a.id));
     exportToICal(selected, 'selected-appointments.ics');
   };
 
@@ -355,7 +355,7 @@ export default function Admin() {
       </div>
       <div className="container">
         <div className="admin-stats">
-          <div className="admin-stat-card"><CalendarDays size={24} /><div><h3>{selectedDate ? appointments.filter((a) => a.date === selectedDate).length : appointments.length}</h3><p>{selectedDate ? `Bookings on ${formatDisplayDate(selectedDate)}` : 'Total Bookings'}</p></div></div>
+          <div className="admin-stat-card"><CalendarDays size={24} /><div><h3>{selectedDate ? appointments.filter(($1: any) => a.date === selectedDate).length : appointments.length}</h3><p>{selectedDate ? `Bookings on ${formatDisplayDate(selectedDate)}` : 'Total Bookings'}</p></div></div>
           <div className="admin-stat-card pending"><AlertCircle size={24} /><div><h3>{pendingCount}</h3><p>Pending</p></div></div>
           <div className="admin-stat-card" style={{ color: 'var(--accent)' }}><PhoneForwarded size={24} /><div><h3>{followUpCount}</h3><p>Open Follow-Ups</p></div></div>
           <div className="admin-stat-card" style={{ color: 'var(--emerald, #10b981)' }}><ClipboardCheck size={24} /><div><h3>{onboardingCount}</h3><p>Onboarding</p></div></div>
@@ -434,7 +434,7 @@ export default function Admin() {
                 </button>
               )}
               {canManageClients && (() => {
-                const onboardingCount = clients.filter((c) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
+                const onboardingCount = clients.filter(($1: any) => c.onboarding && !c.onboarding.complete && c.status !== 'archived').length;
                 return (
                   <button className={`admin-tab ${activeTab === 'onboarding' ? 'active' : ''}`} onClick={() => setActiveTab('onboarding')}>
                     <ClipboardCheck size={16} /> Onboarding {onboardingCount > 0 && <span className="tab-badge">{onboardingCount}</span>}
@@ -466,7 +466,7 @@ export default function Admin() {
                 )}
                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="filter-select"><option value="all">All Status</option><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="cancelled">Cancelled</option></select>
                 {selectedDate && <button className="btn btn-sm btn-outline" onClick={() => setSelectedDate('')}>Clear Date</button>}
-                <button className="btn btn-sm btn-outline calendar-export-btn" onClick={() => exportToICal(filtered.filter((a) => a.status !== 'cancelled'), selectedDate ? `appointments-${selectedDate}.ics` : 'all-appointments.ics')}>
+                <button className="btn btn-sm btn-outline calendar-export-btn" onClick={() => exportToICal(filtered.filter(($1: any) => a.status !== 'cancelled'), selectedDate ? `appointments-${selectedDate}.ics` : 'all-appointments.ics')}>
                   <Download size={14} /> Export iCal
                 </button>
                 {canManageAppointments && view !== 'kanban' && (
@@ -478,7 +478,7 @@ export default function Admin() {
             </div>
             {showNewApptForm && canManageAppointments && (() => {
               const filteredClients = clientSearch.trim()
-                ? clients.filter((c) => c.status !== 'archived' && c.status !== 'pending' && (
+                ? clients.filter(($1: any) => c.status !== 'archived' && c.status !== 'pending' && (
                     c.name?.toLowerCase().includes(clientSearch.toLowerCase()) ||
                     c.email?.toLowerCase().includes(clientSearch.toLowerCase()) ||
                     c.businessName?.toLowerCase().includes(clientSearch.toLowerCase())
@@ -515,7 +515,7 @@ export default function Admin() {
                           <input type="text" placeholder="Search clients by name, email, or business..." value={clientSearch} onChange={(e) => setClientSearch(e.target.value)} className="form-input" style={{ width: '100%' }} />
                           {filteredClients.length > 0 && (
                             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'white', border: '1px solid var(--gray-200, #e5e7eb)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto' }}>
-                              {filteredClients.map((c) => (
+                              {filteredClients.map(($1: any) => (
                                 <div key={c.id} onClick={() => handleSelectClient(c)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-100, #f3f4f6)', fontSize: '0.85rem' }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50, #f9fafb)'} onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
                                   <strong>{c.name}</strong> — {c.email} {c.businessName && <span style={{ color: 'var(--gray-500)', marginLeft: '4px' }}>({c.businessName})</span>}
                                 </div>
@@ -586,7 +586,7 @@ export default function Admin() {
             {view === 'kanban' ? (
               <KanbanView
                 appointments={filtered}
-                users={users.filter((u) => u.status === 'approved')}
+                users={users.filter(($1: any) => u.status === 'approved')}
                 onAssign={assignAppointment}
                 onStatusChange={updateAppointmentStatus}
                 canManage={canManageAppointments}
@@ -641,7 +641,7 @@ export default function Admin() {
                                 return uniqueNotes.length > 0 && (
                                   <div className="appt-lead-notes">
                                     <span className="appt-notes-label"><MessageSquare size={12} /> Notes from Lead ({uniqueNotes.length}):</span>
-                                    {uniqueNotes.map((n) => (
+                                    {uniqueNotes.map(($1: any) => (
                                       <div key={n.id} className="appt-note-item">
                                         <p>{n.text}</p>
                                         <span className="appt-note-meta">{n.author} · {new Date(n.createdAt).toLocaleDateString()}</span>

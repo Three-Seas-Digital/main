@@ -338,9 +338,9 @@ export default function InterventionTracker({ biClientId, onBiClientChange }: In
       <table><thead><tr><th>Intervention</th><th>Status</th><th>Start</th><th>Cost</th><th>Rev Before</th><th>Rev After</th><th>ROI</th></tr></thead>
       <tbody>${rows}</tbody></table></body></html>`;
     const w = window.open('', '_blank');
-    w.document.write(html);
-    w.document.close();
-    w.print();
+    if (w) w.document.write(html);
+    if (w) w.document.close();
+    if (w) w.print();
   };
 
   return (

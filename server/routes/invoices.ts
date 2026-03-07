@@ -10,8 +10,7 @@ const router = Router();
 // GET /api/invoices — List all invoices
 router.get('/', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM invoices ORDER BY created_at DESC'
     );
     res.json(rows);
@@ -24,8 +23,7 @@ router.get('/', authenticateToken, async (req: any, res: Response): Promise<void
 // GET /api/invoices/:id — Get single invoice
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
     if (rows.length === 0) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -45,16 +43,14 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
 
     // Validate client exists to prevent FK constraint errors from stale localStorage refs
     if (clientId) {
-      const [clientCheck] = await // @ts-ignore
-  pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
+      const [clientCheck] = await pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
       if (clientCheck.length === 0) {
         res.status(400).json({ error: 'Client not found — cannot create invoice for non-existent client' });
         return;
       }
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO invoices (id, client_id, title, amount, description, due_date, status, recurring, frequency, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, clientId, title || description || 'Invoice', amount, description || null, dueDate || null, status || 'pending', recurring || false, frequency || null]
@@ -70,8 +66,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response): Promise<void> => {
   try {
     const { amount, description, dueDate, status, recurring, frequency } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE invoices SET amount = ?, description = ?, due_date = ?, status = ?,
        recurring = ?, frequency = ?, updated_at = NOW() WHERE id = ?`,
       [amount, description, dueDate, status, recurring, frequency, req.params.id]
@@ -87,10 +82,8 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response): Promise<void> => {
   try {
     // Also remove associated payment record
-    await // @ts-ignore
-  pool.query('DELETE FROM payments WHERE invoice_id = ?', [req.params.id]);
-    await // @ts-ignore
-  pool.query('DELETE FROM invoices WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM payments WHERE invoice_id = ?', [req.params.id]);
+    await pool.query('DELETE FROM invoices WHERE id = ?', [req.params.id]);
     res.json({ message: 'Invoice deleted' });
   } catch (err) {
     console.error('[invoices] Error:', err);
@@ -104,8 +97,7 @@ router.put('/:id/mark-paid', authenticateToken, requireRole('owner', 'admin', 'm
     const { paymentMethod } = req.body;
 
     // Get invoice details
-    const [invoices] = await // @ts-ignore
-  pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const [invoices] = await pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
     if (invoices.length === 0) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -114,24 +106,21 @@ router.put('/:id/mark-paid', authenticateToken, requireRole('owner', 'admin', 'm
     const invoice = invoices[0];
 
     // Update invoice status
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       "UPDATE invoices SET status = 'paid', paid_at = NOW(), updated_at = NOW() WHERE id = ?",
       [req.params.id]
     );
 
     // Create payment record
     const paymentId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO payments (id, client_id, invoice_id, amount, method, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
       [paymentId, invoice.client_id, invoice.id, invoice.amount, paymentMethod || 'other']
     );
 
     // Send invoice receipt email (non-blocking)
-    const [clients] = await // @ts-ignore
-  pool.query('SELECT * FROM clients WHERE id = ?', [invoice.client_id]);
+    const [clients] = await pool.query('SELECT * FROM clients WHERE id = ?', [invoice.client_id]);
     if (clients.length > 0 && clients[0].email) {
       sendInvoiceEmail(invoice, clients[0], { method: paymentMethod || 'other', created_at: new Date().toISOString() })
         .catch((err: any) => console.error('[invoices] Email send failed:', err.message));
@@ -147,14 +136,12 @@ router.put('/:id/mark-paid', authenticateToken, requireRole('owner', 'admin', 'm
 // PUT /api/invoices/:id/unmark-paid — Reverse paid status
 router.put('/:id/unmark-paid', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       "UPDATE invoices SET status = 'pending', paid_at = NULL, updated_at = NOW() WHERE id = ?",
       [req.params.id]
     );
     // Remove associated payment
-    await // @ts-ignore
-  pool.query('DELETE FROM payments WHERE invoice_id = ?', [req.params.id]);
+    await pool.query('DELETE FROM payments WHERE invoice_id = ?', [req.params.id]);
     res.json({ message: 'Invoice payment reversed' });
   } catch (err) {
     console.error('[invoices] Error:', err);
@@ -165,8 +152,7 @@ router.put('/:id/unmark-paid', authenticateToken, requireRole('owner', 'admin', 
 // POST /api/invoices/:id/generate-recurring — Generate next recurring invoice
 router.post('/:id/generate-recurring', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response): Promise<void> => {
   try {
-    const [invoices] = await // @ts-ignore
-  pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const [invoices] = await pool.query('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
     if (invoices.length === 0) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -182,8 +168,7 @@ router.post('/:id/generate-recurring', authenticateToken, requireRole('owner', '
     const nextDueDate = calculateNextDueDate(invoice.due_date, invoice.frequency);
 
     const newId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO invoices (id, client_id, title, amount, description, due_date, status, recurring, frequency, parent_invoice_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, NOW())`,
       [newId, invoice.client_id, invoice.title || invoice.description || 'Invoice', invoice.amount, invoice.description, nextDueDate, invoice.recurring, invoice.frequency, invoice.id]

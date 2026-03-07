@@ -145,3 +145,149 @@ declare global {
 }
 
 export { upload };
+
+// Named aliases used by clientFinancials.ts:
+//   csvUpload.single('file')  — multer instance for CSV file uploads
+//   parseFinancialsCSV        — standalone middleware that parses uploaded CSV into req.csvData
+export const csvUpload = upload;
+
+/**
+ * Parse and validate CSV financial data.
+ * Expected columns: date, revenue, expenses (required), customers, notes, etc. (optional).
+ * Attaches to req.csvData with shape: { valid, errors, totalRows, validRows, errorRows }
+ * matching the csvImport.js contract used by clientFinancials.ts.
+ */
+export function parseFinancialsCSV(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (!req.file) {
+    res.status(400).json({ success: false, error: 'No CSV file uploaded' });
+    return;
+  }
+
+  const csvContent = req.file.buffer.toString('utf8');
+
+  Papa.parse(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header: string) => header.trim().toLowerCase().replace(/\s+/g, '_'),
+    complete: (results: Papa.ParseResult<any>) => {
+      try {
+        const rowErrors: Array<{ row: number; errors: string[] }> = [];
+        const validRecords: any[] = [];
+
+        // Required columns
+        const requiredCols = ['date', 'revenue', 'expenses'];
+        const firstRow = results.data[0] || {};
+        const missingCols = requiredCols.filter(col => !(col in firstRow));
+
+        if (missingCols.length > 0) {
+          res.status(400).json({
+            success: false,
+            error: `Missing required columns: ${missingCols.join(', ')}. Required: date, revenue, expenses`,
+          });
+          return;
+        }
+
+        // Validate each row
+        results.data.forEach((row: any, index: number) => {
+          const errs: string[] = [];
+          const rowNum = index + 2; // +2: 0-indexed + header row
+
+          // Validate date
+          if (!row.date || !row.date.trim()) {
+            errs.push('Missing date');
+          } else {
+            const dateValue = new Date(row.date);
+            if (isNaN(dateValue.getTime())) {
+              errs.push(`Invalid date format: "${row.date}". Use YYYY-MM-DD or MM/DD/YYYY`);
+            }
+          }
+
+          // Validate revenue
+          const revenue = parseFloat(row.revenue);
+          if (isNaN(revenue) || revenue < 0) {
+            errs.push(`Invalid revenue: "${row.revenue}". Must be a non-negative number`);
+          }
+
+          // Validate expenses
+          const expenses = parseFloat(row.expenses);
+          if (isNaN(expenses) || expenses < 0) {
+            errs.push(`Invalid expenses: "${row.expenses}". Must be a non-negative number`);
+          }
+
+          // Validate optional numeric fields
+          if (row.customers !== undefined && row.customers !== '') {
+            const customers = parseInt(row.customers, 10);
+            if (isNaN(customers) || customers < 0) {
+              errs.push(`Invalid customers: "${row.customers}". Must be a non-negative integer`);
+            }
+          }
+
+          if (row.conversion_rate !== undefined && row.conversion_rate !== '') {
+            const cr = parseFloat(row.conversion_rate);
+            if (isNaN(cr) || cr < 0 || cr > 100) {
+              errs.push(`Invalid conversion_rate: "${row.conversion_rate}". Must be between 0 and 100`);
+            }
+          }
+
+          if (row.avg_revenue_per_customer !== undefined && row.avg_revenue_per_customer !== '') {
+            const avgRev = parseFloat(row.avg_revenue_per_customer);
+            if (isNaN(avgRev) || avgRev < 0) {
+              errs.push(`Invalid avg_revenue_per_customer: must be non-negative`);
+            }
+          }
+
+          if (row.new_customers !== undefined && row.new_customers !== '') {
+            const nc = parseInt(row.new_customers, 10);
+            if (isNaN(nc) || nc < 0) {
+              errs.push(`Invalid new_customers: must be a non-negative integer`);
+            }
+          }
+
+          if (row.churn_rate !== undefined && row.churn_rate !== '') {
+            const churn = parseFloat(row.churn_rate);
+            if (isNaN(churn) || churn < 0 || churn > 100) {
+              errs.push(`Invalid churn_rate: must be between 0 and 100`);
+            }
+          }
+
+          if (errs.length > 0) {
+            rowErrors.push({ row: rowNum, errors: errs });
+          } else {
+            validRecords.push({
+              date: row.date,
+              revenue: parseFloat(row.revenue),
+              expenses: parseFloat(row.expenses),
+              customers: row.customers ? parseInt(row.customers, 10) : null,
+              conversion_rate: row.conversion_rate ? parseFloat(row.conversion_rate) : null,
+              avg_revenue_per_customer: row.avg_revenue_per_customer ? parseFloat(row.avg_revenue_per_customer) : null,
+              new_customers: row.new_customers ? parseInt(row.new_customers, 10) : null,
+              churn_rate: row.churn_rate ? parseFloat(row.churn_rate) : null,
+              notes: row.notes ? row.notes.trim() : null,
+            });
+          }
+        });
+
+        // Attach with shape matching csvImport.js (used by clientFinancials.ts)
+        (req as any).csvData = {
+          valid: validRecords,
+          errors: rowErrors,
+          totalRows: results.data.length,
+          validRows: validRecords.length,
+          errorRows: rowErrors.length,
+        };
+
+        next();
+      } catch (error) {
+        console.error('parseFinancialsCSV error:', error);
+        res.status(500).json({ error: 'Failed to parse CSV file' });
+      }
+    },
+    error: (error: Error) => {
+      console.error('parseFinancialsCSV parse error:', error);
+      res.status(400).json({
+        success: false,
+        error: `CSV parsing failed: ${error.message}`,
+      });
+    },
+  });
+}

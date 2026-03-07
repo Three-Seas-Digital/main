@@ -21,8 +21,7 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response):
       return;
     }
 
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT id, name, email, password_hash, status, tier, business_name, must_change_password, email_verified, source FROM clients WHERE email = ?',
       [email]
     );
@@ -71,17 +70,11 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response):
     // Clear rate limit on success
     req.clearAttempts?.();
 
-    const tokenPayload = {
-      clientId: client.id,
-      email: client.email,
-      userType: 'client',
-    };
-
-    const { accessToken, refreshToken } = generateTokens(tokenPayload);
+    // For clients, use clientId as the identifier and email as username
+    const { accessToken, refreshToken } = generateTokens(client.id as any, client.email, 'client');
 
     // Store refresh token
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET refresh_token = ?, last_login = NOW() WHERE id = ?',
       [refreshToken, client.id]
     );
@@ -121,8 +114,7 @@ router.post('/register', async (req: any, res: Response): Promise<void> => {
     }
 
     // Check if email already exists
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM clients WHERE email = ?',
       [email]
     );
@@ -140,8 +132,7 @@ router.post('/register', async (req: any, res: Response): Promise<void> => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO clients (id, name, email, password_hash, phone, business_name, tier, status, source, email_verified, email_verification_token, email_verification_sent_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'signup', FALSE, ?, NOW(), NOW())`,
       [id, name, email, passwordHash, phone || null, businessName || null, clientTier, verificationToken]
@@ -176,8 +167,7 @@ router.get('/verify-email', async (req: any, res: Response): Promise<void> => {
       return;
     }
 
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT id, name, email, email_verified, email_verification_sent_at FROM clients WHERE email_verification_token = ?',
       [token]
     );
@@ -205,8 +195,7 @@ router.get('/verify-email', async (req: any, res: Response): Promise<void> => {
       }
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET email_verified = TRUE, email_verification_token = NULL, updated_at = NOW() WHERE id = ?',
       [client.id]
     );
@@ -227,8 +216,7 @@ router.post('/resend-verification', async (req: any, res: Response): Promise<voi
       return;
     }
 
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT id, name, email, email_verified FROM clients WHERE email = ?',
       [email]
     );
@@ -247,8 +235,7 @@ router.post('/resend-verification', async (req: any, res: Response): Promise<voi
     }
 
     const newToken = crypto.randomBytes(32).toString('hex');
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET email_verification_token = ?, email_verification_sent_at = NOW() WHERE id = ?',
       [newToken, client.id]
     );
@@ -267,8 +254,7 @@ router.post('/resend-verification', async (req: any, res: Response): Promise<voi
 // POST /api/client-auth/logout — Clear client refresh token
 router.post('/logout', authenticateClient, async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET refresh_token = NULL WHERE id = ?',
       [req.client?.clientId]
     );
@@ -282,8 +268,7 @@ router.post('/logout', authenticateClient, async (req: any, res: Response): Prom
 // GET /api/client-auth/me — Get current client from JWT
 router.get('/me', authenticateClient, async (req: any, res: Response): Promise<void> => {
   try {
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       `SELECT id, name, email, phone, business_name, tier, status, source, must_change_password, created_at, last_login
        FROM clients WHERE id = ?`,
       [req.client?.clientId]
@@ -337,8 +322,7 @@ router.post('/refresh', async (req: any, res: Response): Promise<void> => {
       return;
     }
 
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT id, email, refresh_token FROM clients WHERE id = ?',
       [decoded.clientId]
     );
@@ -349,17 +333,11 @@ router.post('/refresh', async (req: any, res: Response): Promise<void> => {
     }
 
     const client = clients[0];
-    const tokenPayload = {
-      clientId: client.id,
-      email: client.email,
-      userType: 'client',
-    };
-
-    const tokens = generateTokens(tokenPayload);
+    // For clients, use clientId as the identifier and email as username
+    const tokens = generateTokens(client.id as any, client.email, 'client');
 
     // Rotate refresh token
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET refresh_token = ? WHERE id = ?',
       [tokens.refreshToken, client.id]
     );
@@ -385,8 +363,7 @@ router.put('/change-password', authenticateClient, async (req: any, res: Respons
       return;
     }
 
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT id, password_hash FROM clients WHERE id = ?',
       [req.client?.clientId]
     );
@@ -403,8 +380,7 @@ router.put('/change-password', authenticateClient, async (req: any, res: Respons
     }
 
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET password_hash = ?, must_change_password = false, updated_at = NOW() WHERE id = ?',
       [hash, req.client?.clientId]
     );

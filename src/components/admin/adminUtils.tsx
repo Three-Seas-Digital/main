@@ -3,32 +3,32 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status }: { status: string }) {
   const config = {
     pending: { icon: <AlertCircle size={14} />, label: 'Pending', cls: 'badge-pending' },
     confirmed: { icon: <CheckCircle size={14} />, label: 'Confirmed', cls: 'badge-confirmed' },
     cancelled: { icon: <XCircle size={14} />, label: 'Cancelled', cls: 'badge-cancelled' },
   };
-  const c = config[status] || config.pending;
+  const c = config[status as keyof typeof config] || config.pending;
   return <span className={`status-badge ${c.cls}`}>{c.icon} {c.label}</span>;
 }
 
-export function RoleBadge({ role }) {
+export function RoleBadge({ role }: { role: string }) {
   const cls = {
     owner: 'role-owner', admin: 'role-admin', manager: 'role-manager',
     sales: 'role-sales', accountant: 'role-accountant', it: 'role-it',
     developer: 'role-developer', analyst: 'role-analyst',
   };
-  return <span className={`role-badge ${cls[role] || ''}`}><Shield size={12} /> {role}</span>;
+  return <span className={`role-badge ${cls[role as keyof typeof cls] || ''}`}><Shield size={12} /> {role}</span>;
 }
 
-export function FollowUpBadge({ followUp }) {
+export function FollowUpBadge({ followUp }: { followUp: any }) {
   if (!followUp) return null;
   const cls = { pending: 'fu-badge-pending', contacted: 'fu-badge-contacted', completed: 'fu-badge-completed' };
-  return <span className={`followup-badge ${cls[followUp.status] || ''}`}><PhoneForwarded size={12} /> Follow-up: {followUp.status}</span>;
+  return <span className={`followup-badge ${cls[followUp.status as keyof typeof cls] || ''}`}><PhoneForwarded size={12} /> Follow-up: {followUp.status}</span>;
 }
 
-export function TierBadge({ tier }) {
+export function TierBadge({ tier }: { tier: string }) {
   const { SUBSCRIPTION_TIERS } = useAppContext();
   const t = tier || 'free';
   const info = SUBSCRIPTION_TIERS[t] || SUBSCRIPTION_TIERS.free;
@@ -36,19 +36,19 @@ export function TierBadge({ tier }) {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function formatDisplayDate(dateStr) {
+export function formatDisplayDate(dateStr: string) {
   if (!dateStr) return '';
   const [y, m, d] = dateStr.split('-');
-  const date = new Date(y, m - 1, d);
+  const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function generateICalEvent(appointment) {
+export function generateICalEvent(appointment: any) {
   const startDate = new Date(`${appointment.date}T${appointment.time}`);
   const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
 
-  const formatICalDate = (date) => {
+  const formatICalDate = (date: Date) => {
     return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   };
 
@@ -64,7 +64,7 @@ END:VEVENT`;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function exportToICal(appointments, filename = 'appointments.ics') {
+export function exportToICal(appointments: any[], filename = 'appointments.ics') {
   const events = appointments.map(generateICalEvent).join('\n');
   const icalContent = `BEGIN:VCALENDAR
 VERSION:2.0

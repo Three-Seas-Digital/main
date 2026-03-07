@@ -19,8 +19,7 @@ router.get('/dashboard', async (req: any, res: Response): Promise<void> => {
     const clientId = req.client?.clientId;
 
     // Latest published audit with scores
-    const [audits] = await // @ts-ignore
-  pool.query(
+    const [audits] = await pool.query(
       `SELECT ba.id, ba.version, ba.overall_score, ba.audit_type, ba.published_at
        FROM business_audits ba
        WHERE ba.client_id = ? AND ba.status = 'published'
@@ -31,8 +30,7 @@ router.get('/dashboard', async (req: any, res: Response): Promise<void> => {
     let latestAudit = null;
     if (audits.length > 0) {
       latestAudit = audits[0];
-      const [scores] = await // @ts-ignore
-  pool.query(
+      const [scores] = await pool.query(
         `SELECT s.score, s.weight, s.client_summary, c.name AS category_name, c.slug, c.icon, c.color
          FROM audit_scores s
          JOIN audit_categories c ON s.category_id = c.id
@@ -44,32 +42,28 @@ router.get('/dashboard', async (req: any, res: Response): Promise<void> => {
     }
 
     // Active recommendations count (not declined or completed)
-    const [recCount] = await // @ts-ignore
-  pool.query(
+    const [recCount] = await pool.query(
       `SELECT COUNT(*) AS count FROM audit_recommendations
        WHERE client_id = ? AND status NOT IN ('declined', 'completed')`,
       [clientId]
     );
 
     // Active projects count
-    const [projCount] = await // @ts-ignore
-  pool.query(
+    const [projCount] = await pool.query(
       `SELECT COUNT(*) AS count FROM projects
        WHERE client_id = ? AND status IN ('planning', 'in-progress', 'review')`,
       [clientId]
     );
 
     // Open invoices count
-    const [invCount] = await // @ts-ignore
-  pool.query(
+    const [invCount] = await pool.query(
       `SELECT COUNT(*) AS count FROM invoices
        WHERE client_id = ? AND status IN ('unpaid', 'pending', 'overdue')`,
       [clientId]
     );
 
     // Recent activity (last 10 items from various sources)
-    const [recentActivity] = await // @ts-ignore
-  pool.query(
+    const [recentActivity] = await pool.query(
       `(SELECT 'audit_published' AS type, ba.id AS target_id,
               CONCAT('Business audit v', ba.version, ' published') AS description,
               ba.published_at AS created_at
@@ -126,8 +120,7 @@ router.get('/audits', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [audits] = await // @ts-ignore
-  pool.query(
+    const [audits] = await pool.query(
       `SELECT ba.id, ba.version, ba.audit_type, ba.overall_score, ba.status,
               ba.published_at, ba.created_at
        FROM business_audits ba
@@ -138,8 +131,7 @@ router.get('/audits', async (req: any, res: Response): Promise<void> => {
 
     // Fetch scores for each audit
     for (const audit of audits) {
-      const [scores] = await // @ts-ignore
-  pool.query(
+      const [scores] = await pool.query(
         `SELECT s.id, s.score, s.weight, s.client_summary, s.evidence_urls,
                 c.name AS category_name, c.slug, c.icon, c.color, c.max_score
          FROM audit_scores s
@@ -171,8 +163,7 @@ router.get('/score-history', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT ba.version, ba.overall_score, ba.published_at,
               s.score, s.weight,
               c.name AS category_name, c.slug, c.color
@@ -220,8 +211,7 @@ router.get('/recommendations', async (req: any, res: Response): Promise<void> =>
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT r.id, r.audit_id, r.title, r.description, r.expected_outcome,
               r.priority, r.impact, r.estimated_cost_min, r.estimated_cost_max,
               r.estimated_timeline, r.linked_service, r.status,
@@ -258,8 +248,7 @@ router.post('/recommendations/:id/accept', async (req: any, res: Response): Prom
     const recId = req.params.id;
 
     // Verify ownership
-    const [check] = await // @ts-ignore
-  pool.query(
+    const [check] = await pool.query(
       'SELECT id, status FROM audit_recommendations WHERE id = ? AND client_id = ?',
       [recId, clientId]
     );
@@ -268,8 +257,7 @@ router.post('/recommendations/:id/accept', async (req: any, res: Response): Prom
       return;
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE audit_recommendations
        SET status = 'accepted', client_responded_at = NOW(), updated_at = NOW()
        WHERE id = ? AND client_id = ?`,
@@ -290,8 +278,7 @@ router.post('/recommendations/:id/decline', async (req: any, res: Response): Pro
     const { decline_reason } = req.body;
 
     // Verify ownership
-    const [check] = await // @ts-ignore
-  pool.query(
+    const [check] = await pool.query(
       'SELECT id FROM audit_recommendations WHERE id = ? AND client_id = ?',
       [recId, clientId]
     );
@@ -300,8 +287,7 @@ router.post('/recommendations/:id/decline', async (req: any, res: Response): Pro
       return;
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE audit_recommendations
        SET status = 'declined', decline_reason = ?, client_responded_at = NOW(), updated_at = NOW()
        WHERE id = ? AND client_id = ?`,
@@ -327,8 +313,7 @@ router.post('/recommendations/:id/thread', async (req: any, res: Response): Prom
     }
 
     // Verify ownership
-    const [check] = await // @ts-ignore
-  pool.query(
+    const [check] = await pool.query(
       'SELECT id FROM audit_recommendations WHERE id = ? AND client_id = ?',
       [recId, clientId]
     );
@@ -338,8 +323,7 @@ router.post('/recommendations/:id/thread', async (req: any, res: Response): Prom
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO recommendation_threads (id, recommendation_id, author_type, author_id, message, created_at)
        VALUES (?, ?, 'client', ?, ?, NOW())`,
       [id, recId, clientId, message.trim()]
@@ -358,8 +342,7 @@ router.get('/recommendations/:id/threads', async (req: any, res: Response): Prom
     const recId = req.params.id;
 
     // Verify ownership
-    const [check] = await // @ts-ignore
-  pool.query(
+    const [check] = await pool.query(
       'SELECT id FROM audit_recommendations WHERE id = ? AND client_id = ?',
       [recId, clientId]
     );
@@ -368,8 +351,7 @@ router.get('/recommendations/:id/threads', async (req: any, res: Response): Prom
       return;
     }
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, author_type, author_id, message, created_at
        FROM recommendation_threads
        WHERE recommendation_id = ?
@@ -392,8 +374,7 @@ router.get('/metrics', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [targets] = await // @ts-ignore
-  pool.query(
+    const [targets] = await pool.query(
       `SELECT gt.id, gt.metric_name, gt.metric_slug, gt.baseline_value, gt.target_value,
               gt.current_value, gt.unit, gt.target_date, gt.data_source,
               gt.measurement_frequency, gt.status, gt.achieved_at,
@@ -406,8 +387,7 @@ router.get('/metrics', async (req: any, res: Response): Promise<void> => {
 
     // Fetch latest snapshot for each target
     for (const target of targets) {
-      const [snapshots] = await // @ts-ignore
-  pool.query(
+      const [snapshots] = await pool.query(
         `SELECT id, value, previous_value, change_percent, progress_percent,
                 recorded_at
          FROM growth_snapshots
@@ -434,8 +414,7 @@ router.get('/financials', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, period_year, period_month, gross_revenue, net_revenue,
               online_revenue, offline_revenue, new_customer_revenue, returning_customer_revenue,
               transaction_count, average_order_value, cost_of_goods_sold,
@@ -461,8 +440,7 @@ router.get('/financials/revenue', async (req: any, res: Response): Promise<void>
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT rc.id, rc.financial_id, rc.channel_name, rc.revenue,
               rc.transaction_count, rc.conversion_rate, rc.cost, rc.roi,
               cf.period_year, cf.period_month
@@ -484,8 +462,7 @@ router.get('/financials/expenses', async (req: any, res: Response): Promise<void
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, period_year, period_month,
               total_marketing_spend, our_fees, total_expenses,
               cost_of_goods_sold, gross_profit, net_profit, profit_margin
@@ -510,8 +487,7 @@ router.get('/interventions', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [interventions] = await // @ts-ignore
-  pool.query(
+    const [interventions] = await pool.query(
       `SELECT i.id, i.title, i.description, i.intervention_type, i.status,
               i.planned_date, i.implementation_date, i.measurement_start, i.measurement_end,
               i.measurement_duration_days, i.cost_to_client, i.overall_roi,
@@ -528,8 +504,7 @@ router.get('/interventions', async (req: any, res: Response): Promise<void> => {
 
     // Fetch linked metrics with latest snapshot for each intervention
     for (const intervention of interventions) {
-      const [metrics] = await // @ts-ignore
-  pool.query(
+      const [metrics] = await pool.query(
         `SELECT im.id, im.metric_name, im.metric_slug, im.unit,
                 im.baseline_value, im.target_value, im.current_value,
                 im.change_absolute, im.change_percent, im.attribution,
@@ -542,8 +517,7 @@ router.get('/interventions', async (req: any, res: Response): Promise<void> => {
 
       // Fetch latest snapshot per metric
       for (const metric of metrics) {
-        const [snapshots] = await // @ts-ignore
-  pool.query(
+        const [snapshots] = await pool.query(
           `SELECT id, value, change_from_baseline, days_since_launch, checkpoint, recorded_at
            FROM intervention_snapshots
            WHERE intervention_metric_id = ? AND intervention_id = ?
@@ -580,8 +554,7 @@ router.post('/service-requests', async (req: any, res: Response): Promise<void> 
 
     // If recommendation_id provided, verify it belongs to this client
     if (recommendation_id) {
-      const [recCheck] = await // @ts-ignore
-  pool.query(
+      const [recCheck] = await pool.query(
         'SELECT id FROM audit_recommendations WHERE id = ? AND client_id = ?',
         [recommendation_id, clientId]
       );
@@ -595,8 +568,7 @@ router.post('/service-requests', async (req: any, res: Response): Promise<void> 
     const safeUrgency = validUrgency.includes(urgency) ? urgency : 'medium';
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO service_requests (id, client_id, recommendation_id, title, description, budget_range, urgency, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', NOW())`,
       [id, clientId, recommendation_id || null, title.trim(), description || null, budget_range || null, safeUrgency]
@@ -613,8 +585,7 @@ router.get('/service-requests', async (req: any, res: Response): Promise<void> =
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT sr.id, sr.title, sr.description, sr.budget_range, sr.urgency,
               sr.status, sr.admin_response, sr.quoted_amount,
               sr.created_at, sr.updated_at,
@@ -654,8 +625,7 @@ router.post('/feedback', async (req: any, res: Response): Promise<void> => {
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_feedback (id, client_id, target_type, target_id, rating, comment, created_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [id, clientId, target_type, target_id || null, rating || null, comment || null]
@@ -672,8 +642,7 @@ router.get('/feedback', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, target_type, target_id, rating, comment,
               admin_response, responded_at, created_at
        FROM client_feedback
@@ -697,8 +666,7 @@ router.get('/notifications', async (req: any, res: Response): Promise<void> => {
   try {
     const clientId = req.client?.clientId;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT ia.id, ia.alert_type, ia.message, ia.severity,
               ia.is_read_client AS is_read, ia.created_at,
               i.title AS intervention_title
@@ -736,8 +704,7 @@ router.put('/notification-prefs', async (req: any, res: Response): Promise<void>
     const safeDigest = validDigests.includes(email_digest) ? email_digest : undefined;
 
     // Upsert: insert or update
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM client_notification_prefs WHERE client_id = ?',
       [clientId]
     );
@@ -762,15 +729,13 @@ router.put('/notification-prefs', async (req: any, res: Response): Promise<void>
       }
 
       values.push(clientId);
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `UPDATE client_notification_prefs SET ${updates.join(', ')} WHERE client_id = ?`,
         values
       );
     } else {
       const prefId = generateId();
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `INSERT INTO client_notification_prefs
          (id, client_id, email_digest, notify_new_scores, notify_new_recommendations,
           notify_metric_milestones, notify_invoices, notify_documents,
@@ -792,8 +757,7 @@ router.put('/notification-prefs', async (req: any, res: Response): Promise<void>
     }
 
     // Return current prefs
-    const [prefs] = await // @ts-ignore
-  pool.query(
+    const [prefs] = await pool.query(
       'SELECT * FROM client_notification_prefs WHERE client_id = ?',
       [clientId]
     );
@@ -833,8 +797,7 @@ router.put('/profile', async (req: any, res: Response): Promise<void> => {
       return;
     }
     values.push(clientId);
-    await // @ts-ignore
-  pool.query(`UPDATE clients SET ${fields.join(', ')} WHERE id = ?`, values);
+    await pool.query(`UPDATE clients SET ${fields.join(', ')} WHERE id = ?`, values);
     res.json({ success: true });
   } catch (err) {
     console.error('PUT /api/portal/profile error:', err);
@@ -854,8 +817,7 @@ router.put('/onboarding', async (req: any, res: Response): Promise<void> => {
     }
 
     // Get current onboarding data
-    const [clients] = await // @ts-ignore
-  pool.query(
+    const [clients] = await pool.query(
       'SELECT onboarding FROM clients WHERE id = ?',
       [clientId]
     );
@@ -877,8 +839,7 @@ router.put('/onboarding', async (req: any, res: Response): Promise<void> => {
       merged.documents = { ...(current as any).documents, ...onboarding.documents };
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE clients SET onboarding = ?, updated_at = NOW() WHERE id = ?',
       [JSON.stringify(merged), clientId]
     );
@@ -900,8 +861,7 @@ router.post('/projects', async (req: any, res: Response): Promise<void> => {
       return;
     }
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO projects (id, client_id, name, title, description, status, created_at)
        VALUES (?, ?, ?, ?, ?, 'planning', NOW())`,
       [id, clientId, title.trim(), title.trim(), description || null]

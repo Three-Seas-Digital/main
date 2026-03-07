@@ -8,8 +8,7 @@ const router = Router();
 // GET /api/research — List all research entries
 router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'it', 'analyst'), async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM market_research ORDER BY created_at DESC'
     );
     res.json(rows);
@@ -22,8 +21,7 @@ router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'it'
 // GET /api/research/:id — Get single research entry
 router.get('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM market_research WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM market_research WHERE id = ?', [req.params.id]);
     const rowsArray = Array.isArray(rows) ? rows : [];
     if (rowsArray.length === 0) return res.status(404).json({ error: 'Research not found' });
     res.json(rowsArray[0]);
@@ -38,8 +36,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'it
   try {
     const { location, data } = req.body;
     const lookupKey = `${location}`;
-    const [result] = await // @ts-ignore
-  pool.query(
+    const [result] = await pool.query(
       `INSERT INTO market_research (lookup_key, location, data, created_at)
        VALUES (?, ?, ?, NOW())
        ON DUPLICATE KEY UPDATE data = ?, updated_at = NOW()`,
@@ -57,8 +54,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
   try {
     const { location, data } = req.body;
     const lookupKey = `${location}`;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE market_research SET lookup_key = ?, location = ?, data = ?, updated_at = NOW()
        WHERE id = ?`,
       [lookupKey, location, data ? JSON.stringify(data) : null, req.params.id]
@@ -73,8 +69,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/research/:id — Delete research
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'it', 'analyst'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM market_research WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM market_research WHERE id = ?', [req.params.id]);
     res.json({ message: 'Research deleted' });
   } catch (err) {
     console.error('[research] Error:', err);

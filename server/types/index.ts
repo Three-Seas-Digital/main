@@ -8,6 +8,11 @@ export interface AuthRequest extends Request {
     username: string;
     role: string;
   };
+  // Client portal auth — set by authenticateClient middleware
+  client?: {
+    clientId: string;
+    email: string;
+  };
   csvData?: any;
 }
 

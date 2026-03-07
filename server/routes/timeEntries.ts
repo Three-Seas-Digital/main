@@ -22,8 +22,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 
     query += ' ORDER BY te.date DESC, te.created_at DESC';
 
-    const [rows] = await // @ts-ignore
-  pool.query(query, params);
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error('[timeEntries] Error:', err);
@@ -34,8 +33,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 // GET /api/time-entries/:id — Get single time entry
 router.get('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM time_entries WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM time_entries WHERE id = ?', [req.params.id]);
     const rowsArray = Array.isArray(rows) ? rows : [];
     if (rowsArray.length === 0) return res.status(404).json({ error: 'Time entry not found' });
     res.json(rowsArray[0]);
@@ -49,8 +47,7 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response) => {
   try {
     const { projectId, date, hours, description, billable } = req.body;
-    const [result] = await // @ts-ignore
-  pool.query(
+    const [result] = await pool.query(
       `INSERT INTO time_entries (project_id, user_id, date, hours, description, billable, created_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [projectId, req.user?.id, date || new Date().toISOString().split('T')[0], hours, description || null, billable !== false]
@@ -66,8 +63,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'de
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response) => {
   try {
     const { date, hours, description, billable } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE time_entries SET date = ?, hours = ?, description = ?, billable = ?, updated_at = NOW() WHERE id = ?',
       [date, hours, description, billable, req.params.id]
     );
@@ -81,8 +77,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/time-entries/:id — Delete time entry
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM time_entries WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM time_entries WHERE id = ?', [req.params.id]);
     res.json({ message: 'Time entry deleted' });
   } catch (err) {
     console.error('[timeEntries] Error:', err);

@@ -6,8 +6,8 @@ export default function AdminSetup() {
   const [form, setForm] = useState({ name: '', email: '', username: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const { setupAdmin } = useAppContext();
-  const handleChange = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); setError(''); };
-  const handleSubmit = async (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { setForm({ ...form, [e.target.name]: e.target.value }); setError(''); };
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return; }

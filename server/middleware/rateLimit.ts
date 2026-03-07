@@ -2,8 +2,8 @@ import rateLimit from 'express-rate-limit';
 import { Request, Response } from 'express';
 
 interface RateLimitOptions {
-  windowMs?: number;
-  max?: number;
+  windowMs?: number | ((req: Request) => number);
+  max?: number | ((req: Request) => number);
   message?: string | { error: string };
   standardHeaders?: boolean;
   legacyHeaders?: boolean;
@@ -25,8 +25,8 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
   const messageStr = typeof message === 'string' ? message : message.error;
 
   return rateLimit({
-    windowMs,
-    max,
+    windowMs: windowMs as number,
+    max: max as number,
     message: messageStr,
     standardHeaders,
     legacyHeaders,
@@ -35,7 +35,7 @@ export function createRateLimiter(options: RateLimitOptions = {}) {
     handler: (req: Request, res: Response) => {
       res.status(429).json({
         error: 'Too many requests from this IP, please try again later.',
-        retryAfter: Math.round(windowMs / 1000), // Convert to seconds
+        retryAfter: Math.round((windowMs as number) / 1000), // Convert to seconds
       });
     },
   });
@@ -81,6 +81,8 @@ export const aiRateLimiter = createRateLimiter({
 
 // Custom rate limiter based on user role
 export function createRoleBasedRateLimiter(roleLimits: Record<string, { windowMs: number; max: number }>) {
+  // express-rate-limit typedefs don't accept function-valued windowMs/max,
+  // but the runtime supports it. Cast to any to satisfy the type checker.
   return rateLimit({
     keyGenerator: (req: Request) => {
       const user = (req as any).user;
@@ -89,20 +91,20 @@ export function createRoleBasedRateLimiter(roleLimits: Record<string, { windowMs
       }
       return `${user.role}:${user.id}`;
     },
-    windowMs: (req: Request) => {
+    windowMs: ((req: Request) => {
       const user = (req as any).user;
       if (!user || !user.role) {
         return 15 * 60 * 1000; // Default 15 minutes
       }
       return roleLimits[user.role]?.windowMs || 15 * 60 * 1000;
-    },
-    max: (req: Request) => {
+    }) as any,
+    max: ((req: Request) => {
       const user = (req as any).user;
       if (!user || !user.role) {
         return 100; // Default limit
       }
       return roleLimits[user.role]?.max || 100;
-    },
+    }) as any,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req: Request, res: Response) => {
@@ -115,6 +117,12 @@ export function createRoleBasedRateLimiter(roleLimits: Record<string, { windowMs
       });
     },
   });
+}
+
+// Factory-style rate limiter: loginRateLimit(max, windowMs)
+// Used by auth.ts and clientAuth.ts as loginRateLimit(5, 60000)
+export function loginRateLimit(max: number, windowMs: number) {
+  return createRateLimiter({ max, windowMs });
 }
 
 // Example role-based rate limiter

@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/projects — List all projects
 router.get('/', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM projects ORDER BY created_at DESC'
     );
     res.json(rows);
@@ -23,8 +22,7 @@ router.get('/', authenticateToken, async (req: any, res: Response): Promise<void
 // GET /api/projects/:id — Get single project with tasks, milestones, developers
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM projects WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM projects WHERE id = ?', [req.params.id]);
     if (rows.length === 0) {
       res.status(404).json({ error: 'Project not found' });
       return;
@@ -33,12 +31,9 @@ router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<v
     const project = rows[0];
 
     // Fetch related data
-    const [tasks] = await // @ts-ignore
-  pool.query('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY sort_order ASC', [req.params.id]);
-    const [milestones] = await // @ts-ignore
-  pool.query('SELECT * FROM project_milestones WHERE project_id = ? ORDER BY due_date ASC', [req.params.id]);
-    const [developers] = await // @ts-ignore
-  pool.query(
+    const [tasks] = await pool.query('SELECT * FROM project_tasks WHERE project_id = ? ORDER BY sort_order ASC', [req.params.id]);
+    const [milestones] = await pool.query('SELECT * FROM project_milestones WHERE project_id = ? ORDER BY due_date ASC', [req.params.id]);
+    const [developers] = await pool.query(
       `SELECT u.id, u.username, u.display_name FROM project_developers pd
        JOIN users u ON pd.user_id = u.id WHERE pd.project_id = ?`,
       [req.params.id]
@@ -61,8 +56,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'de
     const { id: bodyId, clientId, name, title, description, status, startDate, dueDate, endDate } = req.body;
     const id = bodyId || generateId();
     const projectName = title || name || 'Untitled';
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO projects (id, client_id, name, title, description, status, start_date, due_date, end_date, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, clientId, projectName, projectName, description || null, status || 'planning', startDate || null, dueDate || null, endDate || null]
@@ -78,8 +72,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'de
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
     const { name, description, status, startDate, endDate } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE projects SET name = ?, description = ?, status = ?, start_date = ?, end_date = ?, updated_at = NOW()
        WHERE id = ?`,
       [name, description, status, startDate, endDate, req.params.id]
@@ -96,8 +89,7 @@ router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'
   try {
     // time_entries has ON DELETE SET NULL — don't delete manually; let FK handle it
     // project_tasks, project_milestones, project_developers have ON DELETE CASCADE
-    await // @ts-ignore
-  pool.query('DELETE FROM projects WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM projects WHERE id = ?', [req.params.id]);
     res.json({ message: 'Project deleted' });
   } catch (err) {
     console.error('[projects] Error:', err);
@@ -112,8 +104,7 @@ router.post('/:id/tasks', authenticateToken, requireRole('owner', 'admin', 'mana
   try {
     const { title, description, status, assignedTo, sortOrder } = req.body;
     const taskId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO project_tasks (id, project_id, title, description, status, assigned_to, sort_order, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
       [taskId, req.params.id, title, description || null, status || 'todo', assignedTo || null, sortOrder || 0]
@@ -129,8 +120,7 @@ router.post('/:id/tasks', authenticateToken, requireRole('owner', 'admin', 'mana
 router.put('/:id/tasks/:taskId', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
     const { title, description, status, assignedTo, sortOrder } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE project_tasks SET title = ?, description = ?, status = ?, assigned_to = ?, sort_order = ?, updated_at = NOW()
        WHERE id = ? AND project_id = ?`,
       [title, description, status, assignedTo, sortOrder, req.params.taskId, req.params.id]
@@ -145,8 +135,7 @@ router.put('/:id/tasks/:taskId', authenticateToken, requireRole('owner', 'admin'
 // DELETE /api/projects/:id/tasks/:taskId — Delete task
 router.delete('/:id/tasks/:taskId', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM project_tasks WHERE id = ? AND project_id = ?', [req.params.taskId, req.params.id]);
+    await pool.query('DELETE FROM project_tasks WHERE id = ? AND project_id = ?', [req.params.taskId, req.params.id]);
     res.json({ message: 'Task deleted' });
   } catch (err) {
     console.error('[projects] Error:', err);
@@ -161,8 +150,7 @@ router.post('/:id/milestones', authenticateToken, requireRole('owner', 'admin', 
   try {
     const { title, description, dueDate, completed } = req.body;
     const msId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO project_milestones (id, project_id, title, description, due_date, completed, created_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [msId, req.params.id, title, description || null, dueDate || null, completed || false]
@@ -178,8 +166,7 @@ router.post('/:id/milestones', authenticateToken, requireRole('owner', 'admin', 
 router.put('/:id/milestones/:milestoneId', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
     const { title, description, dueDate, completed } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE project_milestones SET title = ?, description = ?, due_date = ?, completed = ?, updated_at = NOW()
        WHERE id = ? AND project_id = ?`,
       [title, description, dueDate, completed, req.params.milestoneId, req.params.id]
@@ -194,8 +181,7 @@ router.put('/:id/milestones/:milestoneId', authenticateToken, requireRole('owner
 // DELETE /api/projects/:id/milestones/:milestoneId — Delete milestone
 router.delete('/:id/milestones/:milestoneId', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM project_milestones WHERE id = ? AND project_id = ?', [req.params.milestoneId, req.params.id]);
+    await pool.query('DELETE FROM project_milestones WHERE id = ? AND project_id = ?', [req.params.milestoneId, req.params.id]);
     res.json({ message: 'Milestone deleted' });
   } catch (err) {
     console.error('[projects] Error:', err);
@@ -209,8 +195,7 @@ router.delete('/:id/milestones/:milestoneId', authenticateToken, requireRole('ow
 router.post('/:id/developers', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
     const { userId } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'INSERT IGNORE INTO project_developers (project_id, user_id) VALUES (?, ?)',
       [req.params.id, userId]
     );
@@ -224,8 +209,7 @@ router.post('/:id/developers', authenticateToken, requireRole('owner', 'admin', 
 // DELETE /api/projects/:id/developers/:userId — Unassign developer
 router.delete('/:id/developers/:userId', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM project_developers WHERE project_id = ? AND user_id = ?', [req.params.id, req.params.userId]);
+    await pool.query('DELETE FROM project_developers WHERE project_id = ? AND user_id = ?', [req.params.id, req.params.userId]);
     res.json({ message: 'Developer unassigned' });
   } catch (err) {
     console.error('[projects] Error:', err);

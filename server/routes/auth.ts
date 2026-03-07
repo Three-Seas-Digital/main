@@ -21,8 +21,7 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response<A
       });
     }
 
-    const [users] = await // @ts-ignore
-  pool.query(
+    const [users] = await pool.query(
       'SELECT * FROM users WHERE username = ?',
       [username]
     );
@@ -39,8 +38,7 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response<A
     const { accessToken, refreshToken } = generateTokens(user.id, user.username, user.role);
 
     // Store refresh token
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'INSERT INTO refresh_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))',
       [generateId(), user.id, refreshToken]
     );
@@ -51,8 +49,9 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response<A
         id: user.id,
         username: user.username,
         role: user.role,
-        email: user.email
-      },
+        email: user.email,
+        password: '', // Don't send actual password in response
+      } as any,
       accessToken,
       refreshToken
     });
@@ -86,8 +85,7 @@ router.post('/refresh', async (req: any, res: Response<AuthResponse>) => {
     }
 
     // Check if refresh token exists in database
-    const [tokens] = await // @ts-ignore
-  pool.query(
+    const [tokens] = await pool.query(
       'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > NOW()',
       [refreshToken]
     );
@@ -100,8 +98,7 @@ router.post('/refresh', async (req: any, res: Response<AuthResponse>) => {
     }
 
     // Get user info
-    const [users] = await // @ts-ignore
-  pool.query(
+    const [users] = await pool.query(
       'SELECT id, username, role, email FROM users WHERE id = ?',
       [decoded.userId]
     );
@@ -136,15 +133,13 @@ router.post('/logout', authenticateToken, async (req: any, res: Response<{succes
     const { refreshToken } = req.body;
 
     if (refreshToken) {
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         'DELETE FROM refresh_tokens WHERE token = ? OR user_id = ?',
         [refreshToken, req.user?.id]
       );
     } else {
       // Invalidate all tokens for this user
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         'DELETE FROM refresh_tokens WHERE user_id = ?',
         [req.user?.id]
       );

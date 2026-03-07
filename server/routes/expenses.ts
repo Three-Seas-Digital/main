@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/expenses — List all expenses
 router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM expenses ORDER BY date DESC'
     );
     res.json(rows);
@@ -23,8 +22,7 @@ router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'acc
 // GET /api/expenses/:id — Get single expense
 router.get('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM expenses WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM expenses WHERE id = ?', [req.params.id]);
     const rowsArray = Array.isArray(rows) ? rows : [];
     if (rowsArray.length === 0) return res.status(404).json({ error: 'Expense not found' });
     res.json(rowsArray[0]);
@@ -40,8 +38,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
     const { description, amount, category, date, vendor, notes } = req.body;
     const receiptPath = req.file ? req.file.path : null;
 
-    const [result] = await // @ts-ignore
-  pool.query(
+    const [result] = await pool.query(
       `INSERT INTO expenses (description, amount, category, date, vendor, notes, receipt_path, created_by, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [description, amount, category, date || new Date().toISOString().split('T')[0], vendor || null, notes || null, receiptPath, req.user?.username]
@@ -57,8 +54,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'ac
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response) => {
   try {
     const { description, amount, category, date, vendor, notes } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE expenses SET description = ?, amount = ?, category = ?, date = ?, vendor = ?, notes = ?, updated_at = NOW()
        WHERE id = ?`,
       [description, amount, category, date, vendor, notes, req.params.id]
@@ -73,8 +69,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 // DELETE /api/expenses/:id — Delete expense
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM expenses WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM expenses WHERE id = ?', [req.params.id]);
     res.json({ message: 'Expense deleted' });
   } catch (err) {
     console.error('[expenses] Error:', err);

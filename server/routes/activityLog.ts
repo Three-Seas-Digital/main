@@ -11,14 +11,12 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ? OFFSET ?',
       [limit, offset]
     );
 
-    const [countResult] = await // @ts-ignore
-  pool.query('SELECT COUNT(*) AS total FROM activity_log');
+    const [countResult] = await pool.query('SELECT COUNT(*) AS total FROM activity_log');
 
     res.json({
       entries: rows,
@@ -36,8 +34,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 router.post('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const { action, details } = req.body;
-    const [result] = await // @ts-ignore
-  pool.query(
+    const [result] = await pool.query(
       `INSERT INTO activity_log (action, details, user_id, user_name, created_at)
        VALUES (?, ?, ?, ?, NOW())`,
       [action, details ? JSON.stringify(details) : null, req.user?.id, req.user?.username]
@@ -55,8 +52,7 @@ router.delete('/', authenticateToken, async (req: any, res: Response) => {
     if (req.user?.role !== 'admin' && req.user?.role !== 'owner') {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    await // @ts-ignore
-  pool.query('DELETE FROM activity_log');
+    await pool.query('DELETE FROM activity_log');
     res.json({ message: 'Activity log cleared' });
   } catch (err) {
     console.error('[activityLog] Error:', err);

@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/clients/:clientId/growth-targets
 router.get('/:clientId/growth-targets', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM growth_targets WHERE client_id = ? ORDER BY created_at DESC',
       [req.params.clientId]
     );
@@ -27,8 +26,7 @@ router.post('/:clientId/growth-targets', authenticateToken, async (req: any, res
     const { metric_name, baseline_value, target_value, current_value, target_date, measurement_frequency, unit } = req.body;
     const id = generateId();
     const metric_slug = (metric_name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO growth_targets (id, client_id, metric_name, metric_slug, unit, baseline_value, target_value, current_value, target_date, measurement_frequency, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
       [id, req.params.clientId, metric_name, metric_slug, unit || 'number', baseline_value || 0, target_value || 0, current_value || 0, target_date || null, measurement_frequency || 'monthly']
@@ -52,8 +50,7 @@ router.put('/:clientId/growth-targets/:id', authenticateToken, async (req: any, 
     if (sets.length === 0) return res.json({ success: true });
     sets.push('updated_at = NOW()');
     vals.push(req.params.id);
-    await // @ts-ignore
-  pool.query(`UPDATE growth_targets SET ${sets.join(', ')} WHERE id = ?`, vals);
+    await pool.query(`UPDATE growth_targets SET ${sets.join(', ')} WHERE id = ?`, vals);
     res.json({ success: true });
   } catch (err) {
     console.error('PUT growth-targets error:', err);
@@ -64,8 +61,7 @@ router.put('/:clientId/growth-targets/:id', authenticateToken, async (req: any, 
 // DELETE /api/clients/:clientId/growth-targets/:id
 router.delete('/:clientId/growth-targets/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM growth_targets WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM growth_targets WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -78,8 +74,7 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
     const { value, notes } = req.body;
     const targetId = req.params.id;
     // Get previous value
-    const [prev] = await // @ts-ignore
-  pool.query(
+    const [prev] = await pool.query(
       'SELECT value FROM growth_snapshots WHERE target_id = ? ORDER BY recorded_at DESC LIMIT 1',
       [targetId]
     );
@@ -88,8 +83,7 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
     const changePct = previousValue && previousValue !== 0 ? ((value - previousValue) / previousValue) * 100 : null;
 
     // Get target for progress calc
-    const [target] = await // @ts-ignore
-  pool.query('SELECT baseline_value, target_value FROM growth_targets WHERE id = ?', [targetId]);
+    const [target] = await pool.query('SELECT baseline_value, target_value FROM growth_targets WHERE id = ?', [targetId]);
     const targetArray = Array.isArray(target) ? target : [];
     let progressPct: number | null = null;
     if (targetArray.length > 0 && targetArray[0].target_value !== targetArray[0].baseline_value) {
@@ -97,15 +91,13 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO growth_snapshots (id, target_id, client_id, value, previous_value, change_percent, progress_percent, notes, recorded_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, targetId, req.params.clientId, value, previousValue, changePct, Math.min(progressPct || 0, 999), notes || null]
     );
     // Update current_value on the target
-    await // @ts-ignore
-  pool.query('UPDATE growth_targets SET current_value = ?, updated_at = NOW() WHERE id = ?', [value, targetId]);
+    await pool.query('UPDATE growth_targets SET current_value = ?, updated_at = NOW() WHERE id = ?', [value, targetId]);
     res.status(201).json({ success: true, data: { id } });
   } catch (err) {
     console.error('POST growth-snapshots error:', err);
@@ -116,8 +108,7 @@ router.post('/:clientId/growth-targets/:id/snapshots', authenticateToken, async 
 // GET /api/clients/:clientId/growth-targets/:id/snapshots
 router.get('/:clientId/growth-targets/:id/snapshots', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM growth_snapshots WHERE target_id = ? ORDER BY recorded_at ASC',
       [req.params.id]
     );

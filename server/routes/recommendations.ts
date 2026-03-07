@@ -10,8 +10,7 @@ const templateRouter = Router();
 // GET /api/recommendation-templates - List templates
 templateRouter.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM recommendation_templates ORDER BY category, title'
     );
     res.json({ success: true, data: rows });
@@ -26,8 +25,7 @@ templateRouter.post('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const { category, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO recommendation_templates (id, category, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, category, title, description || null, priority || 'medium', estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null]
@@ -42,8 +40,7 @@ templateRouter.post('/', authenticateToken, async (req: any, res: Response) => {
 templateRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
     const { category, title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE recommendation_templates SET category = ?, title = ?, description = ?,
        priority = ?, estimated_cost_min = ?, estimated_cost_max = ?, estimated_timeline = ? WHERE id = ?`,
       [category, title, description || null, priority || 'medium', estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.params.id]
@@ -57,8 +54,7 @@ templateRouter.put('/:id', authenticateToken, async (req: any, res: Response) =>
 // DELETE /api/recommendation-templates/:id - Delete template
 templateRouter.delete('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM recommendation_templates WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM recommendation_templates WHERE id = ?', [req.params.id]);
     res.json({ success: true, data: { message: 'Template deleted' } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -71,8 +67,7 @@ const recRouter = Router();
 // GET /api/recommendations/client/:clientId - List all recommendations for client
 recRouter.get('/client/:clientId', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT r.*, a.version as audit_version, a.status as audit_status
        FROM audit_recommendations r
        JOIN business_audits a ON r.audit_id = a.id
@@ -91,8 +86,7 @@ recRouter.get('/client/:clientId', authenticateToken, async (req: any, res: Resp
 recRouter.put('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
     const { title, description, priority, estimated_cost_min, estimated_cost_max, estimated_timeline } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE audit_recommendations SET title = ?, description = ?, priority = ?,
        estimated_cost_min = ?, estimated_cost_max = ?, estimated_timeline = ?, updated_at = NOW() WHERE id = ?`,
       [title, description || null, priority || 'medium', estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.params.id]
@@ -113,8 +107,7 @@ recRouter.put('/:id/status', authenticateToken, async (req: any, res: Response) 
     }
 
     const extraFields = status === 'completed' ? ', completed_at = NOW()' : '';
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE audit_recommendations SET status = ?${extraFields}, updated_at = NOW() WHERE id = ?`,
       [status, req.params.id]
     );
@@ -127,8 +120,7 @@ recRouter.put('/:id/status', authenticateToken, async (req: any, res: Response) 
 // DELETE /api/recommendations/:id - Delete recommendation
 recRouter.delete('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM audit_recommendations WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM audit_recommendations WHERE id = ?', [req.params.id]);
     res.json({ success: true, data: { message: 'Recommendation deleted' } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -138,8 +130,7 @@ recRouter.delete('/:id', authenticateToken, async (req: any, res: Response) => {
 // GET /api/recommendations/:id/threads - List threads
 recRouter.get('/:id/threads', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM recommendation_threads WHERE recommendation_id = ? ORDER BY created_at ASC',
       [req.params.id]
     );
@@ -155,8 +146,7 @@ recRouter.post('/:id/threads', authenticateToken, async (req: any, res: Response
   try {
     const { message, author_type } = req.body;
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO recommendation_threads (id, recommendation_id, message, author_type, author_id, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
       [id, req.params.id, message, author_type || 'admin', req.user?.id]

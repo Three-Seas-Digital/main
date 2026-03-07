@@ -16,10 +16,10 @@ export default function ArchivedTab() {
   const [activeSection, setActiveSection] = useState('clients');
   const canDelete = hasPermission('delete_clients');
 
-  const archivedClients = clients.filter((c) => c.status === 'archived');
-  const archivedFollowUps = appointments.filter((a) => a.followUp && a.followUp.status === 'archived');
+  const archivedClients = clients.filter((c: any) => c.status === 'archived');
+  const archivedFollowUps = appointments.filter((a: any) => a.followUp && a.followUp.status === 'archived');
 
-  const handleUnarchiveFollowUp = (apptId) => {
+  const handleUnarchiveFollowUp = (apptId: string) => {
     updateFollowUp(apptId, { status: 'pending' });
   };
 

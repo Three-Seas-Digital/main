@@ -28,8 +28,7 @@ router.get('/:clientId/financials', authenticateToken, async (req: any, res: Res
 
     query += ' ORDER BY period_year DESC, period_month DESC';
 
-    const [rows] = await // @ts-ignore
-  pool.query(query, params);
+    const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('Error fetching financials:', err);
@@ -74,8 +73,7 @@ router.post('/:clientId/financials', authenticateToken, requireRole('owner', 'ad
     }
 
     // Check for duplicate period
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM client_financials WHERE client_id = ? AND period_year = ? AND period_month = ?',
       [clientId, period_year, period_month]
     );
@@ -89,8 +87,7 @@ router.post('/:clientId/financials', authenticateToken, requireRole('owner', 'ad
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_financials (
         id, client_id, period_year, period_month, gross_revenue, net_revenue,
         online_revenue, offline_revenue, new_customer_revenue, returning_customer_revenue,
@@ -149,8 +146,7 @@ router.put('/:clientId/financials/:id', authenticateToken, requireRole('owner', 
     } = req.body;
 
     // Verify record exists and belongs to client
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM client_financials WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -160,8 +156,7 @@ router.put('/:clientId/financials/:id', authenticateToken, requireRole('owner', 
       return;
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE client_financials SET
         gross_revenue = ?, net_revenue = ?, online_revenue = ?, offline_revenue = ?,
         new_customer_revenue = ?, returning_customer_revenue = ?, transaction_count = ?,
@@ -195,8 +190,7 @@ router.delete('/:clientId/financials/:id', authenticateToken, requireRole('owner
     const { id, clientId } = req.params;
 
     // Verify record exists and belongs to client
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM client_financials WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -207,12 +201,9 @@ router.delete('/:clientId/financials/:id', authenticateToken, requireRole('owner
     }
 
     // Cascade delete related records
-    await // @ts-ignore
-  pool.query('DELETE FROM client_revenue_channels WHERE financial_id = ?', [id]);
-    await // @ts-ignore
-  pool.query('DELETE FROM client_revenue_products WHERE financial_id = ?', [id]);
-    await // @ts-ignore
-  pool.query('DELETE FROM client_financials WHERE id = ? AND client_id = ?', [id, clientId]);
+    await pool.query('DELETE FROM client_revenue_channels WHERE financial_id = ?', [id]);
+    await pool.query('DELETE FROM client_revenue_products WHERE financial_id = ?', [id]);
+    await pool.query('DELETE FROM client_financials WHERE id = ? AND client_id = ?', [id, clientId]);
 
     res.json({ success: true, data: { message: 'Financial record deleted' } });
   } catch (err) {
@@ -240,8 +231,7 @@ router.get('/:clientId/financials/summary', authenticateToken, async (req: any, 
       params.push(parseInt(endYear as string), parseInt(endYear as string), parseInt(endMonth as string));
     }
 
-    const [summary] = await // @ts-ignore
-  pool.query(
+    const [summary] = await pool.query(
       `SELECT
         SUM(gross_revenue) as total_revenue,
         SUM(total_expenses) as total_expenses,
@@ -263,8 +253,7 @@ router.get('/:clientId/financials/summary', authenticateToken, async (req: any, 
     );
 
     // Calculate conversion metrics if we have transaction and customer data
-    const [conversion] = await // @ts-ignore
-  pool.query(
+    const [conversion] = await pool.query(
       `SELECT
         SUM(transaction_count) / NULLIF(SUM(total_customers), 0) as avg_conversion_rate,
         SUM(gross_revenue) / NULLIF(SUM(total_customers), 0) as revenue_per_customer,
@@ -306,8 +295,7 @@ router.get('/:clientId/financials/channels', authenticateToken, async (req: any,
       params.push(parseInt(endYear as string), parseInt(endYear as string), parseInt(endMonth as string));
     }
 
-    const [channels] = await // @ts-ignore
-  pool.query(
+    const [channels] = await pool.query(
       `SELECT
         rc.channel_name,
         SUM(rc.revenue) as total_revenue,
@@ -350,8 +338,7 @@ router.get('/:clientId/financials/products', authenticateToken, async (req: any,
       params.push(parseInt(endYear as string), parseInt(endYear as string), parseInt(endMonth as string));
     }
 
-    const [products] = await // @ts-ignore
-  pool.query(
+    const [products] = await pool.query(
       `SELECT
         rp.product_name,
         SUM(rp.revenue) as total_revenue,
@@ -393,8 +380,7 @@ router.get('/:clientId/financials/ad-spend', authenticateToken, async (req: any,
       params.push(parseInt(endYear as string), parseInt(endYear as string), parseInt(endMonth as string));
     }
 
-    const [adSpend] = await // @ts-ignore
-  pool.query(
+    const [adSpend] = await pool.query(
       `SELECT
         id, client_id, platform, period_year, period_month, spend,
         impressions, clicks, conversions, conversion_value, ctr, cpc, cpa, roas,
@@ -406,8 +392,7 @@ router.get('/:clientId/financials/ad-spend', authenticateToken, async (req: any,
     );
 
     // Calculate summary metrics
-    const [summary] = await // @ts-ignore
-  pool.query(
+    const [summary] = await pool.query(
       `SELECT
         SUM(spend) as total_spend,
         SUM(impressions) as total_impressions,
@@ -466,8 +451,7 @@ router.post('/:clientId/financials/ad-spend', authenticateToken, requireRole('ow
     }
 
     // Check for duplicate
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       `SELECT id FROM client_ad_spend
        WHERE client_id = ? AND platform = ? AND period_year = ? AND period_month = ?`,
       [clientId, platform, period_year, period_month]
@@ -482,8 +466,7 @@ router.post('/:clientId/financials/ad-spend', authenticateToken, requireRole('ow
     }
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_ad_spend (
         id, client_id, platform, period_year, period_month, spend,
         impressions, clicks, conversions, conversion_value,
@@ -524,8 +507,7 @@ router.put('/:clientId/financials/ad-spend/:id', authenticateToken, requireRole(
     } = req.body;
 
     // Verify record exists and belongs to client
-    const [existing] = await // @ts-ignore
-  pool.query(
+    const [existing] = await pool.query(
       'SELECT id FROM client_ad_spend WHERE id = ? AND client_id = ?',
       [id, clientId]
     );
@@ -535,8 +517,7 @@ router.put('/:clientId/financials/ad-spend/:id', authenticateToken, requireRole(
       return;
     }
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE client_ad_spend SET
         spend = ?, impressions = ?, clicks = ?, conversions = ?,
         conversion_value = ?, ctr = ?, cpc = ?, cpa = ?, roas = ?, source = ?
@@ -568,8 +549,7 @@ router.post(
       const { valid, errors, totalRows, validRows, errorRows } = (req as any).csvData;
 
       // Verify client exists
-      const [clients] = await // @ts-ignore
-  pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
+      const [clients] = await pool.query('SELECT id FROM clients WHERE id = ?', [clientId]);
       if (clients.length === 0) {
         res.status(404).json({ success: false, error: 'Client not found' });
         return;
@@ -606,8 +586,8 @@ router.post(
         const periodMonth = recordDate.getMonth() + 1; // JS months are 0-indexed
 
         // Map simple CSV format to comprehensive DB schema
-        return // @ts-ignore
-  pool.query(
+        return
+    pool.query(
           `INSERT INTO client_financials (
             client_id, period_year, period_month, gross_revenue, net_revenue,
             total_expenses, gross_profit, net_profit, new_customers, total_customers,

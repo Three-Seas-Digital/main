@@ -10,8 +10,7 @@ const router = Router();
 // GET /api/prospects — List all prospects
 router.get('/', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM prospects ORDER BY created_at DESC'
     );
     res.json(rows);
@@ -24,8 +23,7 @@ router.get('/', authenticateToken, async (req: any, res: Response): Promise<void
 // GET /api/prospects/:id — Get single prospect with notes and documents
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM prospects WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM prospects WHERE id = ?', [req.params.id]);
     if (rows.length === 0) {
       res.status(404).json({ error: 'Prospect not found' });
       return;
@@ -33,10 +31,8 @@ router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<v
 
     const prospect = rows[0];
 
-    const [notes] = await // @ts-ignore
-  pool.query('SELECT * FROM prospect_notes WHERE prospect_id = ? ORDER BY created_at DESC', [req.params.id]);
-    const [documents] = await // @ts-ignore
-  pool.query('SELECT * FROM prospect_documents WHERE prospect_id = ? ORDER BY created_at DESC', [req.params.id]);
+    const [notes] = await pool.query('SELECT * FROM prospect_notes WHERE prospect_id = ? ORDER BY created_at DESC', [req.params.id]);
+    const [documents] = await pool.query('SELECT * FROM prospect_documents WHERE prospect_id = ? ORDER BY created_at DESC', [req.params.id]);
 
     prospect.notes = notes;
     prospect.documents = documents;
@@ -53,8 +49,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sa
   try {
     const { id: bodyId, businessName, contactName, email, phone, stage, source, notes, estimatedValue } = req.body;
     const id = bodyId || generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO prospects (id, business_name, contact_name, email, phone, stage, source, notes, estimated_value, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [id, businessName, contactName || null, email || null, phone || null, stage || 'new', source || 'manual', notes || null, estimatedValue || null]
@@ -70,8 +65,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sa
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response): Promise<void> => {
   try {
     const { businessName, contactName, email, phone, stage, source, notes, estimatedValue, lossReason } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE prospects SET business_name = ?, contact_name = ?, email = ?, phone = ?, stage = ?,
        source = ?, notes = ?, estimated_value = ?, loss_reason = ?, updated_at = NOW() WHERE id = ?`,
       [businessName, contactName, email, phone, stage, source, notes, estimatedValue, lossReason || null, req.params.id]
@@ -87,8 +81,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', '
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response): Promise<void> => {
   try {
     // prospect_notes and prospect_documents have ON DELETE CASCADE
-    await // @ts-ignore
-  pool.query('DELETE FROM prospects WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM prospects WHERE id = ?', [req.params.id]);
     res.json({ message: 'Prospect deleted' });
   } catch (err) {
     console.error('[prospects] Error:', err);
@@ -103,8 +96,7 @@ router.post('/:id/notes', authenticateToken, requireRole('owner', 'admin', 'mana
   try {
     const { text } = req.body;
     const noteId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'INSERT INTO prospect_notes (id, prospect_id, text, author, created_at) VALUES (?, ?, ?, ?, NOW())',
       [noteId, req.params.id, text, req.user?.username]
     );
@@ -118,8 +110,7 @@ router.post('/:id/notes', authenticateToken, requireRole('owner', 'admin', 'mana
 // DELETE /api/prospects/:id/notes/:noteId — Delete note
 router.delete('/:id/notes/:noteId', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM prospect_notes WHERE id = ? AND prospect_id = ?', [req.params.noteId, req.params.id]);
+    await pool.query('DELETE FROM prospect_notes WHERE id = ? AND prospect_id = ?', [req.params.noteId, req.params.id]);
     res.json({ message: 'Note deleted' });
   } catch (err) {
     console.error('[prospects] Error:', err);
@@ -140,8 +131,7 @@ router.post('/:id/documents', authenticateToken, requireRole('owner', 'admin', '
     }
 
     const docId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO prospect_documents (id, prospect_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [docId, req.params.id, name || file.originalname, type || 'other', description || null, file.path, file.size, file.mimetype, req.user?.username]
@@ -156,8 +146,7 @@ router.post('/:id/documents', authenticateToken, requireRole('owner', 'admin', '
 // DELETE /api/prospects/:id/documents/:docId — Delete document
 router.delete('/:id/documents/:docId', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response): Promise<void> => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM prospect_documents WHERE id = ? AND prospect_id = ?', [req.params.docId, req.params.id]);
+    await pool.query('DELETE FROM prospect_documents WHERE id = ? AND prospect_id = ?', [req.params.docId, req.params.id]);
     res.json({ message: 'Document deleted' });
   } catch (err) {
     console.error('[prospects] Error:', err);
@@ -170,8 +159,7 @@ router.delete('/:id/documents/:docId', authenticateToken, requireRole('owner', '
 // POST /api/prospects/:id/convert-to-client — Convert prospect to client
 router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response): Promise<void> => {
   try {
-    const [prospects] = await // @ts-ignore
-  pool.query('SELECT * FROM prospects WHERE id = ?', [req.params.id]);
+    const [prospects] = await pool.query('SELECT * FROM prospects WHERE id = ?', [req.params.id]);
     if (prospects.length === 0) {
       res.status(404).json({ error: 'Prospect not found' });
       return;
@@ -181,16 +169,14 @@ router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'a
 
     // Create client from prospect data
     const clientId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO clients (id, name, email, phone, business_name, tier, status, source, source_prospect_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, 'active', 'pipeline', ?, NOW())`,
       [clientId, prospect.contact_name || prospect.business_name, prospect.email, prospect.phone, prospect.business_name, req.body.tier || 'free', prospect.id]
     );
 
     // Transfer documents
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_documents (id, client_id, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at)
        SELECT CONCAT(UNIX_TIMESTAMP(), '-', SUBSTRING(MD5(RAND()), 1, 7)), ?, name, type, description, file_path, file_size, mime_type, uploaded_by, created_at
        FROM prospect_documents WHERE prospect_id = ?`,
@@ -198,8 +184,7 @@ router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'a
     );
 
     // Transfer notes
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_notes (id, client_id, text, author, created_at)
        SELECT CONCAT(UNIX_TIMESTAMP(), '-', SUBSTRING(MD5(RAND()), 1, 7)), ?, text, author, created_at
        FROM prospect_notes WHERE prospect_id = ?`,
@@ -207,8 +192,7 @@ router.post('/:id/convert-to-client', authenticateToken, requireRole('owner', 'a
     );
 
     // Update prospect stage
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       "UPDATE prospects SET stage = 'won', updated_at = NOW() WHERE id = ?",
       [req.params.id]
     );

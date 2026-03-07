@@ -27,7 +27,7 @@ export default function ClientsDatabaseTab() {
 
   // Get unique values for filters
   const sources = useMemo(() => {
-    const s = new Set(clients.map((c) => c.source).filter(Boolean));
+    const s = new Set(clients.map((c: any) => c.source).filter(Boolean));
     return Array.from(s).sort();
   }, [clients]);
 
@@ -51,8 +51,8 @@ export default function ClientsDatabaseTab() {
   // Filter and sort clients
   const filteredClients = useMemo(() => {
     return clients
-      .filter((c) => c.status !== 'pending') // Exclude pending registrations
-      .filter((c) => {
+      .filter((c: any) => c.status !== 'pending') // Exclude pending registrations
+      .filter((c: any) => {
         // Search
         if (search) {
           const q = search.toLowerCase();
@@ -125,18 +125,18 @@ export default function ClientsDatabaseTab() {
 
   // Stats
   const stats = useMemo(() => {
-    const activeClients = clients.filter((c) => c.status === 'active' || c.status === 'vip');
+    const activeClients = clients.filter((c: any) => c.status === 'active' || c.status === 'vip');
     const totalRevenue = payments.filter((p) => p.status === 'completed').reduce((sum, p) => sum + (p.amount || 0), 0);
     const tierCounts: Record<string, number> = {};
     Object.keys(SUBSCRIPTION_TIERS).forEach((t: string) => { tierCounts[t] = 0; });
-    activeClients.forEach((c) => {
+    activeClients.forEach((c: any) => {
       if (tierCounts[c.tier] !== undefined) tierCounts[c.tier]++;
     });
     return {
-      total: clients.filter((c) => c.status !== 'pending').length,
+      total: clients.filter((c: any) => c.status !== 'pending').length,
       active: activeClients.length,
-      archived: clients.filter((c) => c.status === 'archived').length,
-      vip: clients.filter((c) => c.status === 'vip').length,
+      archived: clients.filter((c: any) => c.status === 'archived').length,
+      vip: clients.filter((c: any) => c.status === 'vip').length,
       totalRevenue,
       tierCounts,
     };
@@ -247,12 +247,12 @@ export default function ClientsDatabaseTab() {
     if (selectedClients.size === paginatedClients.length) {
       setSelectedClients(new Set());
     } else {
-      setSelectedClients(new Set(paginatedClients.map((c) => c.id)));
+      setSelectedClients(new Set(paginatedClients.map((c: any) => c.id)));
     }
   };
 
   const exportToCSV = () => {
-    const data = (selectedClients.size > 0 ? filteredClients.filter((c) => selectedClients.has(c.id)) : filteredClients);
+    const data = (selectedClients.size > 0 ? filteredClients.filter((c: any) => selectedClients.has(c.id)) : filteredClients);
     const headers = ['Name', 'Email', 'Phone', 'Business', 'Status', 'Tier', 'Source', 'Projects', 'Invoices', 'Health Score', 'BI Revenue', 'Interventions', 'Recommendations', 'Notes Count', 'Created'];
 
     const allAudits = safeGetItem('threeseas_bi_audits', []);
@@ -260,7 +260,7 @@ export default function ClientsDatabaseTab() {
     const allInterventions = safeGetItem('threeseas_bi_interventions', {});
     const allRecs = safeGetItem('threeseas_bi_recommendations', {});
 
-    const rows = data.map((c) => {
+    const rows = data.map((c: any) => {
       const clientAudits = allAudits.filter(a => a.clientId === c.id);
       const latest = clientAudits.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
       const vals = latest?.scores ? (Object.values(latest.scores).filter((v: any) => typeof v === 'number' && v > 0) as number[]) : [];

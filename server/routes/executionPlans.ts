@@ -9,8 +9,7 @@ const router = Router();
 // GET /api/clients/:clientId/execution-plans
 router.get('/:clientId/execution-plans', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM execution_plans WHERE client_id = ? ORDER BY created_at DESC',
       [req.params.clientId]
     );
@@ -33,8 +32,7 @@ router.post('/:clientId/execution-plans', authenticateToken, async (req: any, re
   try {
     const { name, plan_data, start_date } = req.body;
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO execution_plans (id, client_id, name, plan_data, start_date, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
       [id, req.params.clientId, name || 'Untitled Plan', JSON.stringify(plan_data || {}), start_date || null]
@@ -50,8 +48,7 @@ router.post('/:clientId/execution-plans', authenticateToken, async (req: any, re
 router.put('/:clientId/execution-plans/:id', authenticateToken, async (req: any, res: Response) => {
   try {
     const { name, plan_data, start_date } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE execution_plans SET name = ?, plan_data = ?, start_date = ?, updated_at = NOW() WHERE id = ?',
       [name || 'Untitled Plan', JSON.stringify(plan_data || {}), start_date || null, req.params.id]
     );
@@ -65,8 +62,7 @@ router.put('/:clientId/execution-plans/:id', authenticateToken, async (req: any,
 // DELETE /api/clients/:clientId/execution-plans/:id
 router.delete('/:clientId/execution-plans/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM execution_plans WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM execution_plans WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });

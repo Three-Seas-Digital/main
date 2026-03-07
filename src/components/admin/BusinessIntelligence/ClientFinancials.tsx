@@ -367,7 +367,7 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
       <td>${e.newCustomers}</td><td>${pct(e.conversionRate)}</td>
       <td>${momMap[e.id] != null ? (momMap[e.id] >= 0 ? '+' : '') + momMap[e.id].toFixed(1) + '%' : '-'}</td></tr>`).join('');
     const pw = window.open('', '_blank');
-    pw.document.write(`<!DOCTYPE html><html><head><title>Financial Report - ${name}</title>
+    if (pw) pw.document.write(`<!DOCTYPE html><html><head><title>Financial Report - ${name}</title>
       <style>body{font-family:system-ui;padding:20px}table{border-collapse:collapse;width:100%}
       th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}
       td:first-child,th:first-child{text-align:left}.summary{display:flex;gap:24px;margin:16px 0}
@@ -385,8 +385,8 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
       <td>${fmt(totals.expenses)}</td><td>${fmt(totals.profit)}</td><td>${fmt(totals.adSpend)}</td>
       <td>${entries.reduce((a, e) => a + e.websiteTraffic, 0)}</td>
       <td>${totals.customers}</td><td>${pct(totals.avgConversion)}</td><td></td></tr></tbody></table></body></html>`);
-    pw.document.close();
-    pw.print();
+    if (pw) pw.document.close();
+    if (pw) pw.print();
   };
 
   return (

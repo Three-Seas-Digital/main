@@ -316,7 +316,7 @@ export default function ClientAnalytics({ biClientId, onBiClientChange }: Client
       const t = i.type || 'other';
       if (!counts[t]) counts[t] = { type: t, planned: 0, in_progress: 0, completed: 0, paused: 0 };
       const status = i.status || 'planned';
-      if (counts[t][status] !== undefined) counts[t][status]++;
+      if (counts[t][status as string] !== undefined) counts[t][status as string]++;
     });
     return Object.values(counts);
   }, [clientInterventions]);
@@ -449,7 +449,7 @@ export default function ClientAnalytics({ biClientId, onBiClientChange }: Client
     const scatterSec = interventionScatter.length ? `<h2>Intervention ROI Analysis</h2><table><thead><tr><th>Intervention</th><th>Type</th><th>Cost</th><th>ROI</th><th>Revenue Change</th></tr></thead><tbody>${interventionScatter.map(s => `<tr><td>${h(s.name)}</td><td>${h(INTERVENTION_TYPES[s.type]?.label || s.type)}</td><td>${f(s.cost)}</td><td style="color:${s.roi >= 0 ? '#22c55e' : '#ef4444'}">${s.roi >= 0 ? '+' : ''}${s.roi}%</td><td>${f(s.revChange)}</td></tr>`).join('')}</tbody></table>` : '';
     const waterfallSec = waterfallData.length ? `<h2>Revenue Waterfall</h2><table><thead><tr><th>Month</th><th>Increase</th><th>Decrease</th><th>Running Total</th></tr></thead><tbody>${waterfallData.map(w => `<tr><td>${h(w.month)}</td><td style="color:#22c55e">${w.increase > 0 ? '+' + f(w.increase) : '\u2014'}</td><td style="color:#ef4444">${w.decrease > 0 ? '-' + f(w.decrease) : '\u2014'}</td><td>${f(w.total)}</td></tr>`).join('')}</tbody></table>` : '';
     const cumSec = cumulativeData.length ? `<h2>Cumulative Revenue</h2><table><thead><tr><th>Month</th><th>Monthly Revenue</th><th>Cumulative Total</th></tr></thead><tbody>${cumulativeData.map(c => `<tr><td>${h(c.month)}</td><td>${f(c.revenue)}</td><td>${f(c.cumulative)}</td></tr>`).join('')}</tbody></table>` : '';
-    pw.document.write(`<!DOCTYPE html><html><head><title>Client Analytics - ${h(selectedClient.name)}</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;max-width:900px;margin:0 auto}h1{color:#1e3a5f;border-bottom:2px solid #3b82f6;padding-bottom:10px}h2{color:#374151;margin-top:30px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:15px 0}.card{background:#f9fafb;padding:14px;border-radius:8px}.card h3{margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase}.card p{margin:0;font-size:18px;font-weight:bold;color:#1e3a5f}table{width:100%;border-collapse:collapse;margin:15px 0}th,td{padding:8px;text-align:left;border-bottom:1px solid #e5e7eb}th{background:#f9fafb;font-weight:600;font-size:12px}.footer{margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:11px;color:#6b7280;text-align:center}@media print{body{padding:20px}}</style></head><body>
+    if (pw) pw.document.write(`<!DOCTYPE html><html><head><title>Client Analytics - ${h(selectedClient.name)}</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#333;max-width:900px;margin:0 auto}h1{color:#1e3a5f;border-bottom:2px solid #3b82f6;padding-bottom:10px}h2{color:#374151;margin-top:30px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:15px 0}.card{background:#f9fafb;padding:14px;border-radius:8px}.card h3{margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase}.card p{margin:0;font-size:18px;font-weight:bold;color:#1e3a5f}table{width:100%;border-collapse:collapse;margin:15px 0}th,td{padding:8px;text-align:left;border-bottom:1px solid #e5e7eb}th{background:#f9fafb;font-weight:600;font-size:12px}.footer{margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:11px;color:#6b7280;text-align:center}@media print{body{padding:20px}}</style></head><body>
       <h1>Client Analytics Report &mdash; ${h(selectedClient.name)}</h1>
       <p>Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${drLabel}</p>
       ${intake ? `<h2>Business Profile</h2><div class="grid">${card('Industry', h(intake.industry || 'N/A'))}${card('Years in Operation', h(intake.years_in_operation || 'N/A'))}${card('Employees', h(intake.employee_count_range || 'N/A'))}${card('Revenue', h(intake.annual_revenue_range || 'N/A'))}</div>` : ''}
@@ -459,8 +459,8 @@ export default function ClientAnalytics({ biClientId, onBiClientChange }: Client
       ${activeRecs.length ? `<table><thead><tr><th>Title</th><th>Priority</th><th>Status</th></tr></thead><tbody>${activeRecs.map(r => `<tr><td>${h(r.title)}</td><td>${h(r.priority)}</td><td>${h(r.status)}</td></tr>`).join('')}</tbody></table>` : ''}
       ${growthSec}${finSec}${cumSec}${intSec}${funnelSec}${scatterSec}${waterfallSec}${compSec}
       <div class="footer"><p>Three Seas Digital CRM &mdash; Client Analytics Report</p></div></body></html>`);
-    pw.document.close();
-    pw.print();
+    if (pw) pw.document.close();
+    if (pw) pw.print();
   };
 
   return (

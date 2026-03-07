@@ -192,9 +192,9 @@ export default function ExecutionTracker({ biClientId, onBiClientChange }: Execu
       return `<h3>${escapeHtml(wave.label)} — ${escapeHtml(wave.subtitle)} (${escapeHtml(wave.effort)})</h3><p>Progress: ${prog.completed}/${prog.total} (${prog.pct}%)</p><table><thead><tr><th>Item</th><th>Status</th><th>Owner</th><th>Baseline</th><th>Target</th><th>Actual</th></tr></thead><tbody>${rows || '<tr><td colspan="6">No items</td></tr>'}</tbody></table>`;
     }).join('');
     const reviews = (activePlan.reviewLog || []).map(r => `<li><strong>${new Date(r.date).toLocaleDateString()}</strong>: ${escapeHtml(r.note)}</li>`).join('');
-    w.document.write(`<!DOCTYPE html><html><head><title>Execution Plan — ${clientName}</title><style>body{font-family:Arial,sans-serif;padding:20px}table{width:100%;border-collapse:collapse;margin:8px 0 24px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f5f5f5}h1{color:#0a2540}.progress{font-size:1.3rem;color:#3b82f6}</style></head><body><h1>${planName} — ${clientName}</h1><p class="progress">Overall Progress: ${overallProgress}%</p><p>Start: ${escapeHtml(activePlan.startDate || '')} | Generated: ${new Date().toLocaleDateString()}</p>${wavesHtml}<h3>Weekly Review Log</h3><ul>${reviews || '<li>No reviews yet</li>'}</ul></body></html>`);
-    w.document.close();
-    w.print();
+    if (w) w.document.write(`<!DOCTYPE html><html><head><title>Execution Plan — ${clientName}</title><style>body{font-family:Arial,sans-serif;padding:20px}table{width:100%;border-collapse:collapse;margin:8px 0 24px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f5f5f5}h1{color:#0a2540}.progress{font-size:1.3rem;color:#3b82f6}</style></head><body><h1>${planName} — ${clientName}</h1><p class="progress">Overall Progress: ${overallProgress}%</p><p>Start: ${escapeHtml(activePlan.startDate || '')} | Generated: ${new Date().toLocaleDateString()}</p>${wavesHtml}<h3>Weekly Review Log</h3><ul>${reviews || '<li>No reviews yet</li>'}</ul></body></html>`);
+    if (w) w.document.close();
+    if (w) w.print();
   };
 
   const KPI_KEY = 'threeseas_bi_kpi_snapshots';

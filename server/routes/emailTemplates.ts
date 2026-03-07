@@ -12,8 +12,7 @@ router.post('/send-welcome', authenticateToken, requireRole('owner', 'admin', 'm
     const { clientId, customSubject, customBody, tempPassword } = req.body;
     if (!clientId) return res.status(400).json({ error: 'clientId is required' });
 
-    const [clients] = await // @ts-ignore
-  pool.query('SELECT * FROM clients WHERE id = ?', [clientId]);
+    const [clients] = await pool.query('SELECT * FROM clients WHERE id = ?', [clientId]);
     const clientsArray = Array.isArray(clients) ? clients : [];
     if (clientsArray.length === 0) return res.status(404).json({ error: 'Client not found' });
 
@@ -48,8 +47,7 @@ router.post('/send-welcome', authenticateToken, requireRole('owner', 'admin', 'm
 // GET /api/email-templates — List all email templates
 router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM email_templates ORDER BY name ASC'
     );
     res.json(rows);
@@ -62,8 +60,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 // GET /api/email-templates/:id — Get single template
 router.get('/:id', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query('SELECT * FROM email_templates WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM email_templates WHERE id = ?', [req.params.id]);
     const rowsArray = Array.isArray(rows) ? rows : [];
     if (rowsArray.length === 0) return res.status(404).json({ error: 'Template not found' });
     res.json(rowsArray[0]);
@@ -77,8 +74,7 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response) => {
   try {
     const { name, subject, body, category } = req.body;
-    const [result] = await // @ts-ignore
-  pool.query(
+    const [result] = await pool.query(
       'INSERT INTO email_templates (name, subject, body, category, created_at) VALUES (?, ?, ?, ?, NOW())',
       [name, subject, body, category || 'general']
     );
@@ -93,8 +89,7 @@ router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), as
 router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response) => {
   try {
     const { name, subject, body, category } = req.body;
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'UPDATE email_templates SET name = ?, subject = ?, body = ?, category = ?, updated_at = NOW() WHERE id = ?',
       [name, subject, body, category, req.params.id]
     );
@@ -108,8 +103,7 @@ router.put('/:id', authenticateToken, requireRole('owner', 'admin', 'manager'), 
 // DELETE /api/email-templates/:id — Delete template
 router.delete('/:id', authenticateToken, requireRole('owner', 'admin'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query('DELETE FROM email_templates WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM email_templates WHERE id = ?', [req.params.id]);
     res.json({ message: 'Template deleted' });
   } catch (err) {
     console.error('[emailTemplates] Error:', err);
