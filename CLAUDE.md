@@ -6,7 +6,7 @@ Full-stack CRM + digital agency website for Three Seas Digital. Public-facing ma
 
 ## Tech Stack
 
-- **Frontend:** React 19 + Vite 6, JSX (not TypeScript), React Router v7
+- **Frontend:** React 19 + Vite 6, TypeScript (strict off, zero errors), React Router v7
 - **Backend:** Node.js + Express (ESM — `"type": "module"` in package.json)
 - **Database:** MySQL primary (mysql2/promise), Supabase/PostgreSQL dual-mode support via `server/config/db.js`
 - **Auth:** JWT (access + refresh tokens), bcrypt password hashing
@@ -134,6 +134,7 @@ cloudflare-worker/
 - **Context hierarchy:** AuthProvider > FinanceProvider > SalesProvider > AppProvider > SyncInitializer
 - **Lazy loading:** All page components are lazy-loaded via `React.lazy()` + Suspense
 - **No CSS modules:** Plain CSS files with BEM-like naming conventions (e.g., `.checkout-success-preview`)
+- **TypeScript:** All frontend files are `.ts`/`.tsx` with zero `tsc` errors. tsconfig uses `strict: false` with selective strict flags. Contexts use `createContext<any>(null)`. Use `npm run typecheck` to verify.
 
 ### Design System
 
