@@ -74,6 +74,10 @@ export function onSyncComplete(cb: SyncCallback): () => void {
 
 // Pull data from API and update localStorage (initial sync on app load)
 export async function pullFromApi(): Promise<{ synced: boolean; reason?: string; results?: SyncResults }> {
+  // Don't attempt to pull protected data when no user is logged in
+  const hasToken = !!localStorage.getItem('threeseas_access_token');
+  if (!hasToken) return { synced: false, reason: 'No auth token' };
+
   const available = await isApiAvailable();
   if (!available) return { synced: false, reason: 'API unavailable' };
 
@@ -156,6 +160,13 @@ export async function pushToApi(): Promise<{ pushed: boolean; reason?: string; r
 
 // Initialize sync: check API availability and pull if available
 export async function initSync(): Promise<{ mode: string; synced?: boolean; results?: SyncResults }> {
+  // Skip sync entirely when no admin is logged in
+  const hasToken = !!localStorage.getItem('threeseas_access_token');
+  if (!hasToken) {
+    console.log('[Sync] No auth token, skipping sync');
+    return { mode: 'local' };
+  }
+
   const available = await isApiAvailable();
   if (!available) {
     console.log('[Sync] API not available, running in localStorage-only mode');
