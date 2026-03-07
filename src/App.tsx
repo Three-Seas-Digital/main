@@ -10,24 +10,39 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import NotFound from './pages/NotFound';
 
+// Auto-reload on stale chunk errors (after deployment, cached index.html may reference old hashes)
+function lazyRetry<T extends React.ComponentType<any>>(loader: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    loader().catch(() => {
+      const reloaded = sessionStorage.getItem('chunk_reload');
+      if (!reloaded) {
+        sessionStorage.setItem('chunk_reload', '1');
+        window.location.reload();
+      }
+      // If we already reloaded once, surface the error normally
+      return loader();
+    })
+  );
+}
+
 // Lazy-load heavier pages for code splitting
-const Home = lazy(() => import('./pages/Home'));
-const About = lazy(() => import('./pages/About'));
-const Portfolio = lazy(() => import('./pages/Portfolio'));
-const Contact = lazy(() => import('./pages/Contact'));
-const Admin = lazy(() => import('./pages/Admin'));
-const Register = lazy(() => import('./pages/Register'));
-const ClientSignup = lazy(() => import('./pages/ClientSignup'));
+const Home = lazyRetry(() => import('./pages/Home'));
+const About = lazyRetry(() => import('./pages/About'));
+const Portfolio = lazyRetry(() => import('./pages/Portfolio'));
+const Contact = lazyRetry(() => import('./pages/Contact'));
+const Admin = lazyRetry(() => import('./pages/Admin'));
+const Register = lazyRetry(() => import('./pages/Register'));
+const ClientSignup = lazyRetry(() => import('./pages/ClientSignup'));
 const StarterShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.StarterShowcase })));
 const BusinessShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.BusinessShowcase })));
 const PremiumShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.PremiumShowcase })));
 const EnterpriseShowcase = lazy(() => import('./pages/PortfolioLanding').then(m => ({ default: m.EnterpriseShowcase })));
-const Templates = lazy(() => import('./pages/Templates'));
-const TemplatesSignIn = lazy(() => import('./pages/TemplatesSignIn'));
-const Checkout = lazy(() => import('./pages/Checkout'));
+const Templates = lazyRetry(() => import('./pages/Templates'));
+const TemplatesSignIn = lazyRetry(() => import('./pages/TemplatesSignIn'));
+const Checkout = lazyRetry(() => import('./pages/Checkout'));
 
-const Account = lazy(() => import('./pages/Account'));
-const TemplateLanding = lazy(() => import('./components/templates/TemplateLanding'));
+const Account = lazyRetry(() => import('./pages/Account'));
+const TemplateLanding = lazyRetry(() => import('./components/templates/TemplateLanding'));
 
 function PageLoader() {
   return (
@@ -45,6 +60,8 @@ const HIDE_NAVBAR_PATHS = ['/templates', '/checkout', '/templates/preview'];
 function SyncInitializer({ children }: { children: React.ReactNode }) {
   const didSync = useRef(false);
   useEffect(() => {
+    // Clear stale-chunk reload flag on successful load
+    sessionStorage.removeItem('chunk_reload');
     if (didSync.current) return;
     didSync.current = true;
     initSync().catch(() => {
