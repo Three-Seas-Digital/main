@@ -532,8 +532,12 @@
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
+  .tube-page--fallback {
+    padding-top: 70px;
+  }
+
   .tube-filters {
-    top: 76px;
+    top: 70px;
     padding: 6px 12px;
     gap: 6px;
     max-width: calc(100% - 24px);
@@ -548,18 +552,119 @@
     padding: 5px 10px;
   }
 
+  /* Detail panel: full width, adjusted spacing */
   .tube-detail {
     width: 100%;
     max-width: 100%;
   }
+  .tube-detail-header {
+    height: 180px;
+  }
+  .tube-detail-body {
+    padding: 0 18px 24px;
+  }
+  .tube-detail-name {
+    font-size: 1.25rem;
+  }
+  .tube-detail-desc {
+    font-size: 0.85rem;
+  }
+  .tube-detail-btn {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+  }
 
+  /* Fallback grid: 2 columns, tighter */
+  .tube-fallback-header {
+    padding: 24px 16px 16px;
+  }
+  .tube-fallback-header h1 {
+    font-size: 1.5rem;
+  }
+  .tube-fallback-header p {
+    font-size: 0.85rem;
+  }
   .tube-grid-fallback {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px 12px 60px;
+  }
+  .tube-fallback-card {
+    border-radius: 10px;
+  }
+  .tube-fallback-card-img {
+    height: 120px;
+  }
+  .tube-fallback-card-body {
+    padding: 10px 12px;
+  }
+  .tube-fallback-name {
+    font-size: 0.82rem;
+  }
+  .tube-fallback-cat {
+    font-size: 0.7rem;
+  }
+  .tube-fallback-price {
+    font-size: 0.78rem;
+  }
+
+  /* User bar compact */
+  .templates-user-bar {
+    top: 70px;
+    padding: 8px 12px;
+  }
+  .templates-user-info {
+    display: none;
+  }
+  .templates-user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+  .templates-guest-bar {
+    font-size: 0.8rem;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .templates-logout-btn {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Single column on very small screens */
+  .tube-grid-fallback {
+    grid-template-columns: 1fr;
     gap: 12px;
+    padding: 12px 16px 60px;
+  }
+  .tube-fallback-card-img {
+    height: 140px;
+  }
+  .tube-fallback-card-body {
+    padding: 12px 14px;
+  }
+  .tube-fallback-name {
+    font-size: 0.9rem;
+  }
+  .tube-fallback-price {
+    font-size: 0.82rem;
   }
 
   .tube-fallback-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
+  }
+
+  /* Detail panel: extra compact */
+  .tube-detail-header {
+    height: 150px;
+  }
+  .tube-detail-body {
+    padding: 0 14px 20px;
+  }
+  .tube-detail-name {
+    font-size: 1.1rem;
   }
 }
 
@@ -568,6 +673,13 @@
   .tube-scroll-hint { display: none; }
   .tube-fallback-card { transition: none; }
   .tube-detail { transition: none; }
+}
+
+/* Disable hover transform on touch devices */
+@media (hover: none) {
+  .tube-fallback-card:hover {
+    transform: none;
+  }
 }
 
 
@@ -1488,9 +1600,4 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 768px) {
-  .templates-user-bar {
-    top: 70px;
-    padding: 10px 4%;
-  }
-}
+/* user bar 768px rules now in main responsive block above */
