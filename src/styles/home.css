@@ -1019,8 +1019,12 @@
 
 @media (max-width: 768px) {
   .section-pinned {
+    height: auto;
+    min-height: 70vh;
     align-items: flex-start;
     padding-top: 100px;
+    padding-bottom: 60px;
+    contain: style paint;
   }
 
   .editorial-left {
@@ -1089,12 +1093,25 @@
     height: 36vh;
   }
 
-  /* MEASURE section — overlay card wider */
+  /* MEASURE section — stack vertically on mobile */
+  .measure-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  .measure-triptych-featured {
+    position: relative;
+    inset: auto;
+    min-height: 35vh;
+  }
   .measure-overlay-card {
-    left: 24px;
-    bottom: 6vh;
+    position: relative;
+    left: auto;
+    bottom: auto;
     max-width: calc(100% - 48px);
+    margin: -20px 24px 0;
     padding: 24px;
+    z-index: 10;
   }
 
   /* AUTOMATE section — hide floating cards on mobile */
@@ -1155,6 +1172,7 @@
 @media (max-width: 480px) {
   .section-pinned {
     padding-top: 80px;
+    padding-bottom: 40px;
   }
 
   .editorial-left {

@@ -46,13 +46,44 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) return;
 
+    const isMobile = window.innerWidth <= 768;
+
     // Enable GPU acceleration for smoother animations
-    gsap.set([left, right], { 
+    gsap.set([left, right], {
       willChange: 'transform, opacity',
-      force3D: true 
+      force3D: true
     });
 
     const ctx = gsap.context(() => {
+      // Mobile: simple scroll-triggered fade-in, no pinning
+      if (isMobile) {
+        // Background image
+        if (opts.bgRef?.current) {
+          gsap.fromTo(opts.bgRef.current, { opacity: 0 }, {
+            opacity: 1, ease: 'none',
+            scrollTrigger: { trigger: section, start: 'top 90%', end: 'top 40%', scrub: true },
+          });
+        }
+
+        // Left panel fades up
+        gsap.fromTo(left, { y: 40, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
+          scrollTrigger: { trigger: left, start: 'top 85%', toggleActions: 'play none none none' },
+        });
+
+        // Headline words
+        if (headlineRef?.current) {
+          const words = headlineRef.current.querySelectorAll('.word');
+          gsap.fromTo(words, { y: 20, opacity: 0 }, {
+            y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH, duration: 0.6,
+            scrollTrigger: { trigger: left, start: 'top 80%', toggleActions: 'play none none none' },
+          });
+        }
+
+        return;
+      }
+
+      // Desktop: full pinned animation
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -73,8 +104,7 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
       // Depth parallax: background drifts at different rate than foreground
       const depthBg = opts.bgRef?.current || section.querySelector('.editorial-bg');
       if (depthBg) {
-        const depthScale = (window.innerWidth <= 768) ? 0.4 : 1.0;
-        tl.fromTo(depthBg, { yPercent: 3 * depthScale }, { yPercent: -3 * depthScale, ease: 'none' }, 0);
+        tl.fromTo(depthBg, { yPercent: 3 }, { yPercent: -3, ease: 'none' }, 0);
       }
 
       // Get card items for stagger animations
@@ -82,116 +112,64 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
 
       switch (animationStyle) {
         case 'slide-up':
-          // === Panels slide up from bottom - SMOOTH ===
           tl.fromTo(left, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
           tl.fromTo(right, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
-          
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
           }
-          
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { y: 30, opacity: 0 }, 
-              { y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
-              0.15
-            );
+            tl.fromTo(cardItems, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.15);
           }
-          
-          // Exit - smooth fade out
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { y: 0, opacity: 1 }, 
-              { y: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
-              0.68
-            );
+            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
           }
           tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-30vh', opacity: 0, ease: EASE_EXIT }, 0.75);
           break;
 
         case 'fade-scale':
-          // === Fade in with scale - SMOOTH ===
           tl.fromTo(left, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
           tl.fromTo(right, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0.04);
-          
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
           }
-          
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { scale: 0.95, opacity: 0 }, 
-              { scale: 1, opacity: 1, stagger: 0.06, ease: 'power3.out' }, 
-              0.12
-            );
+            tl.fromTo(cardItems, { scale: 0.95, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.06, ease: 'power3.out' }, 0.12);
           }
-          
-          // Exit - smooth scale down
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { scale: 1, opacity: 1 }, 
-              { scale: 0.97, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
-              0.68
-            );
+            tl.fromTo(cardItems, { scale: 1, opacity: 1 }, { scale: 0.97, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
           }
           tl.fromTo([left, right], { scale: 1, opacity: 1 }, { scale: 0.95, opacity: 0, ease: EASE_EXIT }, 0.75);
           break;
 
         case 'reveal-up':
-          // === Reveal upward - SMOOTH ===
           tl.fromTo([left, right], { y: '15vh', opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0);
-          
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.03, ease: EASE_SMOOTH }, 0.08);
           }
-          
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { y: 40, opacity: 0 }, 
-              { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 
-              0.15
-            );
+            tl.fromTo(cardItems, { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0.15);
           }
-          
-          // Exit - smooth reveal away
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { y: 0, opacity: 1 }, 
-              { y: -20, opacity: 0, stagger: 0.04, ease: EASE_EXIT }, 
-              0.66
-            );
+            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -20, opacity: 0, stagger: 0.04, ease: EASE_EXIT }, 0.66);
           }
           tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-20vh', opacity: 0, ease: EASE_EXIT }, 0.75);
           break;
 
         case 'diagonal':
-          // === Panels from corners - SMOOTH ===
           tl.fromTo(left, { x: '-35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
           tl.fromTo(right, { x: '35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
-          
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
           }
-          
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { x: 20, opacity: 0 }, 
-              { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
-              0.12
-            );
+            tl.fromTo(cardItems, { x: 20, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
           }
-          
-          // Exit - smooth return
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { x: 0, opacity: 1 }, 
-              { x: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
-              0.68
-            );
+            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
           }
           tl.fromTo(left, { x: 0, y: 0, opacity: 1 }, { x: '-30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
           tl.fromTo(right, { x: 0, y: 0, opacity: 1 }, { x: '30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
@@ -199,29 +177,17 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
 
         case 'converge':
         default:
-          // === Panels from sides - SMOOTH ===
           tl.fromTo(left, { x: '-30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
           tl.fromTo(right, { x: '30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
-
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.06);
           }
-
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { x: 40, opacity: 0 }, 
-              { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 
-              0.12
-            );
+            tl.fromTo(cardItems, { x: 40, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
           }
-
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, 
-              { x: 0, opacity: 1 }, 
-              { x: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 
-              0.68
-            );
+            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
           }
           tl.fromTo(left, { x: 0, opacity: 1 }, { x: '-35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
           tl.fromTo(right, { x: 0, opacity: 1 }, { x: '35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
@@ -231,7 +197,6 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
 
     return () => {
       ctx.revert();
-      // Clean up will-change to free GPU memory
       gsap.set([left, right], { willChange: 'auto' });
     };
   }, []);
@@ -1958,7 +1923,23 @@ function MeasureSection() {
 
     gsap.set([triptych, card], { willChange: 'transform, opacity', force3D: true });
 
+    const isMobile = window.innerWidth <= 768;
+
     const ctx = gsap.context(() => {
+      if (isMobile) {
+        // Mobile: simple fade-in on scroll, no pinning
+        gsap.fromTo(triptych, { y: 30, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
+          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none' },
+        });
+        gsap.fromTo(card, { y: 40, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
+          scrollTrigger: { trigger: card, start: 'top 90%', toggleActions: 'play none none none' },
+        });
+        return;
+      }
+
+      // Desktop: full pinned animation
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
@@ -1970,14 +1951,9 @@ function MeasureSection() {
         },
       });
 
-      // Triptych fades + scales in first
       tl.fromTo(triptych, { scale: 1.06, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
-      // Depth parallax: triptych drifts behind overlay card
-      const depthScale = (window.innerWidth <= 768) ? 0.4 : 1.0;
-      tl.fromTo(triptych, { yPercent: 2 * depthScale }, { yPercent: -2 * depthScale, ease: 'none' }, 0);
-      // Overlay card slides up
+      tl.fromTo(triptych, { yPercent: 2 }, { yPercent: -2, ease: 'none' }, 0);
       tl.fromTo(card, { y: '8vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.12);
-      // EXIT — card fades first, then triptych
       tl.fromTo(card, { y: 0, opacity: 1 }, { y: '-4vh', opacity: 0, ease: EASE_EXIT }, 0.68);
       tl.fromTo(triptych, { scale: 1, opacity: 1 }, { scale: 1.04, opacity: 0, ease: EASE_EXIT }, 0.75);
     }, section);
@@ -2048,7 +2024,25 @@ function AutomateSection() {
 
     gsap.set(center, { willChange: 'transform, opacity', force3D: true });
 
+    const isMobile = window.innerWidth <= 768;
+
     const ctx = gsap.context(() => {
+      if (isMobile) {
+        // Mobile: simple fade-in on scroll, no pinning
+        gsap.fromTo(center, { y: 40, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
+          scrollTrigger: { trigger: center, start: 'top 85%', toggleActions: 'play none none none' },
+        });
+        if (beam) {
+          gsap.fromTo(beam, { opacity: 0 }, {
+            opacity: 0.4, ease: 'none', duration: 1,
+            scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none' },
+          });
+        }
+        return;
+      }
+
+      // Desktop: full pinned animation
       const floaters = cardsWrap?.querySelectorAll('.floating-card') || [];
 
       const tl = gsap.timeline({
@@ -2062,27 +2056,22 @@ function AutomateSection() {
         },
       });
 
-      // Center content appears first
       tl.fromTo(center, { y: '6vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
-      // Floating cards stagger in
       if (floaters.length) {
         tl.fromTo(floaters, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.04, ease: EASE_SMOOTH }, 0.06);
       }
 
-      // Depth parallax: each floating card drifts at a unique rate
-      if (floaters.length && window.innerWidth > 768) {
-        const cardDepths = [3.6, 3.0, -2.4, -3.0, 1.8]; // tl, tr, bl, br, rc
+      if (floaters.length) {
+        const cardDepths = [3.6, 3.0, -2.4, -3.0, 1.8];
         floaters.forEach((card, i) => {
           const d = cardDepths[i] ?? 2;
           tl.fromTo(card, { yPercent: d }, { yPercent: -d, ease: 'none' }, 0);
         });
       }
 
-      // CircuitBoard fades in
       if (beam) {
         tl.fromTo(beam, { opacity: 0 }, { opacity: 0.6, ease: 'none' }, 0.15);
       }
-      // EXIT — all fade together
       if (floaters.length) {
         tl.fromTo(floaters, { opacity: 1 }, { opacity: 0, stagger: 0.02, ease: EASE_EXIT }, 0.68);
       }
@@ -2255,10 +2244,10 @@ export default function Home() {
     document.title = 'Three Seas Digital — Web Design & Development';
   }, []);
 
-  // Global snap between pinned sections
+  // Global snap between pinned sections (desktop only)
   useEffect(() => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
+    if (prefersReduced || window.innerWidth <= 768) return;
 
     const timeout = setTimeout(() => {
       const pinned = ScrollTrigger.getAll()
