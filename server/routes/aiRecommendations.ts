@@ -2,7 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { generateId } from '../utils/generateId.js';
-import { generateJSON } from '../utils/gemini.js';
+import { generateJSON } from '../utils/ai.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -12,8 +12,14 @@ const router = Router();
 function authenticateWebhook(req: any, res: Response, next: NextFunction): void {
   const secret = req.headers['x-webhook-secret'] || req.query.secret;
   const expected = process.env.AI_WEBHOOK_SECRET;
-  if (!expected) return res.status(503).json({ error: 'Webhook not configured. Set AI_WEBHOOK_SECRET env var.' });
-  if (!secret || secret !== expected) return res.status(401).json({ error: 'Invalid webhook secret' });
+  if (!expected) {
+    res.status(503).json({ error: 'Webhook not configured. Set AI_WEBHOOK_SECRET env var.' });
+    return;
+  }
+  if (!secret || secret !== expected) {
+    res.status(401).json({ error: 'Invalid webhook secret' });
+    return;
+  }
   next();
 }
 
@@ -81,16 +87,16 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
   // Run all 12 DB queries in parallel
   const results = await Promise.allSettled([
     // 0: client profile
-    // @ts-ignore
-  pool.query('SELECT id, name, email, phone, service, tier, status, business_name, business_address, created_at FROM clients WHERE id = ?', [clientId]),
+   
+    pool.query('SELECT id, name, email, phone, service, tier, status, business_name, business_address, created_at FROM clients WHERE id = ?', [clientId]),
 
     // 1: intake
-    // @ts-ignore
-  pool.query('SELECT * FROM business_intakes WHERE client_id = ? ORDER BY created_at DESC LIMIT 1', [clientId]),
+   
+    pool.query('SELECT * FROM business_intakes WHERE client_id = ? ORDER BY created_at DESC LIMIT 1', [clientId]),
 
     // 2: audits with scores
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT ba.id, ba.version, ba.audit_type, ba.overall_score, ba.status, ba.audit_date,
               ba.published_at, ba.notes
        FROM business_audits ba
@@ -101,8 +107,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
 
     // 3: financials
     periodType === 'yearly'
-      ? // @ts-ignore
-  pool.query(
+      ?
+    pool.query(
           `SELECT period_year,
             SUM(gross_revenue) as annual_revenue, SUM(total_expenses) as annual_expenses,
             SUM(net_profit) as annual_profit, AVG(profit_margin) as avg_margin,
@@ -112,8 +118,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
            GROUP BY period_year`,
           [clientId, startDate.getFullYear()]
         )
-      : // @ts-ignore
-  pool.query(
+      :
+    pool.query(
           `SELECT * FROM client_financials WHERE client_id = ?
            AND (period_year * 100 + period_month) BETWEEN ? AND ?
            ORDER BY period_year DESC, period_month DESC`,
@@ -121,8 +127,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
         ),
 
     // 4: ad spend by platform
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT platform,
         SUM(spend) as total_spend, AVG(roas) as avg_roas,
         SUM(impressions) as total_impressions, SUM(clicks) as total_clicks,
@@ -134,8 +140,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
     ),
 
     // 5: growth targets with latest snapshot
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT gt.*,
         (SELECT gs.value FROM growth_snapshots gs WHERE gs.target_id = gt.id ORDER BY gs.recorded_at DESC LIMIT 1) as latest_value,
         (SELECT gs.progress_percent FROM growth_snapshots gs WHERE gs.target_id = gt.id ORDER BY gs.recorded_at DESC LIMIT 1) as latest_progress,
@@ -145,8 +151,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
     ),
 
     // 6: interventions with metrics
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT i.id, i.title, i.intervention_type, i.status, i.cost_to_client, i.overall_roi,
               i.effectiveness_rating, i.implementation_date, i.notes
        FROM interventions i WHERE i.client_id = ?
@@ -155,15 +161,15 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
     ),
 
     // 7: projects
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       'SELECT id, title, status, progress, start_date, due_date FROM projects WHERE client_id = ? ORDER BY created_at DESC LIMIT 10',
       [clientId]
     ),
 
     // 8: invoices summary
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT
         COUNT(*) as total_invoices,
         SUM(amount) as total_billed,
@@ -175,8 +181,8 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
     ),
 
     // 9: prospects/pipeline
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       `SELECT
         COUNT(*) as total_prospects,
         SUM(CASE WHEN outcome IS NULL THEN 1 ELSE 0 END) as active_count,
@@ -189,15 +195,15 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
     ),
 
     // 10: service requests
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       'SELECT title, urgency, status, budget_range, created_at FROM service_requests WHERE client_id = ? ORDER BY created_at DESC LIMIT 10',
       [clientId]
     ),
 
     // 11: execution plans
-    // @ts-ignore
-  pool.query(
+   
+    pool.query(
       'SELECT name, plan_data, start_date, created_at FROM execution_plans WHERE client_id = ? ORDER BY created_at DESC LIMIT 3',
       [clientId]
     ),
@@ -208,8 +214,7 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
   if (results[2].status === 'fulfilled' && (results[2].value as any)[0].length > 0) {
     const auditIds = (results[2].value as any)[0].map((a: any) => a.id);
     try {
-      const [scores] = await // @ts-ignore
-  pool.query(
+      const [scores] = await pool.query(
         `SELECT s.audit_id, ac.name as category_name, s.score, s.weight
          FROM audit_scores s
          JOIN audit_categories ac ON ac.id = s.category_id
@@ -228,8 +233,7 @@ async function compileClientSnapshot(clientId: string, periodStart: string, peri
   if (results[6].status === 'fulfilled' && (results[6].value as any)[0].length > 0) {
     const intIds = (results[6].value as any)[0].map((i: any) => i.id);
     try {
-      const [metrics] = await // @ts-ignore
-  pool.query(
+      const [metrics] = await pool.query(
         `SELECT intervention_id, metric_name, baseline_value, current_value, change_percent
          FROM intervention_metrics WHERE intervention_id IN (${intIds.map(() => '?').join(',')})`,
         intIds
@@ -399,8 +403,7 @@ router.post('/clients/:clientId/snapshots', authenticateToken, requireRole('owne
     );
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_data_snapshots
        (id, client_id, period_type, period_label, period_start, period_end,
         snapshot_data, data_sources_included, data_completeness_score,
@@ -443,8 +446,7 @@ router.get('/clients/:clientId/snapshots', authenticateToken, async (req: any, r
     sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(Number(limit), Number(offset));
 
-    const [rows] = await // @ts-ignore
-  pool.query(sql, params);
+    const [rows] = await pool.query(sql, params);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('GET snapshots error:', err);
@@ -455,8 +457,7 @@ router.get('/clients/:clientId/snapshots', authenticateToken, async (req: any, r
 // GET /api/ai-recommendations/clients/:clientId/snapshots/:snapshotId — full snapshot
 router.get('/clients/:clientId/snapshots/:snapshotId', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM client_data_snapshots WHERE id = ? AND client_id = ?',
       [req.params.snapshotId, req.params.clientId]
     );
@@ -508,8 +509,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
       const compiled = await compileClientSnapshot(clientId, start, end, period_type, localStorage_data);
 
       snapshotId = generateId();
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `INSERT INTO client_data_snapshots
          (id, client_id, period_type, period_label, period_start, period_end,
           snapshot_data, data_sources_included, data_completeness_score,
@@ -522,8 +522,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
       snapshotData = compiled.snapshotData;
     } else {
       // Load existing snapshot
-      const [rows] = await // @ts-ignore
-  pool.query(
+      const [rows] = await pool.query(
         'SELECT snapshot_data FROM client_data_snapshots WHERE id = ? AND client_id = ?',
         [snapshotId, clientId]
       );
@@ -535,8 +534,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
 
     // Create AI recommendation record
     const recId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO ai_recommendations
        (id, client_id, snapshot_id, ai_provider, analysis_type, generation_status, created_by)
        VALUES (?, ?, ?, 'gemini', ?, 'generating', ?)`,
@@ -554,8 +552,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
       aiResult = await generateJSON(prompt, AI_SYSTEM_INSTRUCTION);
     } catch (aiErr: any) {
       console.error('Gemini error:', aiErr);
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `UPDATE ai_recommendations SET generation_status = 'failed', error_message = ? WHERE id = ?`,
         [aiErr.message || 'AI generation failed', recId]
       );
@@ -567,8 +564,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
     const counts: { [key: string]: number } = { total: recs.length, critical: 0, high: 0, medium: 0, low: 0 };
     recs.forEach((r: any) => { if (counts[r.priority] !== undefined) counts[r.priority]++; });
 
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE ai_recommendations SET
         generation_status = 'completed', generated_at = NOW(),
         ai_response_raw = ?, executive_summary = ?,
@@ -587,8 +583,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
     for (let i = 0; i < recs.length; i++) {
       const r = recs[i];
       const itemId = generateId();
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `INSERT INTO ai_recommendation_items
          (id, ai_recommendation_id, client_id, category, title, description,
           rationale, expected_impact, suggested_timeline, estimated_effort,
@@ -626,8 +621,7 @@ router.post('/clients/:clientId/analyze', authenticateToken, requireRole('owner'
 // GET /api/ai-recommendations/clients/:clientId/analyses — list runs
 router.get('/clients/:clientId/analyses', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       `SELECT id, snapshot_id, ai_provider, analysis_type, generation_status,
               executive_summary, overall_health_rating, confidence_score,
               total_recommendations, critical_count, high_count, medium_count, low_count,
@@ -646,8 +640,7 @@ router.get('/clients/:clientId/analyses', authenticateToken, async (req: any, re
 // GET /api/ai-recommendations/clients/:clientId/analyses/:analysisId — detail with items
 router.get('/clients/:clientId/analyses/:analysisId', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [analyses] = await // @ts-ignore
-  pool.query(
+    const [analyses] = await pool.query(
       'SELECT * FROM ai_recommendations WHERE id = ? AND client_id = ?',
       [req.params.analysisId, req.params.clientId]
     );
@@ -657,8 +650,7 @@ router.get('/clients/:clientId/analyses/:analysisId', authenticateToken, async (
     const analysis = analysesArray[0] as any;
     if (typeof analysis.ai_response_raw === 'string') analysis.ai_response_raw = JSON.parse(analysis.ai_response_raw);
 
-    const [items] = await // @ts-ignore
-  pool.query(
+    const [items] = await pool.query(
       `SELECT * FROM ai_recommendation_items WHERE ai_recommendation_id = ?
        ORDER BY display_order ASC`,
       [req.params.analysisId]
@@ -695,8 +687,7 @@ router.put('/clients/:clientId/analyses/:analysisId/items/:itemId', authenticate
     if (!updates.length) return res.status(400).json({ success: false, error: 'No updates provided' });
 
     params.push(req.params.itemId, req.params.analysisId);
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `UPDATE ai_recommendation_items SET ${updates.join(', ')} WHERE id = ? AND ai_recommendation_id = ?`,
       params
     );
@@ -711,8 +702,7 @@ router.put('/clients/:clientId/analyses/:analysisId/items/:itemId', authenticate
 // DELETE /api/ai-recommendations/clients/:clientId/analyses/:analysisId
 router.delete('/clients/:clientId/analyses/:analysisId', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response) => {
   try {
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       'DELETE FROM ai_recommendations WHERE id = ? AND client_id = ?',
       [req.params.analysisId, req.params.clientId]
     );
@@ -737,8 +727,7 @@ router.get('/webhook/:clientId', authenticateWebhook, async (req: any, res: Resp
     if (period_label) { sql += ' AND period_label = ?'; params.push(period_label); }
     sql += ' ORDER BY created_at DESC LIMIT 1';
 
-    const [rows] = await // @ts-ignore
-  pool.query(sql, params);
+    const [rows] = await pool.query(sql, params);
     const rowsArray = Array.isArray(rows) ? rows : [];
 
     if (rowsArray.length) {
@@ -769,8 +758,7 @@ router.get('/webhook/:clientId', authenticateWebhook, async (req: any, res: Resp
     const { snapshotData, foundSources, completenessScore } = await compileClientSnapshot(clientId, start, end, period_type, null);
 
     const id = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO client_data_snapshots
        (id, client_id, period_type, period_label, period_start, period_end,
         snapshot_data, data_sources_included, data_completeness_score,
@@ -798,8 +786,7 @@ router.post('/webhook/:clientId', authenticateWebhook, async (req: any, res: Res
     }
 
     // Verify snapshot exists
-    const [snaps] = await // @ts-ignore
-  pool.query(
+    const [snaps] = await pool.query(
       'SELECT id FROM client_data_snapshots WHERE id = ? AND client_id = ?',
       [snapshot_id, clientId]
     );
@@ -810,8 +797,7 @@ router.post('/webhook/:clientId', authenticateWebhook, async (req: any, res: Res
     recommendations.forEach((r: any) => { if (counts[r.priority] !== undefined) counts[r.priority]++; });
 
     const recId = generateId();
-    await // @ts-ignore
-  pool.query(
+    await pool.query(
       `INSERT INTO ai_recommendations
        (id, client_id, snapshot_id, ai_provider, model_used, analysis_type,
         generation_status, generated_at, ai_response_raw,
@@ -828,8 +814,7 @@ router.post('/webhook/:clientId', authenticateWebhook, async (req: any, res: Res
     for (let i = 0; i < recommendations.length; i++) {
       const r = recommendations[i];
       const itemId = generateId();
-      await // @ts-ignore
-  pool.query(
+      await pool.query(
         `INSERT INTO ai_recommendation_items
          (id, ai_recommendation_id, client_id, category, title, description,
           rationale, expected_impact, suggested_timeline, estimated_effort,

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
-import { generateContent, generateChat, generateJSON } from '../utils/gemini.js';
+import { generateContent, generateChat, generateJSON } from '../utils/ai.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -157,8 +157,7 @@ router.post('/swot/:clientId', authenticateToken, requireRole('owner', 'admin', 
 // Get latest SWOT analysis for a client
 router.get('/swot/:clientId', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT * FROM swot_analyses WHERE client_id = ? ORDER BY generated_at DESC LIMIT 1',
       [req.params.clientId]
     );
@@ -182,8 +181,7 @@ router.get('/swot/:clientId', authenticateToken, async (req: any, res: Response)
 // Get all SWOT analyses for a client
 router.get('/swot/:clientId/history', authenticateToken, async (req: any, res: Response) => {
   try {
-    const [rows] = await // @ts-ignore
-  pool.query(
+    const [rows] = await pool.query(
       'SELECT id, client_id, ai_generated, generated_at, updated_at FROM swot_analyses WHERE client_id = ? ORDER BY generated_at DESC LIMIT 20',
       [req.params.clientId]
     );

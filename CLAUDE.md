@@ -16,7 +16,7 @@ Full-stack CRM + digital agency website for Three Seas Digital. Public-facing ma
 - **Icons:** lucide-react
 - **PDF:** jspdf
 - **ZIP:** jszip
-- **AI:** Google Gemini API (server/utils/gemini.js)
+- **AI:** Dual-mode via `AI_PROVIDER` env var — Google Gemini API (cloud) or Ollama (local dev)
 - **Storage:** Cloudflare R2 via Worker proxy + IndexedDB local cache (template ZIPs and images)
 
 ## Running
@@ -93,7 +93,8 @@ server/
 │   └── notifications.js, activityLog.js, emailTemplates.js, businessDb.js, research.js, intakes.js
 └── utils/
     ├── generateId.js # ID generator: `${Date.now()}-${randomBytes(4).toString('hex').slice(0,7)}`
-    ├── gemini.js     # Google Gemini AI client
+    ├── ai.js         # Dual-mode AI abstraction (Gemini or Ollama based on AI_PROVIDER env var)
+    ├── gemini.js     # Google Gemini AI client (legacy, use ai.js instead)
     └── roiCalculator.js
 
 database/
@@ -176,6 +177,84 @@ All routes are prefixed with `/api/`. Key mount points from `server/index.js`:
 | `/api/audits` | audits.js | Business audits + scoring |
 | `/api/portal` | portal.js | Client portal dashboard data |
 | `/api/ai` | ai.js | Gemini AI endpoints |
+
+## AI Provider Configuration
+
+Three Seas Digital uses a **multi-provider AI abstraction** (like the existing `DB_PROVIDER` pattern for databases) to switch between different AI providers via the `AI_PROVIDER` env var:
+
+### Provider Options
+
+| Provider | Use Case | Quality | Speed | Cost | Setup |
+|----------|----------|---------|-------|------|-------|
+| **claude** | Complex analysis, SWOT, recommendations (best) | Excellent | Medium | Medium | API key |
+| **gemini** | General tasks, default production | Excellent | Fast | Medium | API key |
+| **ollama** | Local testing, offline dev | Good | Medium | Free | Local install |
+
+### Production: Claude (Recommended for Complex Tasks)
+
+Claude Opus excels at nuanced analysis and structured reasoning for client recommendations.
+
+```bash
+export AI_PROVIDER=claude
+export ANTHROPIC_API_KEY=your-anthropic-api-key
+export CLAUDE_MODEL=claude-opus-4-6  # or -sonnet-4-6, -haiku-4-5
+cd server && node index.js
+```
+
+**Model choices:**
+- `claude-opus-4-6` — Best for complex business analysis (slowest, most capable)
+- `claude-sonnet-4-6` — Balanced speed/quality (recommended)
+- `claude-haiku-4-5` — Fast, cheap (good for high-volume simple tasks)
+
+### Production: Google Gemini
+
+```bash
+export AI_PROVIDER=gemini
+export GEMINI_API_KEY=your-gemini-api-key
+cd server && node index.js
+```
+
+### Development: Ollama (Local)
+
+1. **Install Ollama:** https://ollama.ai
+2. **Run locally:**
+   ```bash
+   ollama pull mistral        # Download model (first time only)
+   ollama serve               # Start Ollama server on :11434
+   ```
+3. **Configure environment:**
+   ```bash
+   export AI_PROVIDER=ollama
+   export OLLAMA_BASE_URL=http://localhost:11434
+   export OLLAMA_MODEL=mistral
+   cd server && node index.js
+   ```
+
+Or use the pre-configured `.env.ollama` file:
+```bash
+cp .env.ollama .env && npm run dev
+```
+
+### How It Works
+
+- Routes (`server/routes/ai.ts`, `server/routes/aiRecommendations.ts`) import 3 functions from `server/utils/ai.js`:
+  - `generateContent(prompt, systemInstruction, model)` — text generation
+  - `generateChat(messages, systemInstruction, model)` — multi-turn conversation
+  - `generateJSON(prompt, systemInstruction, model)` — structured JSON output
+
+- `server/utils/ai.js` checks `process.env.AI_PROVIDER` and routes to:
+  - `'claude'` → Anthropic SDK
+  - `'gemini'` → Google Gemini SDK
+  - `'ollama'` → HTTP POST requests to local API
+
+- **No route changes needed** — all routes use the same function signatures regardless of provider
+
+### Benefits
+
+- **Production quality:** Claude Opus for complex analysis, Gemini for general tasks
+- **Dev iteration:** Ollama runs locally, offline, with no API quota burn
+- **Testing:** Instantly switch providers without code changes
+- **Cost control:** Use Haiku for low-complexity tasks, save Opus for complex analysis
 
 ## Common Commands
 

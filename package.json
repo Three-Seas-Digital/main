@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.28.0",
     "@paypal/react-paypal-js": "^9.0.1",
     "@react-three/fiber": "^9.5.0",
     "@stripe/react-stripe-js": "^5.6.1",

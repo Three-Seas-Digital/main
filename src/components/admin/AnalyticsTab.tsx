@@ -37,7 +37,7 @@ export default function AnalyticsTab() {
     invoices: true,
     clients: true,
   });
-  const toggleChart = (key: string) => setChartVis((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleChart = (key: string) => setChartVis((prev) => ({ ...prev, [key as string]: !prev[key as string] }));
   const allChartsVisible = Object.values(chartVis).every(Boolean);
   const toggleAll = () => {
     const next = !allChartsVisible;
@@ -60,9 +60,9 @@ export default function AnalyticsTab() {
   // Distinct years from all data sources
   const availableYears = useMemo(() => {
     const years = new Set();
-    payments.forEach((p) => years.add(new Date(p.createdAt).getFullYear()));
-    clients.forEach((c) => years.add(new Date(c.createdAt).getFullYear()));
-    appointments.forEach((a) => {
+    payments.forEach((p: any) => years.add(new Date(p.createdAt).getFullYear()));
+    clients.forEach((c: any) => years.add(new Date(c.createdAt).getFullYear()));
+    appointments.forEach((a: any) => {
       if (a.date) {
         const [y] = a.date.split('-');
         years.add(parseInt(y));
@@ -70,7 +70,7 @@ export default function AnalyticsTab() {
         years.add(new Date(a.createdAt).getFullYear());
       }
     });
-    return [...years].sort((a, b) => (b as number) - (a as number));
+    return [...years].sort((a: any, b: any) => (b as number) - (a as number));
   }, [payments, clients, appointments]);
 
   // Filter helper
@@ -80,7 +80,7 @@ export default function AnalyticsTab() {
       start.setHours(0, 0, 0, 0);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-      return items.filter((item) => {
+      return items.filter((item: any) => {
         const val = dateAccessor === 'date' && item.date ? item.date : item.createdAt;
         const d = new Date(val);
         return d >= start && d <= end;
@@ -88,7 +88,7 @@ export default function AnalyticsTab() {
     }
     if (filterYear !== 'all') {
       const yr = parseInt(filterYear);
-      return items.filter((item) => {
+      return items.filter((item: any) => {
         const val = dateAccessor === 'date' && item.date ? item.date : item.createdAt;
         const d = new Date(val);
         if (d.getFullYear() !== yr) return false;
@@ -109,15 +109,15 @@ export default function AnalyticsTab() {
   // Revenue-filtered payments (date + service/tier/method)
   const filteredPayments = useMemo(() => {
     let result = dateFilteredPayments;
-    if (filterService !== 'all') result = result.filter((p) => p.service === filterService);
-    if (filterTier !== 'all') result = result.filter((p) => p.serviceTier === filterTier);
-    if (filterMethod !== 'all') result = result.filter((p) => p.method === filterMethod);
+    if (filterService !== 'all') result = result.filter((p: any) => p.service === filterService);
+    if (filterTier !== 'all') result = result.filter((p: any) => p.serviceTier === filterTier);
+    if (filterMethod !== 'all') result = result.filter((p: any) => p.method === filterMethod);
     return result;
   }, [dateFilteredPayments, filterService, filterTier, filterMethod]);
 
   // Available revenue filter options (derived from date-filtered payments)
-  const availableServices = useMemo(() => [...new Set(dateFilteredPayments.map((p) => p.service).filter(Boolean))].sort(), [dateFilteredPayments]);
-  const availableMethods = useMemo(() => [...new Set(dateFilteredPayments.map((p) => p.method).filter(Boolean))].sort(), [dateFilteredPayments]);
+  const availableServices = useMemo(() => [...new Set(dateFilteredPayments.map((p: any) => p.service).filter(Boolean))].sort(), [dateFilteredPayments]);
+  const availableMethods = useMemo(() => [...new Set(dateFilteredPayments.map((p: any) => p.method).filter(Boolean))].sort(), [dateFilteredPayments]);
 
   // Period label for display
   const periodLabel = useMemo(() => {
@@ -128,15 +128,15 @@ export default function AnalyticsTab() {
   }, [filterYear, filterMonth, startDate, endDate]);
 
   const monthlyRevenue = useMemo(() => {
-    const map = {};
-    filteredPayments.forEach((p) => {
+    const map: Record<string, any> = {};
+    filteredPayments.forEach((p: any) => {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map[key] = (map[key] || 0) + p.amount;
+      map[key as string] = (map[key as string] || 0) + p.amount;
     });
     return Object.entries(map)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, revenue]) => {
+      .sort(([a]: any, [b]: any) => a.localeCompare(b))
+      .map(([month, revenue]: any) => {
         const [y, m] = month.split('-');
         return { month, label: new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), revenue };
       });
@@ -150,17 +150,17 @@ export default function AnalyticsTab() {
       // Specific month selected: compare to previous month
       const yr = parseInt(filterYear);
       const mo = parseInt(filterMonth);
-      curRev = filteredPayments.reduce((s, p) => s + p.amount, 0);
+      curRev = filteredPayments.reduce((s: any, p: any) => s + p.amount, 0);
       const prevMo = mo === 0 ? 11 : mo - 1;
       const prevYr = mo === 0 ? yr - 1 : yr;
-      prevRev = payments.filter((p) => {
+      prevRev = payments.filter((p: any) => {
         const d = new Date(p.createdAt);
         return d.getFullYear() === prevYr && d.getMonth() === prevMo;
-      }).reduce((s, p) => s + p.amount, 0);
+      }).reduce((s: any, p: any) => s + p.amount, 0);
       growthLabel = `vs ${MONTH_NAMES[prevMo].slice(0, 3)}`;
     } else if (startDate && endDate) {
       // Date range: show total for range, no growth comparison
-      curRev = filteredPayments.reduce((s, p) => s + p.amount, 0);
+      curRev = filteredPayments.reduce((s: any, p: any) => s + p.amount, 0);
       prevRev = 0;
       growthLabel = 'filtered period';
     } else {
@@ -170,30 +170,30 @@ export default function AnalyticsTab() {
       const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      curRev = filteredPayments.filter((p) => {
+      curRev = filteredPayments.filter((p: any) => {
         const d = new Date(p.createdAt);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === curMonth;
-      }).reduce((s, p) => s + p.amount, 0);
+      }).reduce((s: any, p: any) => s + p.amount, 0);
 
-      prevRev = filteredPayments.filter((p) => {
+      prevRev = filteredPayments.filter((p: any) => {
         const d = new Date(p.createdAt);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === prevMonth;
-      }).reduce((s, p) => s + p.amount, 0);
+      }).reduce((s: any, p: any) => s + p.amount, 0);
       growthLabel = 'vs last month';
     }
 
     const growth = prevRev > 0 ? ((curRev - prevRev) / prevRev * 100) : (curRev > 0 ? 100 : 0);
 
     const totalAppts = filteredAppointments.length;
-    const converted = filteredAppointments.filter((a) => a.convertedToClient).length;
+    const converted = filteredAppointments.filter((a: any) => a.convertedToClient).length;
     const conversionRate = totalAppts > 0 ? (converted / totalAppts * 100) : 0;
 
-    const totalRevenue = filteredPayments.reduce((s, p) => s + p.amount, 0);
+    const totalRevenue = filteredPayments.reduce((s: any, p: any) => s + p.amount, 0);
     const avgValue = filteredClients.length > 0 ? totalRevenue / filteredClients.length : 0;
 
     // When showing a specific month, use filtered total as "monthly revenue"
     const displayRevenue = (filterMonth !== 'all' || (startDate && endDate))
-      ? filteredPayments.reduce((s, p) => s + p.amount, 0)
+      ? filteredPayments.reduce((s: any, p: any) => s + p.amount, 0)
       : curRev;
 
     return { curRev: displayRevenue, growth, growthLabel, conversionRate, avgValue };
@@ -207,7 +207,7 @@ export default function AnalyticsTab() {
       const d = new Date(c.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       cumulative++;
-      map[key] = cumulative;
+      map[key as string] = cumulative;
     });
     return Object.entries(map).map(([month, total]) => {
       const [y, m] = month.split('-');
@@ -260,7 +260,7 @@ export default function AnalyticsTab() {
   // Yearly revenue comparison (uses ALL payments, not filtered, so you can compare years)
   const yearlyRevenue = useMemo(() => {
     const map = {};
-    payments.forEach((p) => {
+    payments.forEach((p: any) => {
       const yr = new Date(p.createdAt).getFullYear();
       map[yr] = (map[yr] || 0) + p.amount;
     });
@@ -278,7 +278,7 @@ export default function AnalyticsTab() {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       running += p.amount;
-      map[key] = running;
+      map[key as string] = running;
     });
     return Object.entries(map).map(([month, total]) => {
       const [y, m] = month.split('-');
@@ -318,9 +318,9 @@ export default function AnalyticsTab() {
     filteredPayments.forEach((p) => {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!map[key]) map[key] = { count: 0, revenue: 0 };
-      map[key].count++;
-      map[key].revenue += p.amount;
+      if (!map[key as string]) map[key as string] = { count: 0, revenue: 0 };
+      map[key as string].count++;
+      map[key as string].revenue += p.amount;
     });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -342,9 +342,9 @@ export default function AnalyticsTab() {
     filteredPayments.forEach((p) => {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!map[key]) map[key] = { total: 0, count: 0 };
-      map[key].total += p.amount;
-      map[key].count++;
+      if (!map[key as string]) map[key as string] = { total: 0, count: 0 };
+      map[key as string].total += p.amount;
+      map[key as string].count++;
     });
     return Object.entries(map)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -366,15 +366,15 @@ export default function AnalyticsTab() {
     filteredPayments.forEach((p) => {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!revenueMap[key]) revenueMap[key] = 0;
-      revenueMap[key] += p.amount;
+      if (!revenueMap[key as string]) revenueMap[key as string] = 0;
+      revenueMap[key as string] += p.amount;
     });
     const expenseMap = {};
     if (hasRealExpenses) {
-      expenses.forEach((e) => {
+      expenses.forEach((e: any) => {
         const key = e.date.substring(0, 7); // "YYYY-MM"
-        if (!expenseMap[key]) expenseMap[key] = 0;
-        expenseMap[key] += e.amount;
+        if (!expenseMap[key as string]) expenseMap[key as string] = 0;
+        expenseMap[key as string] += e.amount;
       });
     }
     const allMonths = new Set([...Object.keys(revenueMap), ...Object.keys(expenseMap)]);
@@ -398,7 +398,7 @@ export default function AnalyticsTab() {
   const liabilitiesData = useMemo(() => {
     const allInvoices = [];
     filteredClients.forEach((c) => {
-      (c.invoices || []).forEach((inv) => {
+      (c.invoices || []).forEach((inv: any) => {
         allInvoices.push({ ...inv, clientName: c.name, clientId: c.id });
       });
     });
@@ -412,13 +412,13 @@ export default function AnalyticsTab() {
 
     // Outstanding by month
     const monthMap = {};
-    unpaid.forEach((inv) => {
+    unpaid.forEach((inv: any) => {
       const d = new Date(inv.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthMap[key]) monthMap[key] = { outstanding: 0, overdue: 0 };
-      monthMap[key].outstanding += inv.amount;
+      if (!monthMap[key as string]) monthMap[key as string] = { outstanding: 0, overdue: 0 };
+      monthMap[key as string].outstanding += inv.amount;
       if (inv.dueDate && new Date(inv.dueDate) < new Date()) {
-        monthMap[key].overdue += inv.amount;
+        monthMap[key as string].overdue += inv.amount;
       }
     });
     const outstandingByMonth = Object.entries(monthMap)
@@ -447,7 +447,7 @@ export default function AnalyticsTab() {
   const generateTaxReport = useCallback(() => {
     const fp = filteredPayments;
     const fc = filteredClients;
-    const totalRevenue = fp.reduce((s, p) => s + p.amount, 0);
+    const totalRevenue = fp.reduce((s: any, p: any) => s + p.amount, 0);
     const avgPayment = fp.length > 0 ? totalRevenue / fp.length : 0;
 
     // Revenue by month
@@ -455,9 +455,9 @@ export default function AnalyticsTab() {
     fp.forEach((p) => {
       const d = new Date(p.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!revByMonth[key]) revByMonth[key] = { count: 0, revenue: 0 };
-      revByMonth[key].count++;
-      revByMonth[key].revenue += p.amount;
+      if (!revByMonth[key as string]) revByMonth[key as string] = { count: 0, revenue: 0 };
+      revByMonth[key as string].count++;
+      revByMonth[key as string].revenue += p.amount;
     });
     const monthlyRows = Object.entries(revByMonth).sort(([a], [b]) => a.localeCompare(b));
     let runningTotal = 0;
@@ -747,7 +747,7 @@ export default function AnalyticsTab() {
       <div className="analytics-kpi-row">
         <div className="analytics-kpi-card">
           <span className="kpi-label">Total Revenue</span>
-          <span className="kpi-value">{formatCurrency(filteredPayments.reduce((s, p) => s + p.amount, 0))}</span>
+          <span className="kpi-value">{formatCurrency(filteredPayments.reduce((s: any, p: any) => s + p.amount, 0))}</span>
           <span className="kpi-delta neutral">{filteredPayments.length} payments</span>
         </div>
         <div className="analytics-kpi-card">
@@ -755,8 +755,8 @@ export default function AnalyticsTab() {
           <span className="kpi-value" style={{ color: 'var(--success)' }}>
             {formatCurrency(
               hasRealExpenses
-                ? filteredPayments.reduce((s, p) => s + p.amount, 0) - expenses.reduce((s, e) => s + e.amount, 0)
-                : filteredPayments.reduce((s, p) => s + p.amount, 0) * (1 - COST_RATIO)
+                ? filteredPayments.reduce((s: any, p: any) => s + p.amount, 0) - expenses.reduce((s: any, e: any) => s + e.amount, 0)
+                : filteredPayments.reduce((s: any, p: any) => s + p.amount, 0) * (1 - COST_RATIO)
             )}
           </span>
           <span className="kpi-delta positive">{hasRealExpenses ? 'based on actual costs' : 'after est. operating costs'}</span>
