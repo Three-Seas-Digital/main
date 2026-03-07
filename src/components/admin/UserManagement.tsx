@@ -96,7 +96,7 @@ export default function UserManagement() {
                   </div>
                 </div>
                 <div className="pending-card-meta">
-                  <span>Registered {new Date(user.createdAt).toLocaleDateString()}</span>
+                  <span>Registered {(user.createdAt || user.created_at) ? new Date(user.createdAt || user.created_at).toLocaleDateString() : '—'}</span>
                 </div>
                 <div className="pending-card-actions">
                   <div className="pending-role-select">
@@ -230,7 +230,7 @@ export default function UserManagement() {
               <RoleBadge role={user.role} />
             </div>
             <div className="user-card-meta">
-              <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+              <span>Joined {(user.createdAt || user.created_at) ? new Date(user.createdAt || user.created_at).toLocaleDateString() : '—'}</span>
               {user.id === currentUser?.id && (
                 <div className="user-password-peek">
                   <button className="btn-icon" onClick={() => setShowPasswords((p) => ({ ...p, [user.id]: !p[user.id] }))}>{showPasswords[user.id] ? <EyeOff size={14} /> : <Eye size={14} />}</button>

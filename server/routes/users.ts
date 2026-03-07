@@ -12,7 +12,7 @@ const SALT_ROUNDS = 12;
 router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response): Promise<void> => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users ORDER BY created_at DESC'
+      'SELECT id, username, role, display_name AS name, email, status, created_at AS "createdAt", last_login AS "lastLogin" FROM users ORDER BY created_at DESC'
     );
     res.json(rows);
   } catch (err) {
@@ -25,7 +25,7 @@ router.get('/', authenticateToken, requireRole('owner', 'admin', 'manager'), asy
 router.get('/:id', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, role, display_name AS name, email, status, created_at, last_login FROM users WHERE id = ?',
+      'SELECT id, username, role, display_name AS name, email, status, created_at AS "createdAt", last_login AS "lastLogin" FROM users WHERE id = ?',
       [req.params.id]
     );
     if (rows.length === 0) {

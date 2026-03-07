@@ -28,7 +28,7 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response<A
 
     const user = Array.isArray(users) && users.length > 0 ? users[0] as any : null;
     
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ 
         success: false,
         error: 'Invalid credentials' 
@@ -49,8 +49,11 @@ router.post('/login', loginRateLimit(5, 60000), async (req: any, res: Response<A
         id: user.id,
         username: user.username,
         role: user.role,
+        name: user.display_name,
+        displayName: user.display_name,
         email: user.email,
-        password: '', // Don't send actual password in response
+        status: user.status,
+        createdAt: user.created_at,
       } as any,
       accessToken,
       refreshToken
@@ -149,6 +152,167 @@ router.post('/logout', authenticateToken, async (req: any, res: Response<{succes
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ success: false });
+  }
+});
+
+// POST /api/auth/register — Register new admin/staff user (requires admin)
+router.post('/register', authenticateToken, async (req: any, res: Response): Promise<void> => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+      res.status(403).json({ error: 'Only admins can register new users' });
+      return;
+    }
+
+    const { username, password, role, displayName, email } = req.body;
+
+    if (!username || !password) {
+      res.status(400).json({ error: 'Username and password required' });
+      return;
+    }
+
+    const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
+    if (Array.isArray(existing) && existing.length > 0) {
+      res.status(409).json({ error: 'Username already exists' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const validRoles = ['owner', 'admin', 'manager', 'sales', 'accountant', 'it', 'developer', 'analyst'];
+    const userRole = validRoles.includes(role) ? role : 'developer';
+
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, userRole, displayName || username, displayName || username, email || null]
+    );
+
+    res.status(201).json({ id, username, role: userRole, displayName: displayName || username, email: email || null });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/auth/setup — Check if first-run setup is needed (no auth required)
+router.get('/setup', async (_req: any, res: Response): Promise<void> => {
+  try {
+    const [admins] = await pool.query("SELECT id FROM users WHERE role IN ('admin', 'owner') LIMIT 1");
+    res.json({ needsSetup: !Array.isArray(admins) || admins.length === 0 });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/setup — First-run admin creation (no auth required)
+router.post('/setup', async (req: any, res: Response): Promise<void> => {
+  try {
+    const [admins] = await pool.query("SELECT id FROM users WHERE role IN ('admin', 'owner') LIMIT 1");
+    if (Array.isArray(admins) && admins.length > 0) {
+      res.status(403).json({ error: 'Admin already exists. Use login instead.' });
+      return;
+    }
+
+    const { username, password, displayName, email } = req.body;
+    if (!username || !password) {
+      res.status(400).json({ error: 'Username and password required' });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const id = generateId();
+    await pool.query(
+      `INSERT INTO users (id, username, password_hash, role, name, display_name, email, status, created_at)
+       VALUES (?, ?, ?, 'owner', ?, ?, ?, 'active', NOW())`,
+      [id, username, passwordHash, displayName || username, displayName || username, email || null]
+    );
+
+    const { accessToken, refreshToken } = generateTokens(id, username, 'owner');
+    await pool.query(
+      'INSERT INTO refresh_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))',
+      [generateId(), id, refreshToken]
+    );
+
+    res.status(201).json({
+      accessToken,
+      refreshToken,
+      user: { id, username, role: 'owner', displayName: displayName || username, email: email || null },
+    });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/auth/change-password — Change own password (any authenticated user)
+router.put('/change-password', authenticateToken, async (req: any, res: Response): Promise<void> => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current password and new password required' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return;
+    }
+
+    const [users] = await pool.query('SELECT id, password_hash FROM users WHERE id = ?', [req.user.userId]);
+    const user = Array.isArray(users) && users.length > 0 ? users[0] as any : null;
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) {
+      res.status(401).json({ error: 'Current password is incorrect' });
+      return;
+    }
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.user.userId]);
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/auth/me — Get current user from JWT
+router.get('/me', authenticateToken, async (req: any, res: Response): Promise<void> => {
+  try {
+    const [users] = await pool.query(
+      'SELECT id, username, role, display_name, email, status, created_at, last_login FROM users WHERE id = ?',
+      [req.user.userId]
+    );
+
+    const user = Array.isArray(users) && users.length > 0 ? users[0] as any : null;
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      name: user.display_name,
+      displayName: user.display_name,
+      email: user.email,
+      status: user.status,
+      createdAt: user.created_at,
+      lastLogin: user.last_login,
+    });
+  } catch (err) {
+    console.error('[auth] Error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
