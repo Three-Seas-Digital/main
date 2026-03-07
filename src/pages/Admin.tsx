@@ -525,7 +525,7 @@ export default function Admin() {
                         </>
                       )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div className="appt-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px' }}>Name *</label>
                         <input type="text" required value={newAppt.name} onChange={(e) => setNewAppt((p) => ({ ...p, name: e.target.value }))} className="form-input" style={{ width: '100%' }} disabled={!!newAppt.clientId} />
@@ -539,7 +539,7 @@ export default function Admin() {
                         <input type="tel" value={newAppt.phone} onChange={(e) => setNewAppt((p) => ({ ...p, phone: e.target.value }))} className="form-input" style={{ width: '100%' }} disabled={!!newAppt.clientId} />
                       </div>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                    <div className="appt-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '4px' }}>Date *</label>
                         <input type="date" required value={newAppt.date} onChange={(e) => setNewAppt((p) => ({ ...p, date: e.target.value }))} className="form-input" style={{ width: '100%' }} />

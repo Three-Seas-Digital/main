@@ -19086,3 +19086,247 @@ tr.expanded-row td {
   background: rgba(59, 130, 246, 0.08);
   border-color: rgba(59, 130, 246, 0.25);
 }
+
+/* ===== ADMIN MOBILE RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .admin-page {
+    margin-top: 56px;
+    padding-bottom: 32px;
+  }
+
+  /* Header: stack title and actions */
+  .admin-header {
+    padding: 16px 0;
+  }
+  .admin-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .admin-header h1 {
+    font-size: 1.2rem;
+    gap: 8px;
+  }
+  .admin-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .admin-header-actions .btn {
+    font-size: 0.78rem;
+    padding: 6px 10px;
+  }
+  .admin-welcome {
+    font-size: 0.82rem;
+  }
+
+  /* Stat cards: 2 columns, compact */
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: -12px 0 20px;
+  }
+  .admin-stat-card {
+    padding: 14px;
+    gap: 10px;
+  }
+  .admin-stat-card h3 {
+    font-size: 1.3rem;
+  }
+  .admin-stat-card p {
+    font-size: 0.75rem;
+  }
+  .admin-stat-card svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Tabs: horizontal scroll */
+  .admin-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 16px;
+    gap: 0;
+    flex-wrap: nowrap;
+  }
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-tab {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  /* Admin controls: stack vertically */
+  .admin-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .view-toggles {
+    width: 100%;
+    justify-content: center;
+  }
+  .view-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+  .filter-controls {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filter-controls .btn,
+  .filter-controls .filter-select {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+  .filter-select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Admin content (calendar + appointments): stack */
+  .admin-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .admin-calendar-section {
+    position: static;
+  }
+
+  /* Appointment cards: tighter */
+  .appointment-card {
+    padding: 14px;
+    padding-left: 14px;
+  }
+  .appt-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .appt-datetime {
+    gap: 10px;
+    font-size: 0.82rem;
+  }
+  .appt-details {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .appt-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .appt-actions .btn {
+    font-size: 0.78rem;
+    padding: 5px 8px;
+  }
+  .appt-delete-confirm {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .delete-confirm-input {
+    width: 100%;
+  }
+
+  /* Bulk actions: stack */
+  .bulk-actions-bar {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+    text-align: center;
+  }
+  .bulk-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* New appointment form: stack grids */
+  .appt-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Layout gap */
+  .admin-layout {
+    gap: 16px;
+  }
+
+  /* Dashboard quick actions */
+  .dashboard-quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .quick-action-btn {
+    padding: 14px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Dashboard sections */
+  .dashboard-section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tables: horizontal scroll */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Container padding */
+  .admin-page .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Single column stat cards */
+  .admin-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .admin-stat-card {
+    padding: 12px;
+  }
+  .admin-stat-card h3 {
+    font-size: 1.1rem;
+  }
+
+  /* Header actions: wrap tighter */
+  .admin-header-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .admin-header h1 {
+    font-size: 1rem;
+  }
+
+  /* Appointment cards: minimal padding */
+  .appointment-card {
+    padding: 12px;
+  }
+
+  .appt-actions {
+    flex-direction: column;
+  }
+  .appt-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Quick actions: single column */
+  .dashboard-quick-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .quick-action-btn {
+    padding: 12px 8px;
+    gap: 6px;
+  }
+}
