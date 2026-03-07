@@ -85,9 +85,9 @@ export default function TemplatesManagerTab() {
   const [r2Form, setR2Form] = useState(() => getR2Config());
   const [r2Saved, setR2Saved] = useState(false);
   const [r2Testing, setR2Testing] = useState(false);
-  const [r2TestResult, setR2TestResult] = useState(null);
+  const [r2TestResult, setR2TestResult] = useState<any>(null);
   const [r2Syncing, setR2Syncing] = useState(false);
-  const [r2SyncResult, setR2SyncResult] = useState(null);
+  const [r2SyncResult, setR2SyncResult] = useState<any>(null);
 
   const handleR2Save = () => {
     setR2Config(r2Form);

@@ -134,6 +134,7 @@ export default function TaxesTab() {
   // Print tax summary
   const handlePrintTaxSummary = () => {
     const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>

@@ -5,19 +5,19 @@ import { safeGetItem, escapeHtml } from '../../constants';
 
 const DATE_RANGES = ['3M', '6M', '1Y', 'All'];
 
-const monthLabel = (m) => {
+const monthLabel = (m: string) => {
   const [y, mo] = m.split('-');
   return new Date(y, mo - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
-const getMonthsAgo = (n) => {
+const getMonthsAgo = (n: number) => {
   const d = new Date();
   d.setMonth(d.getMonth() - n);
   return d.toISOString().slice(0, 7);
 };
 
-const fmt = (v) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const pct = (v) => Number(v || 0).toFixed(1) + '%';
+const fmt = (v: any) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = (v: any) => Number(v || 0).toFixed(1) + '%';
 
 export default function FinancialReports() {
   const { currentClient } = useAppContext();
@@ -27,9 +27,9 @@ export default function FinancialReports() {
 
   // Get financial data from localStorage
   const allFinancials = useMemo(() => safeGetItem('threeseas_bi_client_financials', {}), []);
-  const clientData = allFinancials[clientId];
+  const clientData = (allFinancials as Record<string, any>)[clientId as string];
   const rawEntries = useMemo(
-    () => (clientData?.entries || []).slice().sort((a, b) => a.month.localeCompare(b.month)),
+    () => (clientData?.entries || []).slice().sort((a: any, b: any) => a.month.localeCompare(b.month)),
     [clientData]
   );
 

@@ -20,8 +20,8 @@ export default function FollowUpsTab() {
   const [followUpDate, setFollowUpDate] = useState('');
   const [filterFU, setFilterFU] = useState('all');
   const [convertMsg, setConvertMsg] = useState('');
-  const [additionalNote, setAdditionalNote] = useState({});
-  const [expandedNotes, setExpandedNotes] = useState({});
+  const [additionalNote, setAdditionalNote] = useState<Record<string, string>>({});
+  const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [draggedAppt, setDraggedAppt] = useState(null);
@@ -30,30 +30,30 @@ export default function FollowUpsTab() {
   const [rescheduleApptId, setRescheduleApptId] = useState(null);
   const [newApptId, setNewApptId] = useState(null);
   const [apptNotesId, setApptNotesId] = useState(null);
-  const [fuApptNotes, setFuApptNotes] = useState({});
+  const [fuApptNotes, setFuApptNotes] = useState<Record<string, string>>({});
 
   // Show confirmed appointments that need follow-up, plus ALL appointments that have follow-ups
-  const confirmedAppts = useMemo(() => appointments.filter((a) => a.status === 'confirmed'), [appointments]);
-  const needsFollowUp = useMemo(() => confirmedAppts.filter((a) => !a.followUp && !a.sentToPipeline && !a.parentFollowUpId), [confirmedAppts]);
-  const withFollowUp = useMemo(() => appointments.filter((a) => a.followUp && !a.sentToPipeline), [appointments]);
+  const confirmedAppts = useMemo(() => appointments.filter((a: any) => a.status === 'confirmed'), [appointments]);
+  const needsFollowUp = useMemo(() => confirmedAppts.filter((a: any) => !a.followUp && !a.sentToPipeline && !a.parentFollowUpId), [confirmedAppts]);
+  const withFollowUp = useMemo(() => appointments.filter((a: any) => a.followUp && !a.sentToPipeline), [appointments]);
   const filteredFollowUps = useMemo(() => filterFU === 'all'
-    ? withFollowUp.filter((a) => a.followUp.status !== 'archived')
-    : withFollowUp.filter((a) => a.followUp.status === filterFU), [withFollowUp, filterFU]);
+    ? withFollowUp.filter((a: any) => a.followUp.status !== 'archived')
+    : withFollowUp.filter((a: any) => a.followUp.status === filterFU), [withFollowUp, filterFU]);
 
   // Staff members for kanban
-  const staffMembers = useMemo(() => users.filter((u) => u.status === 'approved' && u.role !== 'pending'), [users]);
+  const staffMembers = useMemo(() => users.filter((u: any) => u.status === 'approved' && u.role !== 'pending'), [users]);
 
   // Drag and drop handlers
-  const handleDragStart = (e, appt) => {
+  const handleDragStart = (e: React.DragEvent, appt: any) => {
     setDraggedAppt(appt);
     e.dataTransfer.effectAllowed = 'move';
   };
-  const handleDragOver = (e, columnId) => {
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
     setDragOverColumn(columnId);
   };
   const handleDragLeave = () => setDragOverColumn(null);
-  const handleDrop = (e, userId) => {
+  const handleDrop = (e: React.DragEvent, userId: string) => {
     e.preventDefault();
     if (draggedAppt && canManage) {
       assignAppointment(draggedAppt.id, userId === 'unassigned' ? null : userId);
@@ -63,22 +63,22 @@ export default function FollowUpsTab() {
   };
   const handleDragEnd = () => { setDraggedAppt(null); setDragOverColumn(null); };
 
-  const handleMarkFollowUp = (id) => {
+  const handleMarkFollowUp = (id: string) => {
     if (!note.trim()) return;
     markFollowUp(id, { note, priority, followUpDate, status: 'pending' });
     setShowFormFor(null); setNote(''); setPriority('normal'); setFollowUpDate('');
   };
 
-  const handleSendToPipeline = (apptId) => {
-    const appt = appointments.find((a) => a.id === apptId);
+  const handleSendToPipeline = (apptId: string) => {
+    const appt = appointments.find((a: any) => a.id === apptId);
     if (!appt) return;
     // Collect notes from follow-up and any lead notes that were passed
-    const allNotes = [];
+    const allNotes: any[] = [];
     if (appt.leadNotes) {
       allNotes.push(...appt.leadNotes);
     }
     if (appt.followUp?.notes) {
-      allNotes.push(...appt.followUp.notes.filter((n) => !allNotes.some((existing) => existing.id === n.id)));
+      allNotes.push(...appt.followUp.notes.filter((n: any) => !allNotes.some((existing: any) => existing.id === n.id)));
     }
     if (appt.followUp?.note) {
       allNotes.push({ id: `fu-${apptId}`, text: appt.followUp.note, author: 'Follow-Up', createdAt: appt.followUp.createdAt });
@@ -209,7 +209,7 @@ export default function FollowUpsTab() {
                 </div>
                 <div className="kanban-column-content">
                   {/* Needs Follow-Up items (no followUp yet) */}
-                  {needsFollowUp.filter((a) => !a.assignedTo).map((appt) => (
+                  {needsFollowUp.filter((a: any) => !a.assignedTo).map((appt: any) => (
                     <div
                       key={appt.id}
                       className={`kanban-card fu-kanban-card needs-followup ${draggedAppt?.id === appt.id ? 'dragging' : ''}`}
@@ -229,7 +229,7 @@ export default function FollowUpsTab() {
                     </div>
                   ))}
                   {/* Follow-Up Tracker items (has followUp) */}
-                  {filteredFollowUps.filter((a) => !a.assignedTo).map((appt) => (
+                  {filteredFollowUps.filter((a: any) => !a.assignedTo).map((appt: any) => (
                     <div
                       key={appt.id}
                       className={`kanban-card fu-kanban-card ${draggedAppt?.id === appt.id ? 'dragging' : ''}`}
@@ -256,9 +256,9 @@ export default function FollowUpsTab() {
               </div>
 
               {/* Staff Columns */}
-              {staffMembers.map((staff, index) => {
-                const staffNeedsFollowUp = needsFollowUp.filter((a) => a.assignedTo === staff.id);
-                const staffFollowUps = filteredFollowUps.filter((a) => a.assignedTo === staff.id);
+              {staffMembers.map((staff: any, index: number) => {
+                const staffNeedsFollowUp = needsFollowUp.filter((a: any) => a.assignedTo === staff.id);
+                const staffFollowUps = filteredFollowUps.filter((a: any) => a.assignedTo === staff.id);
                 const totalCount = staffNeedsFollowUp.length + staffFollowUps.length;
                 const staffColor = staff.color || STAFF_COLORS[index % STAFF_COLORS.length];
                 return (
@@ -281,7 +281,7 @@ export default function FollowUpsTab() {
                     </div>
                     <div className="kanban-column-content">
                       {/* Needs Follow-Up items assigned to this staff */}
-                      {staffNeedsFollowUp.map((appt) => (
+                      {staffNeedsFollowUp.map((appt: any) => (
                         <div
                           key={appt.id}
                           className={`kanban-card fu-kanban-card needs-followup ${draggedAppt?.id === appt.id ? 'dragging' : ''}`}
@@ -302,7 +302,7 @@ export default function FollowUpsTab() {
                         </div>
                       ))}
                       {/* Follow-Up Tracker items assigned to this staff */}
-                      {staffFollowUps.map((appt) => (
+                      {staffFollowUps.map((appt: any) => (
                         <div
                           key={appt.id}
                           className={`kanban-card fu-kanban-card ${draggedAppt?.id === appt.id ? 'dragging' : ''}`}
@@ -342,7 +342,7 @@ export default function FollowUpsTab() {
           <div className="empty-state-sm"><p>All confirmed appointments have been followed up</p></div>
         ) : (
           <div className="fu-list">
-            {needsFollowUp.map((appt) => (
+            {needsFollowUp.map((appt: any) => (
               <div key={appt.id} className="fu-card">
                 <div className="fu-card-top">
                   <div className="fu-card-info">
@@ -388,10 +388,10 @@ export default function FollowUpsTab() {
           <div className="empty-state-sm"><p>No follow-ups to show</p></div>
         ) : (
           <div className="fu-list">
-            {filteredFollowUps.map((appt) => {
-              const uniqueLeadNotes = appt.leadNotes?.filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i) || [];
-              const leadNoteIds = new Set(uniqueLeadNotes.map((n) => n.id));
-              const uniqueFollowUpNotes = (appt.followUp.notes || []).filter((n) => !leadNoteIds.has(n.id));
+            {filteredFollowUps.map((appt: any) => {
+              const uniqueLeadNotes = appt.leadNotes?.filter((n: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === n.id) === i) || [];
+              const leadNoteIds = new Set(uniqueLeadNotes.map((n: any) => n.id));
+              const uniqueFollowUpNotes = (appt.followUp.notes || []).filter((n: any) => !leadNoteIds.has(n.id));
               const totalNotes = uniqueLeadNotes.length + uniqueFollowUpNotes.length;
 
               return (
@@ -424,7 +424,7 @@ export default function FollowUpsTab() {
                         {uniqueLeadNotes.length > 0 && (
                           <div className="fu-notes-section">
                             <span className="fu-notes-label">From Lead Prospecting:</span>
-                            {uniqueLeadNotes.map((n) => (
+                            {uniqueLeadNotes.map((n: any) => (
                               <div key={n.id} className="fu-note-item lead-note">
                                 <div className="fu-note-content">
                                   <p>{n.text}</p>
@@ -435,7 +435,7 @@ export default function FollowUpsTab() {
                           </div>
                         )}
                         {/* Follow-up Notes (exclude any that are already in leadNotes) */}
-                        {uniqueFollowUpNotes.map((n) => (
+                        {uniqueFollowUpNotes.map((n: any) => (
                           <div key={n.id} className="fu-note-item">
                             <div className="fu-note-content">
                               <p>{n.text}</p>
@@ -519,7 +519,7 @@ export default function FollowUpsTab() {
                     linkedEmail={appt.email}
                     linkedPhone={appt.phone}
                     linkedService={appt.service}
-                    onSchedule={({ date, time }) => {
+                    onSchedule={({ date, time }: { date: string; time: string }) => {
                       updateAppointment(appt.id, { date, time });
                       setRescheduleApptId(null);
                     }}
@@ -531,7 +531,7 @@ export default function FollowUpsTab() {
                     linkedEmail={appt.email}
                     linkedPhone={appt.phone}
                     linkedService={appt.service}
-                    onSchedule={({ date, time, message }) => {
+                    onSchedule={({ date, time, message }: { date: string; time: string; message?: string }) => {
                       const newAppt = addAppointment({
                         name: appt.name,
                         email: appt.email || '',
@@ -557,7 +557,7 @@ export default function FollowUpsTab() {
                   <div className="appt-notes-panel">
                     <div className="appt-notes-list">
                       {(appt.followUp.notes || []).length > 0 ? (
-                        (appt.followUp.notes || []).map((n) => (
+                        (appt.followUp.notes || []).map((n: any) => (
                           <div key={n.id} className="appt-note-item">
                             <p>{n.text}</p>
                             <span className="appt-note-meta">{n.author} &middot; {new Date(n.createdAt).toLocaleDateString()}</span>
@@ -594,8 +594,8 @@ export default function FollowUpsTab() {
                 {appt.followUp.linkedAppointments?.length > 0 && (
                   <div className="fu-linked-appts">
                     <span className="fu-linked-label"><CalendarDays size={13} /> Scheduled Appointments ({appt.followUp.linkedAppointments.length})</span>
-                    {appt.followUp.linkedAppointments.map((aId) => {
-                      const linked = appointments.find((a) => a.id === aId);
+                    {appt.followUp.linkedAppointments.map((aId: string) => {
+                      const linked = appointments.find((a: any) => a.id === aId);
                       if (!linked) return null;
                       return (
                         <div key={aId} className={`fu-linked-appt-item ${linked.status === 'cancelled' ? 'cancelled' : ''}`}>

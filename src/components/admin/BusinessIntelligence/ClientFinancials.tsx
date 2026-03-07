@@ -95,7 +95,7 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
   const [selectedClientId, setSelectedClientId] = useState<string>(biClientId || '');
   const [clientSearch, setClientSearch] = useState<string>(() => {
     if (!biClientId) return '';
-    const c = clients.find(cl => cl.id === biClientId);
+    const c = clients.find((cl: any) => cl.id === biClientId);
     return c ? c.name + (c.businessName ? ' (' + c.businessName + ')' : '') : '';
   });
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
@@ -112,35 +112,35 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
 
-  const activeClients = clients.filter(c => c.status !== 'archived' && c.status !== 'rejected');
+  const activeClients = clients.filter((c: any) => c.status !== 'archived' && c.status !== 'rejected');
 
   const filteredClients = useMemo(() => {
     if (!clientSearch.trim()) return activeClients;
     const q = clientSearch.toLowerCase();
-    return activeClients.filter(c =>
+    return activeClients.filter((c: any) =>
       c.name?.toLowerCase().includes(q) || c.businessName?.toLowerCase().includes(q)
     );
   }, [activeClients, clientSearch]);
 
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const selectedClient = clients.find((c: any) => c.id === selectedClientId);
 
   const [dataVersion, setDataVersion] = useState<number>(0);
-  const allData = useMemo(() => safeGetItem(STORAGE_KEY, {}), [dataVersion, selectedClientId]);
+  const allData: Record<string, any> = useMemo(() => safeGetItem(STORAGE_KEY, {}), [dataVersion, selectedClientId]);
   const rawEntries = useMemo(() =>
-    (allData[selectedClientId]?.entries || []).slice().sort((a, b) => a.month.localeCompare(b.month)),
+    (allData[selectedClientId]?.entries || []).slice().sort((a: any, b: any) => a.month.localeCompare(b.month)),
     [allData, selectedClientId]
   );
 
   // Date range filtering
   const entries = useMemo(() => {
     if (dateRange === 'All') return rawEntries;
-    let start, end;
+    let start: string = '', end: string = '';
     const now = new Date().toISOString().slice(0, 7);
     if (dateRange === 'Last 3 Months') { start = getMonthsAgo(3); end = now; }
     else if (dateRange === 'Last 6 Months') { start = getMonthsAgo(6); end = now; }
     else if (dateRange === 'This Year') { start = new Date().getFullYear() + '-01'; end = now; }
     else if (dateRange === 'Custom') { start = customStart; end = customEnd; }
-    return rawEntries.filter(e => (!start || e.month >= start) && (!end || e.month <= end));
+    return rawEntries.filter((e: any) => (!start || e.month >= start) && (!end || e.month <= end));
   }, [rawEntries, dateRange, customStart, customEnd]);
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
 
   useEffect(() => {
     if (!form.month || !selectedClientId) return;
-    const existing = entries.find(e => e.month === form.month && e.id !== editingId);
+    const existing = entries.find((e: any) => e.month === form.month && e.id !== editingId);
     if (existing && !editingId) { setForm({ ...existing }); setEditingId(existing.id); }
   }, [form.month, entries, selectedClientId, editingId]);
 
@@ -167,14 +167,14 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
   const handleSave = () => {
     if (!selectedClientId || !form.month) return;
     setSaving(true);
-    const data = safeGetItem(STORAGE_KEY, {});
+    const data: Record<string, any> = safeGetItem(STORAGE_KEY, {});
     if (!data[selectedClientId]) data[selectedClientId] = { clientId: selectedClientId, entries: [] };
     const now = new Date().toISOString();
     const numFields = ['revenue', 'expenses', 'adSpend', 'newCustomers', 'websiteTraffic', 'conversionRate', 'leadCount'];
-    const entry = { ...form };
+    const entry: Record<string, any> = { ...form };
     numFields.forEach(f => { entry[f] = Number(entry[f]) || 0; });
     if (editingId) {
-      const idx = data[selectedClientId].entries.findIndex(e => e.id === editingId);
+      const idx = data[selectedClientId].entries.findIndex((e: any) => e.id === editingId);
       if (idx !== -1) data[selectedClientId].entries[idx] = { ...entry, id: editingId, updatedAt: now };
     } else {
       entry.id = generateId();
@@ -214,9 +214,9 @@ export default function ClientFinancials({ biClientId, onBiClientChange }: Clien
   const handleEdit = (entry: any) => { setForm({ ...entry }); setEditingId(entry.id); setFormOpen(true); };
 
   const handleDelete = (id: string) => {
-    const data = safeGetItem(STORAGE_KEY, {});
+    const data: Record<string, any> = safeGetItem(STORAGE_KEY, {});
     if (data[selectedClientId]) {
-      data[selectedClientId].entries = data[selectedClientId].entries.filter(e => e.id !== id);
+      data[selectedClientId].entries = data[selectedClientId].entries.filter((e: any) => e.id !== id);
       safeSetItem(STORAGE_KEY, JSON.stringify(data));
       setDataVersion(v => v + 1);
     }

@@ -23,7 +23,11 @@ import { portalApi } from '../api/portal';
 const AppContext = createContext<any>(null);
 
 // Onboarding document entry factory
-const createOnboardingDocEntry = () => ({
+const createOnboardingDocEntry = (): {
+  status: string; generatedDocId: string | null; uploadedDocId: string | null;
+  generatedAt: string | null; downloadedAt: string | null; uploadedAt: string | null;
+  reviewedAt: string | null; reviewedBy: string | null; adminNotes: string;
+} => ({
   status: 'pending',       // pending -> generated -> downloaded -> uploaded -> approved
   generatedDocId: null,    // ID in client.documents[] for admin-generated PDF
   uploadedDocId: null,     // ID in client.documents[] for client-uploaded version
@@ -31,7 +35,12 @@ const createOnboardingDocEntry = () => ({
   reviewedAt: null, reviewedBy: null, adminNotes: '',
 });
 
-const createDefaultOnboarding = () => ({
+const createDefaultOnboarding = (): {
+  complete: boolean; welcomeEmailSent: boolean;
+  startedAt: string | null; completedAt: string | null; completedBy: string | null;
+  documents: Record<string, ReturnType<typeof createOnboardingDocEntry>>;
+  documentsGeneratedAt: string | null; documentsGeneratedBy: string | null;
+} => ({
   complete: false, welcomeEmailSent: false,
   startedAt: null, completedAt: null, completedBy: null,
   documents: {
@@ -520,10 +529,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Appointments
   const addAppointment = (appointment: Record<string, any>) => {
-    const newAppt = {
+    const newAppt: Record<string, any> = {
       id: generateId(),
       status: 'pending',
-      followUp: null,
+      followUp: null as any,
       createdAt: new Date().toISOString(),
       ...appointment,
     };

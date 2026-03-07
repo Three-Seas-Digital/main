@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 
-function WireShape({ geometry, position, rotationSpeed, floatSpeed, floatAmp, color, opacity }) {
+function WireShape({ geometry, position, rotationSpeed, floatSpeed, floatAmp, color, opacity }: any) {
   const meshRef = useRef(null);
   const baseY = position[1];
   const [reduced, setReduced] = useState(false);
@@ -9,7 +9,7 @@ function WireShape({ geometry, position, rotationSpeed, floatSpeed, floatAmp, co
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReduced(mq.matches);
-    const handler = (e) => setReduced(e.matches);
+    const handler = (e: any) => setReduced(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
@@ -49,8 +49,8 @@ const PRESETS = {
   ],
 };
 
-export default function FloatingShapes({ preset = 'services' }) {
-  const shapes = useMemo(() => PRESETS[preset] || PRESETS.services, [preset]);
+export default function FloatingShapes({ preset = 'services' }: { preset?: string }) {
+  const shapes = useMemo(() => (PRESETS as Record<string, any>)[preset] || PRESETS.services, [preset]);
 
   return (
     <div className="floating-shapes">
@@ -59,7 +59,7 @@ export default function FloatingShapes({ preset = 'services' }) {
         dpr={[1, 1]}
         gl={{ antialias: false, alpha: true }}
       >
-        {shapes.map((s, i) => (
+        {shapes.map((s: any, i: number) => (
           <WireShape key={i} {...s} />
         ))}
       </Canvas>

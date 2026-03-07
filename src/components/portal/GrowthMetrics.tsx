@@ -16,10 +16,10 @@ const STATUS_CONFIG = {
 };
 
 // Sparkline SVG chart
-function Sparkline({ data, width = 120, height = 32 }) {
+function Sparkline({ data, width = 120, height = 32 }: { data: any[]; width?: number; height?: number }) {
   if (!data || data.length < 2) return null;
 
-  const values = data.map((d) => (typeof d === 'number' ? d : d.value || 0));
+  const values = data.map((d: any) => (typeof d === 'number' ? d : d.value || 0));
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
@@ -27,7 +27,7 @@ function Sparkline({ data, width = 120, height = 32 }) {
   const chartW = width - padding * 2;
   const chartH = height - padding * 2;
 
-  const points = values.map((v, i) => {
+  const points = values.map((v: number, i: number) => {
     const x = padding + (i / (values.length - 1)) * chartW;
     const y = padding + chartH - ((v - min) / range) * chartH;
     return `${x},${y}`;
@@ -63,9 +63,9 @@ function Sparkline({ data, width = 120, height = 32 }) {
 }
 
 // Progress bar with percentage
-function ProgressBar({ pct, status }) {
+function ProgressBar({ pct, status }: { pct: number; status: string }) {
   const clampedPct = Math.min(Math.max(pct, 0), 100);
-  const conf = STATUS_CONFIG[status] || STATUS_CONFIG.active;
+  const conf = (STATUS_CONFIG as Record<string, any>)[status] || STATUS_CONFIG.active;
 
   return (
     <div className="portal-progress-container">
@@ -86,8 +86,8 @@ function ProgressBar({ pct, status }) {
   );
 }
 
-function StatusBadge({ status }) {
-  const conf = STATUS_CONFIG[status] || STATUS_CONFIG.active;
+function StatusBadge({ status }: { status: string }) {
+  const conf = (STATUS_CONFIG as Record<string, any>)[status] || STATUS_CONFIG.active;
   return (
     <span
       className="portal-status-badge"
@@ -117,11 +117,11 @@ export default function GrowthMetrics() {
 
   // Build snapshots map: metricId -> array of snapshot values
   const snapshotsMap = useMemo(() => {
-    const map = {};
+    const map: Record<string, any[]> = {};
     allSnapshots
-      .filter((s) => s.clientId === clientId)
-      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-      .forEach((s) => {
+      .filter((s: any) => s.clientId === clientId)
+      .sort((a: any, b: any) => (a.date || '').localeCompare(b.date || ''))
+      .forEach((s: any) => {
         if (!map[s.metricId]) map[s.metricId] = [];
         map[s.metricId].push(s);
       });
@@ -171,14 +171,14 @@ export default function GrowthMetrics() {
   }, [filteredMetrics, sortBy]);
 
   const statusCounts = useMemo(() => {
-    const counts = { all: clientTargets.length, active: 0, achieved: 0, missed: 0, paused: 0 };
-    clientTargets.forEach((m) => {
+    const counts: Record<string, number> = { all: clientTargets.length, active: 0, achieved: 0, missed: 0, paused: 0 };
+    clientTargets.forEach((m: any) => {
       if (counts[m.status] !== undefined) counts[m.status]++;
     });
     return counts;
   }, [clientTargets]);
 
-  const renderMetricCard = (metric) => (
+  const renderMetricCard = (metric: any) => (
     <div key={metric.id} className="portal-growth-card">
       <div className="portal-growth-card-header">
         <div className="portal-growth-card-title">
@@ -212,7 +212,7 @@ export default function GrowthMetrics() {
       {metric.snapshots.length >= 2 && (
         <div className="portal-growth-sparkline-wrapper">
           <Sparkline
-            data={metric.snapshots.map((s) => s.value)}
+            data={metric.snapshots.map((s: any) => s.value)}
             width={160}
             height={36}
           />
@@ -251,11 +251,11 @@ export default function GrowthMetrics() {
               onClick={() => setFilterStatus(status)}
               style={
                 filterStatus === status && status !== 'all'
-                  ? { background: STATUS_CONFIG[status]?.bg, color: STATUS_CONFIG[status]?.color, borderColor: STATUS_CONFIG[status]?.color }
+                  ? { background: (STATUS_CONFIG as Record<string, any>)[status]?.bg, color: (STATUS_CONFIG as Record<string, any>)[status]?.color, borderColor: (STATUS_CONFIG as Record<string, any>)[status]?.color }
                   : undefined
               }
             >
-              {status === 'all' ? 'All' : STATUS_CONFIG[status]?.label} ({statusCounts[status] || 0})
+              {status === 'all' ? 'All' : (STATUS_CONFIG as Record<string, any>)[status]?.label} ({statusCounts[status] || 0})
             </button>
           ))}
         </div>
@@ -294,10 +294,10 @@ export default function GrowthMetrics() {
             if (!hasTiers) return sortedMetrics.map(renderMetricCard);
 
             const tierOrder = ['north_star', 'driver', 'guardrail', 'universal', 'custom'];
-            const grouped = {};
-            const ungrouped = [];
-            sortedMetrics.forEach(m => {
-              if (m.tier && TIER_META[m.tier]) {
+            const grouped: Record<string, any[]> = {};
+            const ungrouped: any[] = [];
+            sortedMetrics.forEach((m: any) => {
+              if (m.tier && (TIER_META as Record<string, any>)[m.tier]) {
                 if (!grouped[m.tier]) grouped[m.tier] = [];
                 grouped[m.tier].push(m);
               } else {
@@ -307,7 +307,7 @@ export default function GrowthMetrics() {
 
             return (
               <>
-                {tierOrder.map(tier => {
+                {tierOrder.map((tier: string) => {
                   const items = grouped[tier];
                   if (!items || items.length === 0) return null;
                   const meta = TIER_META[tier];

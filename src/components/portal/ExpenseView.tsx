@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DollarSign, TrendingDown, PieChart as PieChartIcon, Calendar, Inbox } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { safeGetItem } from '../../constants';
@@ -9,23 +9,23 @@ import {
 
 const DATE_RANGES = ['3M', '6M', '1Y', 'All'];
 
-const monthLabel = (m) => {
+const monthLabel = (m: string) => {
   const [y, mo] = m.split('-');
-  return new Date(y, mo - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 };
 
-const getMonthsAgo = (n) => {
+const getMonthsAgo = (n: number) => {
   const d = new Date();
   d.setMonth(d.getMonth() - n);
   return d.toISOString().slice(0, 7);
 };
 
-const fmt = (v) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
-const pct = (v) => Number(v || 0).toFixed(1) + '%';
+const fmt = (v: any) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+const pct = (v: any) => Number(v || 0).toFixed(1) + '%';
 
 const PIE_COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6', '#14b8a6', '#6b7280'];
 
-function KpiCard({ icon, label, value, color }) {
+function KpiCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div className="portal-expense-kpi" style={{ borderLeft: `3px solid ${color}` }}>
       <div className="portal-expense-kpi-icon" style={{ color }}>
@@ -49,7 +49,7 @@ export default function ExpenseView() {
   const allFinancials = useMemo(() => safeGetItem('threeseas_bi_client_financials', {}), []);
   const clientData = allFinancials[clientId];
   const rawEntries = useMemo(
-    () => (clientData?.entries || []).slice().sort((a, b) => a.month.localeCompare(b.month)),
+    () => (clientData?.entries || []).slice().sort((a: any, b: any) => a.month.localeCompare(b.month)),
     [clientData]
   );
 
@@ -61,13 +61,13 @@ export default function ExpenseView() {
     if (dateRange === '3M') start = getMonthsAgo(3);
     else if (dateRange === '6M') start = getMonthsAgo(6);
     else if (dateRange === '1Y') start = getMonthsAgo(12);
-    return rawEntries.filter(e => (!start || e.month >= start) && e.month <= now);
+    return rawEntries.filter((e: any) => (!start || e.month >= start) && e.month <= now);
   }, [rawEntries, dateRange]);
 
   // Calculate stats
   const stats = useMemo(() => {
-    const totalExpenses = entries.reduce((sum, e) => sum + (e.expenses || 0), 0);
-    const totalAdSpend = entries.reduce((sum, e) => sum + (e.adSpend || 0), 0);
+    const totalExpenses = entries.reduce((sum: number, e: any) => sum + (e.expenses || 0), 0);
+    const totalAdSpend = entries.reduce((sum: number, e: any) => sum + (e.adSpend || 0), 0);
     const totalOther = totalExpenses - totalAdSpend;
 
     const marketingPct = totalExpenses > 0 ? (totalAdSpend / totalExpenses) * 100 : 0;
@@ -86,7 +86,7 @@ export default function ExpenseView() {
 
   // Chart data
   const trendData = useMemo(
-    () => entries.map(e => ({
+    () => entries.map((e: any) => ({
       month: monthLabel(e.month),
       expenses: e.expenses || 0,
       adSpend: e.adSpend || 0,
@@ -190,15 +190,15 @@ export default function ExpenseView() {
                 cy="50%"
                 outerRadius={90}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                 labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
               >
-                {pieData.map((entry, index) => (
+                {pieData.map((_entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(v) => [fmt(v), '']}
+                formatter={(v: any) => [fmt(v), '']}
                 contentStyle={{
                   backgroundColor: '#fff',
                   border: '1px solid #e5e7eb',
@@ -223,12 +223,12 @@ export default function ExpenseView() {
               stroke="#9ca3af"
             />
             <YAxis
-              tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+              tickFormatter={(v: any) => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               stroke="#9ca3af"
             />
             <Tooltip
-              formatter={(v, name) => [fmt(v), name === 'expenses' ? 'Total Expenses' : 'Ad Spend']}
+              formatter={(v: any, name: any) => [fmt(v), name === 'expenses' ? 'Total Expenses' : 'Ad Spend']}
               contentStyle={{
                 backgroundColor: '#fff',
                 border: '1px solid #e5e7eb',

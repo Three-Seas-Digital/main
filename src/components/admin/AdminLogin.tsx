@@ -8,7 +8,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [failCount, setFailCount] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const { login } = useAppContext();
   const [now, setNow] = useState(() => Date.now());
   const isLocked = lockedUntil && now < lockedUntil;
@@ -23,7 +23,7 @@ export default function AdminLogin() {
     return () => clearInterval(timer);
   }, [lockedUntil]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isLocked) return;
     const result = await login(username, password);
@@ -59,7 +59,7 @@ export default function AdminLogin() {
             <label>Password</label>
             <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} placeholder="Password" required />
           </div>
-          <button type="submit" className="auth-submit" disabled={isLocked}>
+          <button type="submit" className="auth-submit" disabled={isLocked ?? undefined}>
             {isLocked ? `Locked (${lockSeconds}s)` : 'Sign In'}
           </button>
         </form>

@@ -207,14 +207,14 @@ export default function JourneyFunnel({ biClientId, onBiClientChange }: JourneyF
   // ── Loss Analysis ─────────────────────────────────────────────────────────
   const lossChartData = useMemo(() => {
     const lostProspects = filteredProspects.filter(p => p.outcome === 'lost');
-    const grouped = {};
+    const grouped: Record<string, number> = {};
     lostProspects.forEach(p => {
       const reason = p.lossReason || 'other';
       grouped[reason] = (grouped[reason] || 0) + 1;
     });
     return Object.entries(grouped)
       .map(([reason, count]) => ({
-        reason: LOSS_REASON_LABELS[reason] || reason,
+        reason: (LOSS_REASON_LABELS as Record<string, string>)[reason] || reason,
         count,
       }))
       .sort((a, b) => (b.count as number) - (a.count as number));
@@ -349,14 +349,14 @@ export default function JourneyFunnel({ biClientId, onBiClientChange }: JourneyF
                   cy="50%"
                   outerRadius={80}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   labelLine={false}
                 >
                   {[1, 2, 3].map((_, i) => (
                     <Cell key={i} fill={FUNNEL_COLORS[i + 1]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v) => [v, 'Prospects']} />
+                <Tooltip formatter={(v: any) => [v, 'Prospects']} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

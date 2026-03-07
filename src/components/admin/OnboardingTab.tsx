@@ -21,21 +21,21 @@ const STEPS = [
   { id: 'project', label: 'Create First Project', description: 'Set up initial project' },
 ];
 
-const SOURCE_LABELS = {
+const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   pipeline: { label: 'Pipeline', color: '#3b82f6' },
   'self-registration': { label: 'Self-Reg', color: '#22c55e' },
   manual: { label: 'Manual', color: '#6b7280' },
   appointment: { label: 'Appointment', color: '#8b5cf6' },
 };
 
-const DOC_LABELS = {
+const DOC_LABELS: Record<string, string> = {
   intake: 'Intake Questionnaire',
   contract: 'Service Contract',
   proposal: 'Service Proposal',
   welcome_packet: 'Welcome Packet',
 };
 
-const DOC_STATUS_COLORS = {
+const DOC_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: '#f3f4f6', color: '#6b7280', label: 'Pending' },
   generated: { bg: '#dbeafe', color: '#2563eb', label: 'Generated' },
   downloaded: { bg: '#e0e7ff', color: '#4f46e5', label: 'Downloaded' },
@@ -303,7 +303,7 @@ export default function OnboardingTab() {
         tempPassword: tempPassword || undefined,
       });
       skipped = result.skipped;
-    } catch (err) {
+    } catch (err: any) {
       // If server is down or route not found, fall back to marking locally
       const status = err.response?.status;
       if (status === 401 || status === 404 || !err.response) {
@@ -343,11 +343,11 @@ export default function OnboardingTab() {
       const pdfs = await generateAllOnboardingPdfs(selectedClient, tierData, intakeData);
 
       // Check for pre-existing proposal from pipeline
-      const existingProposal = (selectedClient.documents || []).find(d => d.type === 'proposal');
+      const existingProposal = (selectedClient.documents || []).find((d: any) => d.type === 'proposal');
 
       // Attach each as a client document and track IDs
-      const docUpdates = {};
-      for (const [key, pdfData] of Object.entries(pdfs)) {
+      const docUpdates: Record<string, any> = {};
+      for (const [key, pdfData] of Object.entries(pdfs) as [string, any][]) {
         // Skip proposal generation if one already exists from pipeline
         if (key === 'proposal' && existingProposal) {
           docUpdates[key] = {
@@ -392,7 +392,7 @@ export default function OnboardingTab() {
 
       addNotification({ type: 'success', title: 'Documents Generated', message: `4 onboarding documents created for ${selectedClient.name}` });
       logActivity('onboarding_docs_generated', { clientId: id, clientName: selectedClient.name });
-    } catch (e) {
+    } catch (e: any) {
       addNotification({ type: 'error', title: 'Generation Failed', message: `Failed to generate documents: ${e.message}` });
     } finally {
       setGenerating(false);
@@ -425,7 +425,7 @@ export default function OnboardingTab() {
       }
 
       const targets = safeGetItem('threeseas_bi_growth_targets', []);
-      const hasTargets = targets.some((t) => t.clientId === id);
+      const hasTargets = targets.some((t: any) => t.clientId === id);
       if (!hasTargets) {
         const now = new Date().toISOString();
         const defaultMetrics = [
@@ -439,7 +439,7 @@ export default function OnboardingTab() {
         }));
         safeSetItem('threeseas_bi_growth_targets', JSON.stringify([...targets, ...newTargets]));
       }
-    } catch (e) {
+    } catch (_e) {
       // BI scaffold is non-critical
     }
   };
@@ -474,7 +474,7 @@ export default function OnboardingTab() {
           pdfData = await generateProposalPdf(selectedClient, tierData, intakeData, {}, sigOpts);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`[OnboardingTab] Failed to generate signed ${docKey} PDF:`, err);
     }
 

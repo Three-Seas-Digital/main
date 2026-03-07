@@ -26,20 +26,20 @@ const ANALYSIS_TYPES = [
   { value: 'strategic', label: 'Strategic' },
 ];
 
-const HEALTH_COLORS = {
+const HEALTH_COLORS: Record<string, string> = {
   critical: '#ef4444', at_risk: '#f59e0b', stable: '#3b82f6',
   growing: '#22c55e', exceptional: '#10b981',
 };
-const HEALTH_LABELS = {
+const HEALTH_LABELS: Record<string, string> = {
   critical: 'Critical', at_risk: 'At Risk', stable: 'Stable',
   growing: 'Growing', exceptional: 'Exceptional',
 };
 
-const PRIORITY_COLORS = {
+const PRIORITY_COLORS: Record<string, string> = {
   critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280',
 };
 
-const STATUS_LABELS = {
+const STATUS_LABELS: Record<string, string> = {
   new: 'New', reviewed: 'Reviewed', accepted: 'Accepted',
   declined: 'Declined', converted: 'Converted',
 };
@@ -86,7 +86,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
 
   // Active client list for selector
   const activeClients = useMemo(
-    () => clients.filter(c => c.status === 'active').sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    () => clients.filter((c: any) => c.status === 'active').sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')),
     [clients]
   );
 
@@ -115,7 +115,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
       });
       setLastSnapshot(result.data);
       setActivePanel('analyze');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to compile snapshot');
     } finally {
       setCompiling(false);
@@ -142,7 +142,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
       setCurrentAnalysis(result.data);
       setActivePanel('results');
       loadAnalyses();
-    } catch (err) {
+    } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.detail || 'Analysis failed');
     } finally {
       setAnalyzing(false);
@@ -201,7 +201,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
   // Filter items
   const filteredItems = useMemo(() => {
     if (!currentAnalysis?.items) return [];
-    return currentAnalysis.items.filter(item => {
+    return currentAnalysis.items.filter((item: any) => {
       if (filterPriority !== 'all' && item.priority !== filterPriority) return false;
       if (filterCategory !== 'all' && item.category !== filterCategory) return false;
       if (filterStatus !== 'all' && item.admin_status !== filterStatus) return false;
@@ -229,7 +229,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
         <h2><Brain size={20} /> AI Advisor</h2>
         <select value={biClientId || ''} onChange={e => onBiClientChange(e.target.value)} className="bi-client-select">
           <option value="">Select a client...</option>
-          {activeClients.map(c => <option key={c.id} value={c.id}>{c.name || c.business_name}</option>)}
+          {activeClients.map((c: any) => <option key={c.id} value={c.id}>{c.name || c.business_name}</option>)}
         </select>
       </div>
 
@@ -239,12 +239,12 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
         <>
           {/* Panel Tabs */}
           <div className="bi-tabs" style={{ marginBottom: '1rem' }}>
-            {[
+            {([
               { id: 'configure', label: 'Configure' },
               { id: 'analyze', label: 'Analyze' },
               { id: 'results', label: 'Results' },
               { id: 'webhook', label: 'Webhook' },
-            ].map(tab => (
+            ] as { id: string; label: string }[]).map(tab => (
               <button
                 key={tab.id}
                 className={`bi-tab ${activePanel === tab.id ? 'active' : ''}`}
@@ -377,7 +377,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                       </tr>
                     </thead>
                     <tbody>
-                      {analyses.map(a => (
+                      {analyses.map((a: any) => (
                         <tr key={a.id}>
                           <td>{new Date(a.created_at).toLocaleDateString()}</td>
                           <td>{a.analysis_type || 'full'}</td>
@@ -451,7 +451,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                   {/* Priority counts */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
                     {['critical', 'high', 'medium', 'low'].map(p => {
-                      const count = currentAnalysis.items?.filter(i => i.priority === p).length || 0;
+                      const count = currentAnalysis.items?.filter((i: any) => i.priority === p).length || 0;
                       return (
                         <div key={p} style={{
                           padding: '0.75rem', borderRadius: 8, textAlign: 'center',
@@ -469,7 +469,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                     <div style={{ marginBottom: '1.5rem' }}>
                       <h4 style={{ marginBottom: '0.5rem' }}>Key Findings</h4>
                       <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#374151' }}>
-                        {currentAnalysis.key_findings.map((f, i) => <li key={i} style={{ marginBottom: '0.25rem' }}>{f}</li>)}
+                        {currentAnalysis.key_findings.map((f: any, i: number) => <li key={i} style={{ marginBottom: '0.25rem' }}>{f}</li>)}
                       </ul>
                     </div>
                   )}
@@ -492,7 +492,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
 
                   {/* Recommendation Items */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {filteredItems.map(item => (
+                    {filteredItems.map((item: any) => (
                       <div key={item.id} style={{
                         padding: '1rem', borderRadius: 8,
                         border: `1px solid ${PRIORITY_COLORS[item.priority] || '#e5e7eb'}30`,
@@ -543,7 +543,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                             </div>
                             {item.supporting_data_sources?.length > 0 && (
                               <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                                {item.supporting_data_sources.map((s, i) => (
+                                {item.supporting_data_sources.map((s: any, i: number) => (
                                   <span key={i} style={{ padding: '1px 6px', borderRadius: 8, fontSize: '0.7rem', background: '#eff6ff', color: '#2563eb' }}>
                                     {s}
                                   </span>
@@ -584,7 +584,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                         <div style={{ marginBottom: '0.5rem' }}>
                           <strong style={{ fontSize: '0.8rem' }}>Trends:</strong>
                           <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                            {currentAnalysis.period_insights.notable_trends.map((t, i) => <li key={i}>{t}</li>)}
+                            {currentAnalysis.period_insights.notable_trends.map((t: any, i: number) => <li key={i}>{t}</li>)}
                           </ul>
                         </div>
                       )}
@@ -592,7 +592,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                         <div style={{ marginBottom: '0.5rem' }}>
                           <strong style={{ fontSize: '0.8rem' }}>Anomalies:</strong>
                           <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                            {currentAnalysis.period_insights.anomalies.map((a, i) => <li key={i}>{a}</li>)}
+                            {currentAnalysis.period_insights.anomalies.map((a: any, i: number) => <li key={i}>{a}</li>)}
                           </ul>
                         </div>
                       )}
@@ -600,7 +600,7 @@ export default function AIAdvisor({ biClientId, onBiClientChange }: AIAdvisorPro
                         <div>
                           <strong style={{ fontSize: '0.8rem' }}>Risks:</strong>
                           <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                            {currentAnalysis.period_insights.risks.map((r, i) => <li key={i}>{r}</li>)}
+                            {currentAnalysis.period_insights.risks.map((r: any, i: number) => <li key={i}>{r}</li>)}
                           </ul>
                         </div>
                       )}

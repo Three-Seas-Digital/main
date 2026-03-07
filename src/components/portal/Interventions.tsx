@@ -138,10 +138,10 @@ export default function Interventions() {
   /* Filter by tab */
   const filtered = useMemo(() => {
     let list = [...interventions];
-    if (activeTab === 'completed') list = list.filter((i) => i.status === 'completed');
-    if (activeTab === 'in-progress') list = list.filter((i) => i.status === 'in_progress');
+    if (activeTab === 'completed') list = list.filter((i: any) => i.status === 'completed');
+    if (activeTab === 'in-progress') list = list.filter((i: any) => i.status === 'in_progress');
 
-    list.sort((a, b) => {
+    list.sort((a: any, b: any) => {
       if (sortBy === 'roi') {
         const roiA = a.cost > 0
           ? (((a.afterMetrics?.revenue || 0) - (a.beforeMetrics?.revenue || 0) - a.cost) / a.cost) * 100
@@ -159,39 +159,39 @@ export default function Interventions() {
 
   /* Stats */
   const stats = useMemo(() => {
-    const completed = interventions.filter((i) => i.status === 'completed');
+    const completed = interventions.filter((i: any) => i.status === 'completed');
     const rois = completed
-      .map((i) => {
+      .map((i: any) => {
         const revChange = (i.afterMetrics?.revenue || 0) - (i.beforeMetrics?.revenue || 0);
         return i.cost > 0 ? ((revChange - i.cost) / i.cost) * 100 : 0;
       })
-      .filter((r) => r !== 0);
+      .filter((r: any) => r !== 0);
 
     return {
       total: interventions.length,
       completed: completed.length,
-      inProgress: interventions.filter((i) => i.status === 'in_progress').length,
-      avgRoi: rois.length ? (rois.reduce((a, b) => a + b, 0) / rois.length).toFixed(1) : '--',
-      totalInvestment: interventions.reduce((s, i) => s + (i.cost || 0), 0),
+      inProgress: interventions.filter((i: any) => i.status === 'in_progress').length,
+      avgRoi: rois.length ? (rois.reduce((a: number, b: number) => a + b, 0) / rois.length).toFixed(1) : '--',
+      totalInvestment: interventions.reduce((s: number, i: any) => s + (i.cost || 0), 0),
     };
   }, [interventions]);
 
   /* Tab counts */
   const tabCounts = useMemo(() => ({
     all: interventions.length,
-    completed: interventions.filter((i) => i.status === 'completed').length,
-    'in-progress': interventions.filter((i) => i.status === 'in_progress').length,
+    completed: interventions.filter((i: any) => i.status === 'completed').length,
+    'in-progress': interventions.filter((i: any) => i.status === 'in_progress').length,
   }), [interventions]);
 
   /* Aggregate before vs after chart data for completed interventions */
   const summaryChartData = useMemo(() => {
-    const completed = interventions.filter((i) => i.status === 'completed');
+    const completed = interventions.filter((i: any) => i.status === 'completed');
     if (completed.length === 0) return [];
 
     return STANDARD_METRICS
       .map((m) => {
-        const totalBefore = completed.reduce((s, i) => s + (i.beforeMetrics?.[m.key] || 0), 0);
-        const totalAfter = completed.reduce((s, i) => s + (i.afterMetrics?.[m.key] || 0), 0);
+        const totalBefore = completed.reduce((s: number, i: any) => s + (i.beforeMetrics?.[m.key] || 0), 0);
+        const totalAfter = completed.reduce((s: number, i: any) => s + (i.afterMetrics?.[m.key] || 0), 0);
         if (totalBefore === 0 && totalAfter === 0) return null;
         return { name: m.label, Before: totalBefore, After: totalAfter };
       })

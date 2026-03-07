@@ -30,27 +30,32 @@ const DEFAULT_CATEGORIES = [
   ] },
 ];
 
-const scoreColor = (s) => {
+const scoreColor = (s: number) => {
   if (s <= 3) return '#ef4444';
   if (s <= 6) return '#f59e0b';
   if (s <= 8) return '#22c55e';
   return '#059669';
 };
 
-export default function AuditScoring({ biClientId, onBiClientChange }) {
+interface AuditScoringProps {
+  biClientId?: string;
+  onBiClientChange?: (id: string) => void;
+}
+
+export default function AuditScoring({ biClientId, onBiClientChange }: AuditScoringProps) {
   const { clients } = useAppContext();
   const [clientId, setClientId] = useState(biClientId || '');
   const [auditId, setAuditId] = useState('');
-  const [scores, setScores] = useState({});
-  const [notes, setNotes] = useState({});
+  const [scores, setScores] = useState<Record<string, any>>({});
+  const [notes, setNotes] = useState<Record<string, any>>({});
   const [status, setStatus] = useState('draft');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [categories] = useState(DEFAULT_CATEGORIES);
   const [saveCount, setSaveCount] = useState(0);
 
-  const activeClients = clients.filter(c => c.status !== 'archived' && c.status !== 'rejected');
+  const activeClients = clients.filter((c: any) => c.status !== 'archived' && c.status !== 'rejected');
   const allAudits = useMemo(() => safeGetItem(AUDITS_KEY, []), [saveCount, clientId]);
   const clientAudits = useMemo(() => allAudits.filter(a => a.clientId === clientId), [allAudits, clientId]);
 
@@ -60,13 +65,13 @@ export default function AuditScoring({ biClientId, onBiClientChange }) {
     if (audit) { setScores(audit.scores || {}); setNotes(audit.notes || {}); setStatus(audit.status || 'draft'); }
   }, [auditId]); // eslint-disable-line react-hooks/exhaustive-deps — intentionally omit allAudits to prevent save from resetting form state
 
-  const setScore = (subId, val) => setScores(prev => ({ ...prev, [subId]: Number(val) }));
-  const setNote = (catId, field, val) => setNotes(prev => ({ ...prev, [catId]: { ...(prev[catId] || {}), [field]: val } }));
-  const toggleExpand = (catId) => setExpanded(prev => ({ ...prev, [catId]: !prev[catId] }));
+  const setScore = (subId: string, val: any) => setScores(prev => ({ ...prev, [subId]: Number(val) }));
+  const setNote = (catId: string, field: string, val: string) => setNotes(prev => ({ ...prev, [catId]: { ...(prev[catId] || {}), [field]: val } }));
+  const toggleExpand = (catId: string) => setExpanded(prev => ({ ...prev, [catId]: !prev[catId] }));
 
-  const catScore = (cat) => {
-    const vals = cat.subcriteria.map(sc => scores[sc.id] || 0).filter(v => v > 0);
-    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '--';
+  const catScore = (cat: any) => {
+    const vals = cat.subcriteria.map((sc: any) => scores[sc.id] || 0).filter((v: number) => v > 0);
+    return vals.length ? (vals.reduce((a: number, b: number) => a + b, 0) / vals.length).toFixed(1) : '--';
   };
 
   const overallScore = useMemo(() => {
@@ -78,7 +83,7 @@ export default function AuditScoring({ biClientId, onBiClientChange }) {
     return totalWeight > 0 ? (weightedSum / totalWeight).toFixed(1) : '--';
   }, [scores, categories]);
 
-  const handleSave = (publish) => {
+  const handleSave = (publish: boolean) => {
     if (!clientId) return;
     setSaving(true);
     const audits = safeGetItem(AUDITS_KEY, []);
@@ -128,7 +133,7 @@ export default function AuditScoring({ biClientId, onBiClientChange }) {
     safeSetItem('threeseas_bi_categories', JSON.stringify(portalCategories));
 
     // Bridge: derive per-category audit scores for portal (use audits var directly, not re-read)
-    const auditScores = [];
+    const auditScores: any[] = [];
     audits.forEach(audit => {
       DEFAULT_CATEGORIES.forEach(cat => {
         const subScores = cat.subcriteria.map(sc => ({
@@ -167,7 +172,7 @@ export default function AuditScoring({ biClientId, onBiClientChange }) {
           <label>Client</label>
           <select value={clientId} onChange={e => { setClientId(e.target.value); setAuditId(''); onBiClientChange?.(e.target.value); }}>
             <option value="">-- Select --</option>
-            {activeClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {activeClients.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         {clientId && (

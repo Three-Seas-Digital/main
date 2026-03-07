@@ -15,9 +15,10 @@
     "jsx": "react-jsx",
 
     /* Strict flags — enabled incrementally */
-    "strict": false,
+    "strict": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
+    "noImplicitAny": true,
     "noImplicitThis": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

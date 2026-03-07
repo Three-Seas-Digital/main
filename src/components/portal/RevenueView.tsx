@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { DollarSign, TrendingUp, Calendar, Inbox, BarChart3 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { safeGetItem } from '../../constants';
@@ -9,20 +9,20 @@ import {
 
 const DATE_RANGES = ['3M', '6M', '1Y', 'All'];
 
-const monthLabel = (m) => {
+const monthLabel = (m: string): string => {
   const [y, mo] = m.split('-');
-  return new Date(y, mo - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  return new Date(Number(y), Number(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 };
 
-const getMonthsAgo = (n) => {
+const getMonthsAgo = (n: number): string => {
   const d = new Date();
   d.setMonth(d.getMonth() - n);
   return d.toISOString().slice(0, 7);
 };
 
-const fmt = (v) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+const fmt = (v: any): string => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
 
-function KpiCard({ icon, label, value, color }) {
+function KpiCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div className="portal-revenue-kpi" style={{ borderLeft: `3px solid ${color}` }}>
       <div className="portal-revenue-kpi-icon" style={{ color }}>
@@ -44,10 +44,10 @@ export default function RevenueView() {
   const [chartType, setChartType] = useState('monthly'); // monthly | quarterly
 
   // Get financial data from localStorage
-  const allFinancials = useMemo(() => safeGetItem('threeseas_bi_client_financials', {}), []);
-  const clientData = allFinancials[clientId];
-  const rawEntries = useMemo(
-    () => (clientData?.entries || []).slice().sort((a, b) => a.month.localeCompare(b.month)),
+  const allFinancials = useMemo(() => safeGetItem('threeseas_bi_client_financials', {}), []) as Record<string, any>;
+  const clientData = allFinancials[clientId as string];
+  const rawEntries: any[] = useMemo(
+    () => (clientData?.entries || []).slice().sort((a: any, b: any) => a.month.localeCompare(b.month)),
     [clientData]
   );
 
@@ -59,21 +59,21 @@ export default function RevenueView() {
     if (dateRange === '3M') start = getMonthsAgo(3);
     else if (dateRange === '6M') start = getMonthsAgo(6);
     else if (dateRange === '1Y') start = getMonthsAgo(12);
-    return rawEntries.filter(e => (!start || e.month >= start) && e.month <= now);
+    return rawEntries.filter((e: any) => (!start || e.month >= start) && e.month <= now);
   }, [rawEntries, dateRange]);
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = entries.reduce((sum, e) => sum + (e.revenue || 0), 0);
-    const months = entries.map(e => e.month).sort();
+    const total = entries.reduce((sum: number, e: any) => sum + (e.revenue || 0), 0);
+    const months = entries.map((e: any) => e.month).sort();
     const bestMonth = entries.length > 0
-      ? entries.reduce((max, e) => (e.revenue > max.revenue ? e : max), entries[0])
+      ? entries.reduce((max: any, e: any) => (e.revenue > max.revenue ? e : max), entries[0])
       : null;
 
     // MoM Growth (comparing last two months)
     let momGrowth = null;
     if (entries.length >= 2) {
-      const sorted = [...entries].sort((a, b) => a.month.localeCompare(b.month));
+      const sorted = [...entries].sort((a: any, b: any) => a.month.localeCompare(b.month));
       const last = sorted[sorted.length - 1];
       const prev = sorted[sorted.length - 2];
       if (prev.revenue > 0) {
@@ -95,15 +95,15 @@ export default function RevenueView() {
   // Chart data - monthly or quarterly
   const chartData = useMemo(() => {
     if (chartType === 'monthly') {
-      return entries.map(e => ({
+      return entries.map((e: any) => ({
         month: monthLabel(e.month),
         revenue: e.revenue || 0,
       }));
     }
 
     // Quarterly aggregation
-    const quarters = {};
-    entries.forEach(e => {
+    const quarters: Record<string, number> = {};
+    entries.forEach((e: any) => {
       const [year, month] = e.month.split('-');
       const q = Math.ceil(parseInt(month) / 3);
       const key = `${year}-Q${q}`;
@@ -112,8 +112,8 @@ export default function RevenueView() {
     });
 
     return Object.entries(quarters)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, revenue]) => ({ month: key, revenue }));
+      .sort(([a]: [string, number], [b]: [string, number]) => a.localeCompare(b))
+      .map(([key, revenue]: [string, number]) => ({ month: key, revenue }));
   }, [entries, chartType]);
 
   // Revenue breakdown by service (if we have channel or service data)
@@ -224,12 +224,12 @@ export default function RevenueView() {
               stroke="#9ca3af"
             />
             <YAxis
-              tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+              tickFormatter={(v: any) => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
               tick={{ fontSize: 12, fill: '#6b7280' }}
               stroke="#9ca3af"
             />
             <Tooltip
-              formatter={(v) => [fmt(v), 'Revenue']}
+              formatter={(v: any) => [fmt(v), 'Revenue']}
               contentStyle={{
                 backgroundColor: '#fff',
                 border: '1px solid #e5e7eb',
@@ -262,12 +262,12 @@ export default function RevenueView() {
                 stroke="#9ca3af"
               />
               <YAxis
-                tickFormatter={v => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
+                tickFormatter={(v: any) => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v)}
                 tick={{ fontSize: 12, fill: '#6b7280' }}
                 stroke="#9ca3af"
               />
               <Tooltip
-                formatter={(v) => [fmt(v), 'Revenue']}
+                formatter={(v: any) => [fmt(v), 'Revenue']}
                 contentStyle={{
                   backgroundColor: '#fff',
                   border: '1px solid #e5e7eb',
