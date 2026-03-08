@@ -90,7 +90,8 @@
   font-weight: 500;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.7;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -101,11 +102,13 @@
 
 .cv-view-switcher button:hover {
   color: var(--text-primary);
+  opacity: 1;
   background: rgba(255, 255, 255, 0.05);
 }
 
 .cv-view-switcher button.active {
   color: var(--emerald);
+  opacity: 1;
   background: rgba(62, 207, 142, 0.12);
 }
 
@@ -128,7 +131,7 @@
   padding: 10px 8px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-align: center;
@@ -220,7 +223,8 @@
 }
 
 .cv-month-event-time {
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.8;
   flex-shrink: 0;
   font-size: 0.65rem;
 }
@@ -233,7 +237,8 @@
 
 .cv-month-more {
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.8;
   padding: 1px 4px;
   cursor: pointer;
 }
@@ -282,7 +287,7 @@
 .cv-tg-day-name {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -377,7 +382,8 @@
 
 .cv-tg-gutter-hour span {
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.85;
   transform: translateY(-7px);
   white-space: nowrap;
 }
@@ -446,13 +452,15 @@
 
 .cv-event-block-time {
   font-size: 0.65rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.85;
   margin-top: 1px;
 }
 
 .cv-event-block-loc {
   font-size: 0.62rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  opacity: 0.8;
   display: flex;
   align-items: center;
   gap: 3px;
@@ -676,7 +684,7 @@
   align-items: center;
   gap: 8px;
   font-size: 0.82rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .cv-google-status--on {
@@ -685,7 +693,7 @@
 
 .cv-google-sync-time {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   opacity: 0.7;
 }
 
@@ -1116,12 +1124,12 @@
   background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 16px;
 }
 
 .cv-day-modal-reason {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   font-style: italic;
 }
 
@@ -1153,7 +1161,7 @@
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
@@ -1161,7 +1169,7 @@
 
 .cv-day-action-btn:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  color: #fff;
 }
 
 .cv-day-action-btn--active.cv-day-action-btn--close {
@@ -1216,16 +1224,16 @@
 
 :root.light-theme .cv-day-modal-status {
   background: rgba(0, 0, 0, 0.03);
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.85);
 }
 
 :root.light-theme .cv-day-action-btn {
-  border-color: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.02);
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.8);
 }
 
 :root.light-theme .cv-day-action-btn:hover {
   background: rgba(0, 0, 0, 0.04);
-  color: rgba(0, 0, 0, 0.8);
+  color: rgba(0, 0, 0, 0.95);
 }
