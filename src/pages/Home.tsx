@@ -34,7 +34,7 @@ const DeepSeaCreatures = lazy(() => import('../components/DeepSeaCreatures'));
 
 // Performance optimization: Use smooth easing constants
 const EASE_SMOOTH = 'power3.out';
-const EASE_EXIT = 'power2.inOut';
+const EASE_EXIT = 'power3.inOut';
 
 function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftRef: React.RefObject<HTMLElement | null>, rightRef: React.RefObject<HTMLElement | null>, headlineRef: React.RefObject<HTMLElement | null>, opts: Record<string, any> = {}, animationStyle: string = 'slide-up') {
   useLayoutEffect(() => {
@@ -66,17 +66,17 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
         }
 
         // Left panel fades up
-        gsap.fromTo(left, { y: 40, opacity: 0 }, {
-          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
-          scrollTrigger: { trigger: left, start: 'top 85%', toggleActions: 'play none none none' },
+        gsap.fromTo(left, { y: 30, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 1,
+          scrollTrigger: { trigger: left, start: 'top 88%', toggleActions: 'play none none none' },
         });
 
         // Headline words
         if (headlineRef?.current) {
           const words = headlineRef.current.querySelectorAll('.word');
-          gsap.fromTo(words, { y: 20, opacity: 0 }, {
-            y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH, duration: 0.6,
-            scrollTrigger: { trigger: left, start: 'top 80%', toggleActions: 'play none none none' },
+          gsap.fromTo(words, { y: 16, opacity: 0 }, {
+            y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH, duration: 0.7,
+            scrollTrigger: { trigger: left, start: 'top 82%', toggleActions: 'play none none none' },
           });
         }
 
@@ -90,8 +90,9 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
           start: 'top top',
           end: '+=120%',
           pin: true,
-          scrub: 0.5,
+          scrub: 1,
           anticipatePin: 1,
+          fastScrollEnd: true,
         },
       });
 
@@ -112,85 +113,85 @@ function usePinnedSection(sectionRef: React.RefObject<HTMLElement | null>, leftR
 
       switch (animationStyle) {
         case 'slide-up':
-          tl.fromTo(left, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
-          tl.fromTo(right, { y: '45vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
-          if (headlineRef?.current) {
-            const words = headlineRef.current.querySelectorAll('.word');
-            tl.fromTo(words, { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.15);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
-          }
-          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-30vh', opacity: 0, ease: EASE_EXIT }, 0.75);
-          break;
-
-        case 'fade-scale':
-          tl.fromTo(left, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
-          tl.fromTo(right, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0.04);
-          if (headlineRef?.current) {
-            const words = headlineRef.current.querySelectorAll('.word');
-            tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { scale: 0.95, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.06, ease: 'power3.out' }, 0.12);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { scale: 1, opacity: 1 }, { scale: 0.97, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
-          }
-          tl.fromTo([left, right], { scale: 1, opacity: 1 }, { scale: 0.95, opacity: 0, ease: EASE_EXIT }, 0.75);
-          break;
-
-        case 'reveal-up':
-          tl.fromTo([left, right], { y: '15vh', opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0);
-          if (headlineRef?.current) {
-            const words = headlineRef.current.querySelectorAll('.word');
-            tl.fromTo(words, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.03, ease: EASE_SMOOTH }, 0.08);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0.15);
-          }
-          if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -20, opacity: 0, stagger: 0.04, ease: EASE_EXIT }, 0.66);
-          }
-          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-20vh', opacity: 0, ease: EASE_EXIT }, 0.75);
-          break;
-
-        case 'diagonal':
-          tl.fromTo(left, { x: '-35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
-          tl.fromTo(right, { x: '35vw', y: '20vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(left, { y: '35vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { y: '35vh', opacity: 0 }, { y: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
             tl.fromTo(words, { y: 20, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
           }
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { x: 20, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
+            tl.fromTo(cardItems, { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.15);
           }
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
+            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.70);
           }
-          tl.fromTo(left, { x: 0, y: 0, opacity: 1 }, { x: '-30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
-          tl.fromTo(right, { x: 0, y: 0, opacity: 1 }, { x: '30vw', y: '-15vh', opacity: 0, ease: EASE_EXIT }, 0.75);
+          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-20vh', opacity: 0, ease: EASE_EXIT }, 0.78);
+          break;
+
+        case 'fade-scale':
+          tl.fromTo(left, { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, ease: EASE_SMOOTH }, 0.04);
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 14, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { scale: 0.96, opacity: 0 }, { scale: 1, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { scale: 1, opacity: 1 }, { scale: 0.97, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.70);
+          }
+          tl.fromTo([left, right], { scale: 1, opacity: 1 }, { scale: 0.96, opacity: 0, ease: EASE_EXIT }, 0.78);
+          break;
+
+        case 'reveal-up':
+          tl.fromTo([left, right], { y: '12vh', opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0);
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 24, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.03, ease: EASE_SMOOTH }, 0.08);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { y: 30, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.08, ease: EASE_SMOOTH }, 0.15);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { y: 0, opacity: 1 }, { y: -15, opacity: 0, stagger: 0.04, ease: EASE_EXIT }, 0.70);
+          }
+          tl.fromTo([left, right], { y: 0, opacity: 1 }, { y: '-16vh', opacity: 0, ease: EASE_EXIT }, 0.78);
+          break;
+
+        case 'diagonal':
+          tl.fromTo(left, { x: '-25vw', y: '15vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { x: '25vw', y: '15vh', opacity: 0 }, { x: 0, y: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          if (headlineRef?.current) {
+            const words = headlineRef.current.querySelectorAll('.word');
+            tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.08);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { x: 16, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
+          }
+          if (cardItems.length > 0) {
+            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -12, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.70);
+          }
+          tl.fromTo(left, { x: 0, y: 0, opacity: 1 }, { x: '-20vw', y: '-10vh', opacity: 0, ease: EASE_EXIT }, 0.78);
+          tl.fromTo(right, { x: 0, y: 0, opacity: 1 }, { x: '20vw', y: '-10vh', opacity: 0, ease: EASE_EXIT }, 0.78);
           break;
 
         case 'converge':
         default:
-          tl.fromTo(left, { x: '-30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
-          tl.fromTo(right, { x: '30vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
+          tl.fromTo(left, { x: '-22vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0);
+          tl.fromTo(right, { x: '22vw', opacity: 0 }, { x: 0, opacity: 1, ease: EASE_SMOOTH }, 0.04);
           if (headlineRef?.current) {
             const words = headlineRef.current.querySelectorAll('.word');
-            tl.fromTo(words, { y: 16, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.06);
+            tl.fromTo(words, { y: 14, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.025, ease: EASE_SMOOTH }, 0.06);
           }
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { x: 40, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
+            tl.fromTo(cardItems, { x: 30, opacity: 0 }, { x: 0, opacity: 1, stagger: 0.06, ease: EASE_SMOOTH }, 0.12);
           }
           if (cardItems.length > 0) {
-            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -20, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.68);
+            tl.fromTo(cardItems, { x: 0, opacity: 1 }, { x: -15, opacity: 0, stagger: 0.03, ease: EASE_EXIT }, 0.70);
           }
-          tl.fromTo(left, { x: 0, opacity: 1 }, { x: '-35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
-          tl.fromTo(right, { x: 0, opacity: 1 }, { x: '35vw', opacity: 0, ease: EASE_EXIT }, 0.75);
+          tl.fromTo(left, { x: 0, opacity: 1 }, { x: '-25vw', opacity: 0, ease: EASE_EXIT }, 0.78);
+          tl.fromTo(right, { x: 0, opacity: 1 }, { x: '25vw', opacity: 0, ease: EASE_EXIT }, 0.78);
           break;
       }
     }, section);
@@ -223,7 +224,7 @@ function VideoHero() {
     const isMobile = window.innerWidth <= 768;
     const intensity = isMobile ? 0.5 : 1.0;
 
-    gsap.set(videoWrap, { scale: 1.12, willChange: 'transform', force3D: true });
+    gsap.set(videoWrap, { scale: 1.08, willChange: 'transform', force3D: true });
     gsap.set(hook, { willChange: 'transform, opacity', force3D: true });
 
     const ctx = gsap.context(() => {
@@ -1928,12 +1929,12 @@ function MeasureSection() {
     const ctx = gsap.context(() => {
       if (isMobile) {
         // Mobile: simple fade-in on scroll, no pinning
-        gsap.fromTo(triptych, { y: 30, opacity: 0 }, {
-          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
-          scrollTrigger: { trigger: section, start: 'top 85%', toggleActions: 'play none none none' },
+        gsap.fromTo(triptych, { y: 24, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 1,
+          scrollTrigger: { trigger: section, start: 'top 88%', toggleActions: 'play none none none' },
         });
-        gsap.fromTo(card, { y: 40, opacity: 0 }, {
-          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
+        gsap.fromTo(card, { y: 30, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 1,
           scrollTrigger: { trigger: card, start: 'top 90%', toggleActions: 'play none none none' },
         });
         return;
@@ -1946,8 +1947,9 @@ function MeasureSection() {
           start: 'top top',
           end: '+=100%',
           pin: true,
-          scrub: 0.5,
+          scrub: 1,
           anticipatePin: 1,
+          fastScrollEnd: true,
         },
       });
 
@@ -2029,13 +2031,13 @@ function AutomateSection() {
     const ctx = gsap.context(() => {
       if (isMobile) {
         // Mobile: simple fade-in on scroll, no pinning
-        gsap.fromTo(center, { y: 40, opacity: 0 }, {
-          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 0.8,
-          scrollTrigger: { trigger: center, start: 'top 85%', toggleActions: 'play none none none' },
+        gsap.fromTo(center, { y: 30, opacity: 0 }, {
+          y: 0, opacity: 1, ease: EASE_SMOOTH, duration: 1,
+          scrollTrigger: { trigger: center, start: 'top 88%', toggleActions: 'play none none none' },
         });
         if (beam) {
           gsap.fromTo(beam, { opacity: 0 }, {
-            opacity: 0.4, ease: 'none', duration: 1,
+            opacity: 0.4, ease: 'none', duration: 1.2,
             scrollTrigger: { trigger: section, start: 'top 80%', toggleActions: 'play none none none' },
           });
         }
@@ -2051,8 +2053,9 @@ function AutomateSection() {
           start: 'top top',
           end: '+=90%',
           pin: true,
-          scrub: 0.5,
+          scrub: 1,
           anticipatePin: 1,
+          fastScrollEnd: true,
         },
       });
 
@@ -2186,13 +2189,13 @@ function ContactCTA() {
         });
       }
 
-      gsap.fromTo(left, { y: '6vh', opacity: 0 }, {
+      gsap.fromTo(left, { y: '5vh', opacity: 0 }, {
         y: 0, opacity: 1, ease: 'power3.out',
-        scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 50%', scrub: 0.4 },
+        scrollTrigger: { trigger: section, start: 'top 82%', end: 'top 50%', scrub: 1 },
       });
-      gsap.fromTo(right, { y: '6vh', opacity: 0 }, {
+      gsap.fromTo(right, { y: '5vh', opacity: 0 }, {
         y: 0, opacity: 1, ease: 'power3.out',
-        scrollTrigger: { trigger: section, start: 'top 75%', end: 'top 45%', scrub: 0.4 },
+        scrollTrigger: { trigger: section, start: 'top 78%', end: 'top 45%', scrub: 1 },
       });
     }, section);
 
@@ -2276,9 +2279,10 @@ export default function Home() {
               pinnedRanges[0]?.center ?? 0
             );
           },
-          duration: { min: 0.15, max: 0.35 },
-          delay: 0,
-          ease: 'power2.out',
+          duration: { min: 0.2, max: 0.5 },
+          delay: 0.05,
+          ease: 'power3.out',
+          directional: false,
         },
       });
     }, 100);
