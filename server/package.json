@@ -7,7 +7,9 @@
     "dev": "node --watch index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@google/genai": "^1.41.0",
+    "axios": "^1.13.5",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
