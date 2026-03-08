@@ -248,7 +248,7 @@ router.get('/team', authenticateToken, requireRole('owner', 'admin', 'manager'),
     }
 
     const [users] = await pool.query(
-      "SELECT id, username, display_name, role FROM users WHERE role != 'viewer' ORDER BY display_name"
+      "SELECT id, username, display_name, role FROM users WHERE role NOT IN ('pending') ORDER BY display_name"
     );
 
     const dayOfWeek = new Date(date).getDay();
