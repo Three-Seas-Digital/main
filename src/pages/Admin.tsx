@@ -47,6 +47,7 @@ const ClientsDatabaseTab = lazy(() => import('../components/admin/ClientsDatabas
 const KanbanView = lazy(() => import('../components/admin/KanbanView'));
 const TemplatesManagerTab = lazy(() => import('../components/admin/TemplatesManagerTab'));
 const EmailTemplatesTab = lazy(() => import('../components/admin/EmailTemplatesTab'));
+const CalendarTab = lazy(() => import('../components/admin/CalendarTab'));
 
 /* ===== Lazy-loaded Business Intelligence tabs ===== */
 const IntakeForm = lazy(() => import('../components/admin/BusinessIntelligence/IntakeForm'));
@@ -102,6 +103,9 @@ const SIDEBAR_NAV = [
     { id: 'pipeline', label: 'Pipeline', icon: Briefcase, permission: 'view_sales' },
     { id: 'leads', label: 'Leads', icon: MapPin, permission: 'view_sales' },
     { id: 'followups', label: 'Follow-Ups', icon: PhoneForwarded, permission: 'manage_appointments' },
+  ]},
+  { id: 'scheduling-group', label: 'Scheduling', icon: Clock, type: 'group', permission: 'view_appointments', items: [
+    { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays, permission: 'view_appointments' },
   ]},
   { id: 'finance-group', label: 'Finance', icon: DollarSign, type: 'group', permission: 'view_finance', items: [
     { id: 'revenue', label: 'Revenue', icon: DollarSign, permission: 'view_finance' },
@@ -722,6 +726,7 @@ export default function Admin() {
         {activeTab === 'tiers' && canManageSettings && <TiersTab />}
         {activeTab === 'templates-mgr' && canManageSettings && <TemplatesManagerTab />}
         {activeTab === 'clientsdb' && canViewClients && <ClientsDatabaseTab />}
+        {activeTab === 'my-calendar' && hasPermission('view_appointments') && <CalendarTab />}
         </Suspense>
         {/* Business Intelligence tabs (Phase 6A + 6C) — wrapped in ErrorBoundary */}
         {activeTab === 'intake' && canViewBI && <ErrorBoundary><Suspense fallback={<div className="tab-loading">Loading...</div>}><IntakeForm biClientId={biClientId} onBiClientChange={setBiClientId} /></Suspense></ErrorBoundary>}
