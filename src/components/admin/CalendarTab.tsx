@@ -630,7 +630,7 @@ function EventModal({ event, selectedDate, selectedTime, clients, onClose, onSav
 // ── MY HOURS SUB-TAB ──
 // ══════════════════════════════════════
 
-function MyHoursTab() {
+function MyHoursTab({ onSaved }: { onSaved?: (hours: BusinessHour[]) => void }) {
   const [hours, setHours] = useState<BusinessHour[]>(getDefaultHours());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -660,6 +660,7 @@ function MyHoursTab() {
     try {
       await calendarApi.updateMyHours(hours);
       setSaved(true);
+      onSaved?.(hours);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error('Failed to save hours:', err);
@@ -1407,7 +1408,7 @@ export default function CalendarTab() {
         </>
       )}
 
-      {subTab === 'hours' && <MyHoursTab />}
+      {subTab === 'hours' && <MyHoursTab onSaved={(h) => setBusinessHours(h)} />}
       {subTab === 'team' && canViewTeam && <TeamViewTab />}
 
       {/* Event Modal */}
