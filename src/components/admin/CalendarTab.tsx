@@ -293,7 +293,7 @@ function MonthView({ currentDate, events, selectedDate, businessHours, overrides
                         onClick={(e) => { e.stopPropagation(); onToggleDay(date, dayStatus); }}
                         title={isClosed ? (dayStatus.reason || 'Closed — click to open') : 'Open — click to close'}
                       >
-                        {isClosed ? <Ban size={11} /> : <CheckCircle size={11} />}
+                        {isClosed ? <><Ban size={9} /> Off</> : <><CheckCircle size={9} /> Open</>}
                       </button>
                     )}
                   </div>

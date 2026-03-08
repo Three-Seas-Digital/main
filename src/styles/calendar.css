@@ -1048,30 +1048,33 @@
 }
 
 .cv-day-toggle {
-  background: none;
-  border: none;
+  background: rgba(62, 207, 142, 0.1);
+  border: 1px solid rgba(62, 207, 142, 0.2);
   cursor: pointer;
-  padding: 2px;
+  padding: 2px 5px;
   border-radius: 4px;
-  color: rgba(62, 207, 142, 0.6);
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-}
-
-.cv-month-cell:hover .cv-day-toggle {
-  opacity: 1;
+  color: rgba(62, 207, 142, 0.7);
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.15s;
+  line-height: 1;
 }
 
 .cv-day-toggle:hover {
+  background: rgba(62, 207, 142, 0.2);
   color: #3ECF8E;
 }
 
 .cv-day-toggle--closed {
-  color: rgba(239, 68, 68, 0.6);
-  opacity: 0.8;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: rgba(239, 68, 68, 0.7);
 }
 
 .cv-day-toggle--closed:hover {
+  background: rgba(239, 68, 68, 0.2);
   color: #EF4444;
 }
 
@@ -1186,11 +1189,15 @@
 }
 
 :root.light-theme .cv-day-toggle {
-  color: rgba(62, 207, 142, 0.5);
+  background: rgba(62, 207, 142, 0.08);
+  border-color: rgba(62, 207, 142, 0.15);
+  color: rgba(62, 207, 142, 0.6);
 }
 
 :root.light-theme .cv-day-toggle--closed {
-  color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
+  color: rgba(239, 68, 68, 0.6);
 }
 
 :root.light-theme .cv-tg-hour-cell--off {
