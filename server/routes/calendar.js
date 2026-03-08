@@ -1,9 +1,9 @@
-import express from 'express';
-import { db } from '../config/db.js';
+import { Router } from 'express';
+import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { generateId } from '../utils/generateId.js';
 
-const router = express.Router();
+const router = Router();
 
 // ── Business Hours ──
 
@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/hours', authenticateToken, async (req, res) => {
   try {
     const userId = req.user?.userId || req.user?.id;
-    const [rows] = await db.query(
+    const [rows] = await pool.query(
       'SELECT * FROM business_hours WHERE user_id = ? ORDER BY day_of_week',
       [userId]
     );
@@ -32,10 +32,10 @@ router.put('/hours', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'hours must be an array' });
     }
 
-    await db.query('DELETE FROM business_hours WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM business_hours WHERE user_id = ?', [userId]);
 
     for (const h of hours) {
-      await db.query(
+      await pool.query(
         'INSERT INTO business_hours (user_id, day_of_week, start_time, end_time, is_available) VALUES (?, ?, ?, ?, ?)',
         [userId, h.day_of_week, h.start_time, h.end_time, h.is_available]
       );
@@ -56,7 +56,7 @@ router.get('/hours/:userId', authenticateToken, async (req, res) => {
     const role = req.user?.role;
 
     if (role !== 'owner' && role !== 'admin') {
-      const [sharing] = await db.query(
+      const [sharing] = await pool.query(
         "SELECT access_level FROM calendar_sharing WHERE owner_id = ? AND viewer_id = ? AND access_level != 'none'",
         [userId, requesterId]
       );
@@ -65,7 +65,7 @@ router.get('/hours/:userId', authenticateToken, async (req, res) => {
       }
     }
 
-    const [rows] = await db.query(
+    const [rows] = await pool.query(
       'SELECT * FROM business_hours WHERE user_id = ? ORDER BY day_of_week',
       [userId]
     );
@@ -88,7 +88,7 @@ router.get('/events', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'start and end query params required' });
     }
 
-    const [rows] = await db.query(
+    const [rows] = await pool.query(
       `SELECT e.*, c.name as client_name
        FROM calendar_events e
        LEFT JOIN clients c ON e.client_id = c.id
@@ -114,7 +114,7 @@ router.post('/events', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'title, start_time, and end_time are required' });
     }
 
-    await db.query(
+    await pool.query(
       `INSERT INTO calendar_events (id, user_id, title, description, start_time, end_time, event_type, client_id, all_day, location)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, userId, title, description || null, start_time, end_time, event_type || 'meeting', client_id || null, all_day || false, location || null]
@@ -150,7 +150,7 @@ router.put('/events/:id', authenticateToken, async (req, res) => {
     fields.push('updated_at = NOW()');
     values.push(id, userId);
 
-    const [result] = await db.query(
+    const [result] = await pool.query(
       `UPDATE calendar_events SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`,
       values
     );
@@ -172,7 +172,7 @@ router.delete('/events/:id', authenticateToken, async (req, res) => {
     const userId = req.user?.userId || req.user?.id;
     const { id } = req.params;
 
-    const [result] = await db.query(
+    const [result] = await pool.query(
       'DELETE FROM calendar_events WHERE id = ? AND user_id = ?',
       [id, userId]
     );
@@ -194,7 +194,7 @@ router.delete('/events/:id', authenticateToken, async (req, res) => {
 router.get('/sharing', authenticateToken, async (req, res) => {
   try {
     const userId = req.user?.userId || req.user?.id;
-    const [rows] = await db.query(
+    const [rows] = await pool.query(
       `SELECT cs.*, u.display_name as viewer_name, u.username as viewer_username
        FROM calendar_sharing cs
        JOIN users u ON cs.viewer_id = u.id
@@ -218,12 +218,12 @@ router.put('/sharing', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'shares must be an array' });
     }
 
-    await db.query('DELETE FROM calendar_sharing WHERE owner_id = ?', [userId]);
+    await pool.query('DELETE FROM calendar_sharing WHERE owner_id = ?', [userId]);
 
     for (const s of shares) {
       if (s.viewer_id && s.access_level && s.access_level !== 'none') {
         const id = generateId();
-        await db.query(
+        await pool.query(
           'INSERT INTO calendar_sharing (id, owner_id, viewer_id, access_level) VALUES (?, ?, ?, ?)',
           [id, userId, s.viewer_id, s.access_level]
         );
@@ -247,7 +247,7 @@ router.get('/team', authenticateToken, requireRole('owner', 'admin', 'manager'),
       return res.status(400).json({ error: 'date query param required' });
     }
 
-    const [users] = await db.query(
+    const [users] = await pool.query(
       "SELECT id, username, display_name, role FROM users WHERE role != 'viewer' ORDER BY display_name"
     );
 
@@ -258,12 +258,12 @@ router.get('/team', authenticateToken, requireRole('owner', 'admin', 'manager'),
 
     const team = [];
     for (const user of users) {
-      const [hours] = await db.query(
+      const [hours] = await pool.query(
         'SELECT * FROM business_hours WHERE user_id = ? AND day_of_week = ?',
         [user.id, dayOfWeek]
       );
 
-      const [events] = await db.query(
+      const [events] = await pool.query(
         `SELECT id, title, start_time, end_time, event_type, client_id
          FROM calendar_events
          WHERE user_id = ? AND start_time >= ? AND end_time <= ?
