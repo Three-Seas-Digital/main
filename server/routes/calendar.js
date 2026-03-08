@@ -287,6 +287,74 @@ router.get('/team', authenticateToken, requireRole('owner', 'admin', 'manager'),
   }
 });
 
+// ── Business Hours Overrides (open/close specific dates) ──
+
+// GET /api/calendar/overrides?start=YYYY-MM-DD&end=YYYY-MM-DD
+router.get('/overrides', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const { start, end } = req.query;
+    let query = 'SELECT * FROM business_hours_overrides WHERE user_id = ?';
+    const params = [userId];
+    if (start && end) {
+      query += ' AND override_date >= ? AND override_date <= ?';
+      params.push(start, end);
+    }
+    query += ' ORDER BY override_date';
+    const [rows] = await pool.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching overrides:', error);
+    res.status(500).json({ error: 'Failed to fetch overrides' });
+  }
+});
+
+// POST /api/calendar/overrides
+router.post('/overrides', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const id = req.body.id || generateId();
+    const { override_date, is_open, start_time, end_time, reason } = req.body;
+
+    if (!override_date) {
+      return res.status(400).json({ error: 'override_date is required' });
+    }
+
+    await pool.query(
+      `INSERT INTO business_hours_overrides (id, user_id, override_date, is_open, start_time, end_time, reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id, override_date) DO UPDATE SET
+         is_open = EXCLUDED.is_open, start_time = EXCLUDED.start_time,
+         end_time = EXCLUDED.end_time, reason = EXCLUDED.reason, updated_at = NOW()`,
+      [id, userId, override_date, is_open ?? false, start_time || null, end_time || null, reason || null]
+    );
+
+    res.status(201).json({ id, message: 'Override saved' });
+  } catch (error) {
+    console.error('Error saving override:', error);
+    res.status(500).json({ error: 'Failed to save override' });
+  }
+});
+
+// DELETE /api/calendar/overrides/:id
+router.delete('/overrides/:id', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const { id } = req.params;
+    const [result] = await pool.query(
+      'DELETE FROM business_hours_overrides WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+    if ((result.affectedRows || result.rowCount || 0) === 0) {
+      return res.status(404).json({ error: 'Override not found' });
+    }
+    res.json({ message: 'Override removed' });
+  } catch (error) {
+    console.error('Error deleting override:', error);
+    res.status(500).json({ error: 'Failed to delete override' });
+  }
+});
+
 // ── Google Calendar Integration ──
 
 let googleCalendarUtils = null;

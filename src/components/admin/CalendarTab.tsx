@@ -57,6 +57,15 @@ interface CalendarEvent {
   google_event_id?: string;
 }
 
+interface DayOverride {
+  id: string;
+  override_date: string;
+  is_open: boolean;
+  start_time?: string;
+  end_time?: string;
+  reason?: string;
+}
+
 interface TeamMember {
   user_id: string;
   name: string;
@@ -200,17 +209,48 @@ function getDefaultHours(): BusinessHour[] {
   }));
 }
 
+/** Determine if a date is open/closed considering overrides */
+function getDayStatus(date: Date, hours: BusinessHour[], overrides: DayOverride[]): {
+  isOpen: boolean;
+  startTime: string;
+  endTime: string;
+  reason?: string;
+  overrideId?: string;
+} {
+  const dateStr = toDateStr(date);
+  const override = overrides.find(o => o.override_date === dateStr || o.override_date?.slice(0, 10) === dateStr);
+  if (override) {
+    return {
+      isOpen: override.is_open,
+      startTime: override.start_time || '09:00',
+      endTime: override.end_time || '17:00',
+      reason: override.reason,
+      overrideId: override.id,
+    };
+  }
+  const dow = date.getDay();
+  const bh = hours.find(h => h.day_of_week === dow);
+  return {
+    isOpen: bh ? bh.is_available : (dow >= 1 && dow <= 5),
+    startTime: bh?.start_time || '09:00',
+    endTime: bh?.end_time || '17:00',
+  };
+}
+
 // ══════════════════════════════════════
 // ── MONTH VIEW ──
 // ══════════════════════════════════════
 
-function MonthView({ currentDate, events, selectedDate, onSelectDate, onCreateEvent, onEditEvent }: {
+function MonthView({ currentDate, events, selectedDate, businessHours, overrides, onSelectDate, onCreateEvent, onEditEvent, onToggleDay }: {
   currentDate: Date;
   events: CalendarEvent[];
   selectedDate: string;
+  businessHours: BusinessHour[];
+  overrides: DayOverride[];
   onSelectDate: (date: string) => void;
   onCreateEvent: (date: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
+  onToggleDay: (date: Date, currentStatus: ReturnType<typeof getDayStatus>) => void;
 }) {
   const grid = useMemo(() => getMonthGrid(currentDate.getFullYear(), currentDate.getMonth()), [currentDate]);
   const today = toDateStr(new Date());
@@ -232,18 +272,34 @@ function MonthView({ currentDate, events, selectedDate, onSelectDate, onCreateEv
               const isToday = dateStr === today;
               const isSelected = dateStr === selectedDate;
               const isOtherMonth = date.getMonth() !== currentMonth;
+              const dayStatus = getDayStatus(date, businessHours, overrides);
+              const isClosed = !dayStatus.isOpen;
               const maxVisible = 3;
 
               return (
                 <div
                   key={di}
-                  className={`cv-month-cell${isToday ? ' cv-today' : ''}${isSelected ? ' cv-selected' : ''}${isOtherMonth ? ' cv-other-month' : ''}`}
+                  className={`cv-month-cell${isToday ? ' cv-today' : ''}${isSelected ? ' cv-selected' : ''}${isOtherMonth ? ' cv-other-month' : ''}${isClosed ? ' cv-closed-day' : ''}`}
                   onClick={() => onSelectDate(dateStr)}
                   onDoubleClick={() => onCreateEvent(dateStr)}
                 >
-                  <div className={`cv-month-date${isToday ? ' cv-today-badge' : ''}`}>
-                    {date.getDate()}
+                  <div className="cv-month-date-row">
+                    <div className={`cv-month-date${isToday ? ' cv-today-badge' : ''}`}>
+                      {date.getDate()}
+                    </div>
+                    {!isOtherMonth && (
+                      <button
+                        className={`cv-day-toggle${isClosed ? ' cv-day-toggle--closed' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onToggleDay(date, dayStatus); }}
+                        title={isClosed ? (dayStatus.reason || 'Closed — click to open') : 'Open — click to close'}
+                      >
+                        {isClosed ? <Ban size={11} /> : <CheckCircle size={11} />}
+                      </button>
+                    )}
                   </div>
+                  {isClosed && dayStatus.reason && (
+                    <div className="cv-closed-reason">{dayStatus.reason}</div>
+                  )}
                   <div className="cv-month-events">
                     {dayEvents.slice(0, maxVisible).map(evt => {
                       const ti = getTypeInfo(evt.event_type);
@@ -278,9 +334,11 @@ function MonthView({ currentDate, events, selectedDate, onSelectDate, onCreateEv
 // ── TIME GRID (Week / Day views) ──
 // ══════════════════════════════════════
 
-function TimeGrid({ dates, events, onCreateEvent, onEditEvent, isDayView }: {
+function TimeGrid({ dates, events, businessHours, overrides, onCreateEvent, onEditEvent, isDayView }: {
   dates: Date[];
   events: CalendarEvent[];
+  businessHours: BusinessHour[];
+  overrides: DayOverride[];
   onCreateEvent: (date: string, time?: string) => void;
   onEditEvent: (event: CalendarEvent) => void;
   isDayView?: boolean;
@@ -372,20 +430,26 @@ function TimeGrid({ dates, events, onCreateEvent, onEditEvent, isDayView }: {
             const ds = toDateStr(date);
             const isToday = ds === today;
             const dayEvents = getEventsForDate(events, date).filter(e => !e.all_day);
+            const dayStatus = getDayStatus(date, businessHours, overrides);
+            const workStartH = dayStatus.isOpen ? parseInt(dayStatus.startTime.split(':')[0]) : -1;
+            const workEndH = dayStatus.isOpen ? parseInt(dayStatus.endTime.split(':')[0]) : -1;
 
             return (
-              <div key={i} className={`cv-tg-col${isToday ? ' cv-today-col' : ''}`}>
+              <div key={i} className={`cv-tg-col${isToday ? ' cv-today-col' : ''}${!dayStatus.isOpen ? ' cv-tg-col--closed' : ''}`}>
                 {/* Hour cells (clickable) */}
-                {hours.map(h => (
-                  <div
-                    key={h}
-                    className="cv-tg-hour-cell"
-                    style={{ height: HOUR_HEIGHT }}
-                    onClick={() => onCreateEvent(ds, `${h.toString().padStart(2, '0')}:00`)}
-                  >
-                    <div className="cv-tg-half-line" />
-                  </div>
-                ))}
+                {hours.map(h => {
+                  const isOffHour = !dayStatus.isOpen || h < workStartH || h >= workEndH;
+                  return (
+                    <div
+                      key={h}
+                      className={`cv-tg-hour-cell${isOffHour ? ' cv-tg-hour-cell--off' : ''}`}
+                      style={{ height: HOUR_HEIGHT }}
+                      onClick={() => onCreateEvent(ds, `${h.toString().padStart(2, '0')}:00`)}
+                    >
+                      <div className="cv-tg-half-line" />
+                    </div>
+                  );
+                })}
 
                 {/* Event blocks */}
                 {dayEvents.map(evt => {
@@ -1022,6 +1086,103 @@ function AISchedulingChat({ onActionExecuted }: { onActionExecuted: () => void }
 }
 
 // ══════════════════════════════════════
+// ── DAY OVERRIDE MODAL ──
+// ══════════════════════════════════════
+
+function DayOverrideModal({ date, currentStatus, onClose, onSave, onRemoveOverride }: {
+  date: Date;
+  currentStatus: ReturnType<typeof getDayStatus>;
+  onClose: () => void;
+  onSave: (isOpen: boolean, reason: string, startTime?: string, endTime?: string) => void;
+  onRemoveOverride?: () => void;
+}) {
+  const isCurrentlyOpen = currentStatus.isOpen;
+  const [action, setAction] = useState<'close' | 'open'>(isCurrentlyOpen ? 'close' : 'open');
+  const [reason, setReason] = useState(currentStatus.reason || '');
+  const [startTime, setStartTime] = useState(currentStatus.startTime || '09:00');
+  const [endTime, setEndTime] = useState(currentStatus.endTime || '17:00');
+
+  const dateLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const hasOverride = !!currentStatus.overrideId;
+
+  return (
+    <div className="cal-modal-overlay" onClick={onClose}>
+      <div className="cal-modal cv-day-modal" onClick={e => e.stopPropagation()}>
+        <div className="cal-modal-header">
+          <h3>{dateLabel}</h3>
+          <button className="cal-modal-close" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        <div className="cv-day-modal-status">
+          Currently: <strong>{isCurrentlyOpen ? 'Open' : 'Closed'}</strong>
+          {isCurrentlyOpen && ` (${formatTime12(currentStatus.startTime)} – ${formatTime12(currentStatus.endTime)})`}
+          {currentStatus.reason && <span className="cv-day-modal-reason"> — {currentStatus.reason}</span>}
+          {hasOverride && <span className="cv-day-modal-badge">Override active</span>}
+        </div>
+
+        <div className="cv-day-modal-actions-row">
+          <button
+            className={`cv-day-action-btn${action === 'close' ? ' cv-day-action-btn--active cv-day-action-btn--close' : ''}`}
+            onClick={() => setAction('close')}
+          >
+            <Ban size={14} /> Close this day
+          </button>
+          <button
+            className={`cv-day-action-btn${action === 'open' ? ' cv-day-action-btn--active cv-day-action-btn--open' : ''}`}
+            onClick={() => setAction('open')}
+          >
+            <CheckCircle size={14} /> Open this day
+          </button>
+        </div>
+
+        {action === 'open' && (
+          <div className="cal-form-row" style={{ marginTop: 12 }}>
+            <div className="cal-form-group">
+              <label>Start time</label>
+              <select value={startTime} onChange={e => setStartTime(e.target.value)} className="cal-hours-select">
+                {HOURS_LIST.map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+              </select>
+            </div>
+            <div className="cal-form-group">
+              <label>End time</label>
+              <select value={endTime} onChange={e => setEndTime(e.target.value)} className="cal-hours-select">
+                {HOURS_LIST.map(t => <option key={t} value={t}>{formatTime12(t)}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className="cal-form-group" style={{ marginTop: 12 }}>
+          <label>Reason (optional)</label>
+          <input
+            type="text"
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder={action === 'close' ? 'e.g. Holiday, Personal day' : 'e.g. Special hours, Catch-up day'}
+          />
+        </div>
+
+        <div className="cal-modal-actions">
+          {hasOverride && onRemoveOverride && (
+            <button type="button" className="btn btn-danger btn-sm" onClick={onRemoveOverride} style={{ marginRight: 'auto' }}>
+              <Trash2 size={14} /> Remove Override
+            </button>
+          )}
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => onSave(action === 'open', reason, startTime, endTime)}
+          >
+            <Save size={14} /> Save Override
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════
 // ── MAIN CALENDAR TAB ──
 // ══════════════════════════════════════
 
@@ -1031,8 +1192,13 @@ export default function CalendarTab() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()));
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [businessHours, setBusinessHours] = useState<BusinessHour[]>(getDefaultHours());
+  const [overrides, setOverrides] = useState<DayOverride[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [dayModalDate, setDayModalDate] = useState<Date | null>(null);
+  const [dayModalStatus, setDayModalStatus] = useState<ReturnType<typeof getDayStatus> | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [modalDate, setModalDate] = useState(toDateStr(new Date()));
   const [modalTime, setModalTime] = useState('09:00');
@@ -1040,11 +1206,28 @@ export default function CalendarTab() {
 
   const viewRange = useMemo(() => getViewRange(viewMode, currentDate), [viewMode, currentDate]);
 
+  // Load business hours once
+  useEffect(() => {
+    calendarApi.getMyHours().then((data: any) => {
+      if (Array.isArray(data) && data.length > 0) {
+        const merged = getDefaultHours().map(def => {
+          const found = data.find((d: any) => d.day_of_week === def.day_of_week);
+          return found ? { ...def, ...found } : def;
+        });
+        setBusinessHours(merged);
+      }
+    }).catch(() => {});
+  }, []);
+
   const loadEvents = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await calendarApi.getEvents(viewRange.start, viewRange.end);
-      setEvents(Array.isArray(data) ? data : []);
+      const [eventsData, overridesData] = await Promise.all([
+        calendarApi.getEvents(viewRange.start, viewRange.end),
+        calendarApi.getOverrides(viewRange.start.slice(0, 10), viewRange.end.slice(0, 10)),
+      ]);
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      setOverrides(Array.isArray(overridesData) ? overridesData : []);
     } catch {
       setEvents([]);
     } finally {
@@ -1081,6 +1264,40 @@ export default function CalendarTab() {
       loadEvents();
     } catch (err) {
       console.error('Failed to delete:', err);
+    }
+  };
+
+  const handleToggleDay = (date: Date, status: ReturnType<typeof getDayStatus>) => {
+    setDayModalDate(date);
+    setDayModalStatus(status);
+    setShowDayModal(true);
+  };
+
+  const handleDayOverrideSave = async (isOpen: boolean, reason: string, startTime?: string, endTime?: string) => {
+    if (!dayModalDate) return;
+    try {
+      await calendarApi.createOverride({
+        override_date: toDateStr(dayModalDate),
+        is_open: isOpen,
+        start_time: isOpen ? (startTime || '09:00') : null,
+        end_time: isOpen ? (endTime || '17:00') : null,
+        reason: reason || null,
+      });
+      setShowDayModal(false);
+      loadEvents();
+    } catch (err) {
+      console.error('Failed to save override:', err);
+    }
+  };
+
+  const handleDayOverrideRemove = async () => {
+    if (!dayModalStatus?.overrideId) return;
+    try {
+      await calendarApi.deleteOverride(dayModalStatus.overrideId);
+      setShowDayModal(false);
+      loadEvents();
+    } catch (err) {
+      console.error('Failed to remove override:', err);
     }
   };
 
@@ -1157,15 +1374,20 @@ export default function CalendarTab() {
                 currentDate={currentDate}
                 events={events}
                 selectedDate={selectedDate}
+                businessHours={businessHours}
+                overrides={overrides}
                 onSelectDate={handleSelectDate}
                 onCreateEvent={handleCreateEvent}
                 onEditEvent={handleEditEvent}
+                onToggleDay={handleToggleDay}
               />
             )}
             {viewMode === 'week' && (
               <TimeGrid
                 dates={getWeekDates(currentDate)}
                 events={events}
+                businessHours={businessHours}
+                overrides={overrides}
                 onCreateEvent={handleCreateEvent}
                 onEditEvent={handleEditEvent}
               />
@@ -1174,6 +1396,8 @@ export default function CalendarTab() {
               <TimeGrid
                 dates={[currentDate]}
                 events={events}
+                businessHours={businessHours}
+                overrides={overrides}
                 onCreateEvent={handleCreateEvent}
                 onEditEvent={handleEditEvent}
                 isDayView
@@ -1196,6 +1420,17 @@ export default function CalendarTab() {
           onClose={() => { setShowModal(false); setEditingEvent(null); }}
           onSaved={handleSaved}
           onDelete={editingEvent ? () => handleDelete(editingEvent.id) : undefined}
+        />
+      )}
+
+      {/* Day Override Modal */}
+      {showDayModal && dayModalDate && dayModalStatus && (
+        <DayOverrideModal
+          date={dayModalDate}
+          currentStatus={dayModalStatus}
+          onClose={() => setShowDayModal(false)}
+          onSave={handleDayOverrideSave}
+          onRemoveOverride={dayModalStatus.overrideId ? handleDayOverrideRemove : undefined}
         />
       )}
 

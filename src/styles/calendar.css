@@ -1022,3 +1022,203 @@
   background: rgba(0, 0, 0, 0.03);
   border-color: rgba(0, 0, 0, 0.1);
 }
+
+/* ═══════════════════════════════════════
+   BUSINESS HOURS + DAY OVERRIDES
+   ═══════════════════════════════════════ */
+
+/* ── Month view: closed day styling ── */
+
+.cv-month-cell.cv-closed-day {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(239, 68, 68, 0.04) 8px,
+    rgba(239, 68, 68, 0.04) 16px
+  );
+  opacity: 0.75;
+}
+
+.cv-month-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.cv-day-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  color: rgba(62, 207, 142, 0.6);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.cv-month-cell:hover .cv-day-toggle {
+  opacity: 1;
+}
+
+.cv-day-toggle:hover {
+  color: #3ECF8E;
+}
+
+.cv-day-toggle--closed {
+  color: rgba(239, 68, 68, 0.6);
+  opacity: 0.8;
+}
+
+.cv-day-toggle--closed:hover {
+  color: #EF4444;
+}
+
+.cv-closed-reason {
+  font-size: 9px;
+  color: #EF4444;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+/* ── TimeGrid: off-hours shading ── */
+
+.cv-tg-hour-cell--off {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cv-tg-col--closed .cv-tg-hour-cell {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    rgba(239, 68, 68, 0.03) 10px,
+    rgba(239, 68, 68, 0.03) 20px
+  );
+}
+
+/* ── Day Override Modal ── */
+
+.cv-day-modal {
+  max-width: 440px;
+}
+
+.cv-day-modal-status {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 16px;
+}
+
+.cv-day-modal-reason {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.cv-day-modal-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #3B82F6;
+}
+
+.cv-day-modal-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.cv-day-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cv-day-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cv-day-action-btn--active.cv-day-action-btn--close {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #EF4444;
+}
+
+.cv-day-action-btn--active.cv-day-action-btn--open {
+  background: rgba(62, 207, 142, 0.12);
+  border-color: rgba(62, 207, 142, 0.3);
+  color: #3ECF8E;
+}
+
+/* ── Light theme overrides ── */
+
+:root.light-theme .cv-month-cell.cv-closed-day {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(239, 68, 68, 0.06) 8px,
+    rgba(239, 68, 68, 0.06) 16px
+  );
+}
+
+:root.light-theme .cv-day-toggle {
+  color: rgba(62, 207, 142, 0.5);
+}
+
+:root.light-theme .cv-day-toggle--closed {
+  color: rgba(239, 68, 68, 0.5);
+}
+
+:root.light-theme .cv-tg-hour-cell--off {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+:root.light-theme .cv-tg-col--closed .cv-tg-hour-cell {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 10px,
+    rgba(239, 68, 68, 0.04) 10px,
+    rgba(239, 68, 68, 0.04) 20px
+  );
+}
+
+:root.light-theme .cv-day-modal-status {
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+:root.light-theme .cv-day-action-btn {
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
+  color: rgba(0, 0, 0, 0.5);
+}
+
+:root.light-theme .cv-day-action-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.8);
+}
