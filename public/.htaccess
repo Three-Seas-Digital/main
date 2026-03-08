@@ -52,7 +52,7 @@
   Header set Referrer-Policy "strict-origin-when-cross-origin"
   Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-  Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://main-production-350f.up.railway.app https://nominatim.openstreetmap.org https://overpass-api.de https://api.census.gov; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.openstreetmap.org"
+  # CSP is handled via meta tag in index.html
 
   # Cache-Control for hashed assets
   <FilesMatch "\.(js|css|woff2|woff|ttf|jpg|jpeg|png|svg|webp)$">

@@ -1,11 +1,11 @@
 # Cloudflare Pages headers
+# CSP is handled via meta tag in index.html
+
 # HTML pages: never cache (so users always get latest chunk references)
 /
   Cache-Control: no-cache, no-store, must-revalidate
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://main-production-350f.up.railway.app https://nominatim.openstreetmap.org https://overpass-api.de https://api.census.gov; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.openstreetmap.org
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://main-production-350f.up.railway.app https://nominatim.openstreetmap.org https://overpass-api.de https://api.census.gov; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.openstreetmap.org
 
 # Hashed assets: cache forever (filenames change on rebuild)
 /assets/*
