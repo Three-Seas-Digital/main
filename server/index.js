@@ -71,6 +71,7 @@ import growthTargetsRouter from './routes/growthTargets.js';
 import executionPlansRouter from './routes/executionPlans.js';
 import aiRecommendationsRouter from './routes/aiRecommendations.js';
 import calendarRouter from './routes/calendar.js';
+import calendarAgentRouter from './routes/calendarAgent.js';
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -104,6 +105,7 @@ app.use('/api/clients', executionPlansRouter);
 app.use('/api/ai-recommendations', aiRecommendationsRouter);
 app.use('/api/payment-processing', paymentProcessingRoutes);
 app.use('/api/calendar', calendarRouter);
+app.use('/api/calendar/agent', calendarAgentRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

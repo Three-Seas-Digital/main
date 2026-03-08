@@ -18,4 +18,16 @@ export const calendarApi = {
 
   // Team View
   getTeamAvailability: (date: string) => api.get('/calendar/team', { params: { date } }).then(r => r.data),
+
+  // Google Calendar
+  getGoogleStatus: () => api.get('/calendar/google/status').then(r => r.data),
+  getGoogleAuthUrl: () => api.get('/calendar/google/auth-url').then(r => r.data),
+  syncGoogle: () => api.post('/calendar/google/sync').then(r => r.data),
+  disconnectGoogle: () => api.delete('/calendar/google/disconnect').then(r => r.data),
+
+  // AI Agent
+  agentChat: (message: string, context?: Record<string, unknown>) =>
+    api.post('/calendar/agent/chat', { message, context }).then(r => r.data),
+  agentExecute: (actionId: string) =>
+    api.post('/calendar/agent/execute', { actionId }).then(r => r.data),
 };

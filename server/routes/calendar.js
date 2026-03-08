@@ -287,4 +287,116 @@ router.get('/team', authenticateToken, requireRole('owner', 'admin', 'manager'),
   }
 });
 
+// ── Google Calendar Integration ──
+
+let googleCalendarUtils = null;
+try {
+  googleCalendarUtils = await import('../utils/googleCalendar.js');
+} catch {
+  console.warn('[calendar] Google Calendar utils not available — Google sync disabled');
+}
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://threeseasdigital.com';
+
+// GET /api/calendar/google/status
+router.get('/google/status', authenticateToken, async (req, res) => {
+  try {
+    if (!googleCalendarUtils) return res.json({ success: true, data: { connected: false } });
+    const userId = req.user?.userId || req.user?.id;
+    const status = await googleCalendarUtils.getConnectionStatus(userId);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    console.error('GET /calendar/google/status error:', error);
+    res.status(500).json({ error: 'Failed to check Google Calendar status' });
+  }
+});
+
+// GET /api/calendar/google/auth-url
+router.get('/google/auth-url', authenticateToken, async (req, res) => {
+  try {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+      return res.status(503).json({ error: 'Google Calendar integration is not configured on this server' });
+    }
+    const userId = req.user?.userId || req.user?.id;
+    const url = googleCalendarUtils.getAuthUrl(userId);
+    res.json({ success: true, data: { url } });
+  } catch (error) {
+    console.error('GET /calendar/google/auth-url error:', error);
+    res.status(500).json({ error: 'Failed to generate Google auth URL' });
+  }
+});
+
+// GET /api/calendar/google/callback
+router.get('/google/callback', async (req, res) => {
+  const { code, state: userId, error: oauthError } = req.query;
+
+  if (oauthError) return res.redirect(`${FRONTEND_URL}/admin?google_calendar=denied`);
+  if (!code || !userId) return res.redirect(`${FRONTEND_URL}/admin?google_calendar=error&reason=missing_params`);
+
+  try {
+    let tokens;
+    try {
+      tokens = await googleCalendarUtils.handleCallback(code);
+    } catch {
+      const [existing] = await pool.query('SELECT refresh_token FROM google_calendar_tokens WHERE user_id = ?', [userId]);
+      if (!Array.isArray(existing) || existing.length === 0) throw new Error('No refresh token');
+      tokens = await googleCalendarUtils.handleCallbackPartial(code, existing[0].refresh_token);
+    }
+
+    await pool.query(
+      `INSERT INTO google_calendar_tokens (user_id, access_token, refresh_token, token_expiry, updated_at)
+       VALUES (?, ?, ?, ?, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
+         token_expiry = EXCLUDED.token_expiry, sync_token = NULL, updated_at = NOW()`,
+      [userId, tokens.access_token, tokens.refresh_token, tokens.expiry]
+    );
+
+    Promise.all([
+      googleCalendarUtils.syncEventsFromGoogle(userId),
+      googleCalendarUtils.syncEventsToGoogle(userId),
+    ]).catch(err => console.error('[googleCalendar] Initial sync failed:', err.message));
+
+    return res.redirect(`${FRONTEND_URL}/admin?google_calendar=connected`);
+  } catch (error) {
+    console.error('[googleCalendar] Callback error:', error.message);
+    return res.redirect(`${FRONTEND_URL}/admin?google_calendar=error&reason=token_exchange`);
+  }
+});
+
+// POST /api/calendar/google/sync
+router.post('/google/sync', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const status = await googleCalendarUtils.getConnectionStatus(userId);
+    if (!status.connected) return res.status(400).json({ error: 'Google Calendar is not connected' });
+
+    const [fromGoogle, toGoogle] = await Promise.all([
+      googleCalendarUtils.syncEventsFromGoogle(userId),
+      googleCalendarUtils.syncEventsToGoogle(userId),
+    ]);
+
+    res.json({ success: true, data: { fromGoogle, toGoogle, syncedAt: new Date().toISOString() } });
+  } catch (error) {
+    console.error('POST /calendar/google/sync error:', error);
+    res.status(500).json({ error: 'Sync failed', detail: error.message });
+  }
+});
+
+// DELETE /api/calendar/google/disconnect
+router.delete('/google/disconnect', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.userId || req.user?.id;
+    const [result] = await pool.query('DELETE FROM google_calendar_tokens WHERE user_id = ?', [userId]);
+    const affected = result.affectedRows || result.rowCount || 0;
+    if (affected === 0) return res.status(404).json({ error: 'No Google Calendar connection found' });
+
+    await pool.query("UPDATE calendar_events SET google_event_id = NULL WHERE user_id = ?", [userId]);
+    res.json({ success: true, message: 'Google Calendar disconnected' });
+  } catch (error) {
+    console.error('DELETE /calendar/google/disconnect error:', error);
+    res.status(500).json({ error: 'Failed to disconnect Google Calendar' });
+  }
+});
+
 export default router;
