@@ -852,6 +852,15 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* Month event bars: dark text on light tinted backgrounds */
+:root.light-theme .cv-month-event-title {
+  color: #1f2937;
+}
+
+:root.light-theme .cv-month-event-time {
+  color: #374151;
+}
+
 /* TimeGrid borders/lines */
 :root.light-theme .cv-tg-allday {
   background: rgba(0, 0, 0, 0.01);
