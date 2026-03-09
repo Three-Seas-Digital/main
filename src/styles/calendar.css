@@ -767,6 +767,114 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
+/* Light theme: text color overrides for all calendar elements */
+:root.light-theme .cv-title {
+  color: #1f2937;
+}
+
+:root.light-theme .cv-nav-btn,
+:root.light-theme .cv-today-btn {
+  color: #374151;
+}
+
+:root.light-theme .cv-view-switcher button {
+  color: #6b7280;
+}
+
+:root.light-theme .cv-view-switcher button.active {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
+}
+
+:root.light-theme .cv-month-day-name {
+  color: #374151;
+}
+
+:root.light-theme .cv-month-date {
+  color: #1f2937;
+}
+
+:root.light-theme .cv-month-cell.cv-other-month .cv-month-date {
+  color: #9ca3af;
+}
+
+:root.light-theme .cv-today-badge {
+  color: #000 !important;
+}
+
+:root.light-theme .cv-month-event-time {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+:root.light-theme .cv-month-more {
+  color: #374151;
+}
+
+:root.light-theme .cv-month-more:hover {
+  color: #059669;
+}
+
+/* TimeGrid light text */
+:root.light-theme .cv-tg-day-name {
+  color: #374151;
+}
+
+:root.light-theme .cv-tg-day-num {
+  color: #1f2937;
+}
+
+:root.light-theme .cv-tg-day-header.cv-today .cv-tg-day-name {
+  color: #059669;
+}
+
+:root.light-theme .cv-tg-gutter-hour span {
+  color: #6b7280;
+}
+
+:root.light-theme .cv-tg-gutter-label {
+  color: #6b7280;
+}
+
+:root.light-theme .cv-allday-event {
+  color: #fff;
+}
+
+/* Event block text on colored backgrounds stays white in light mode */
+:root.light-theme .cv-event-block-title {
+  color: #fff;
+}
+
+:root.light-theme .cv-event-block-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:root.light-theme .cv-event-block-loc {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* TimeGrid borders/lines */
+:root.light-theme .cv-tg-allday {
+  background: rgba(0, 0, 0, 0.01);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+:root.light-theme .cv-tg-allday-cell {
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+:root.light-theme .cv-tg-day-header {
+  border-right-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Now line */
+:root.light-theme .cv-now-line {
+  border-top-color: #dc2626;
+}
+
+:root.light-theme .cv-now-dot {
+  background: #dc2626;
+}
+
 /* ═══════════════════════════════════════
    GOOGLE CALENDAR BAR
    ═══════════════════════════════════════ */
@@ -1103,11 +1211,29 @@
 :root.light-theme .cv-google-bar {
   background: rgba(0, 0, 0, 0.02);
   border-color: rgba(0, 0, 0, 0.08);
+  color: #374151;
+}
+
+:root.light-theme .cv-google-status {
+  color: #374151;
+}
+
+:root.light-theme .cv-google-sync-time {
+  color: #6b7280;
 }
 
 :root.light-theme .cv-google-btn {
   background: rgba(0, 0, 0, 0.03);
   border-color: rgba(0, 0, 0, 0.1);
+  color: #374151;
+}
+
+:root.light-theme .cv-google-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+:root.light-theme .cv-google-btn--connect {
+  color: #059669;
 }
 
 :root.light-theme .cv-ai-panel {
@@ -1133,6 +1259,38 @@
 :root.light-theme .cv-ai-input input {
   background: rgba(0, 0, 0, 0.03);
   border-color: rgba(0, 0, 0, 0.1);
+  color: #1f2937;
+}
+
+:root.light-theme .cv-ai-input input::placeholder {
+  color: #9ca3af;
+}
+
+:root.light-theme .cv-ai-input button {
+  color: #059669;
+}
+
+:root.light-theme .cv-ai-header h4 {
+  color: #1f2937;
+}
+
+:root.light-theme .cv-ai-welcome p {
+  color: #6b7280;
+}
+
+:root.light-theme .cv-ai-suggestion {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #374151;
+}
+
+:root.light-theme .cv-ai-suggestion:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+:root.light-theme .cv-ai-fab {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* ═══════════════════════════════════════
@@ -1339,4 +1497,22 @@
 :root.light-theme .cv-day-action-btn:hover {
   background: rgba(0, 0, 0, 0.04);
   color: rgba(0, 0, 0, 0.95);
+}
+
+:root.light-theme .cv-day-modal {
+  background: #fff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+:root.light-theme .cv-day-modal-reason {
+  color: #6b7280;
+}
+
+:root.light-theme .cv-day-modal-badge {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+:root.light-theme .cv-closed-reason {
+  color: #dc2626;
 }

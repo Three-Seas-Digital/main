@@ -19634,6 +19634,11 @@ tr.expanded-row td {
 /* ── Light Theme ── */
 :root.light-theme .cal-sub-tabs {
   background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+:root.light-theme .cal-sub-tab {
+  color: #6b7280;
 }
 
 :root.light-theme .cal-sub-tab:hover {
@@ -19653,6 +19658,30 @@ tr.expanded-row td {
   border-color: rgba(0, 0, 0, 0.08);
 }
 
+:root.light-theme .cal-hours-header h3 {
+  color: #1f2937;
+}
+
+:root.light-theme .cal-hours-desc {
+  color: #6b7280;
+}
+
+:root.light-theme .cal-hours-day-name {
+  color: #1f2937;
+}
+
+:root.light-theme .cal-hours-to {
+  color: #6b7280;
+}
+
+:root.light-theme .cal-hours-off-label {
+  color: #9ca3af;
+}
+
+:root.light-theme .cal-hours-toggle {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
 :root.light-theme .cal-hours-select,
 :root.light-theme .cal-nav-btn {
   background: #fff;
@@ -19663,6 +19692,15 @@ tr.expanded-row td {
 :root.light-theme .cal-modal {
   background: #fff;
   border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+:root.light-theme .cal-modal-header h3 {
+  color: #1f2937;
+}
+
+:root.light-theme .cal-form-group label {
+  color: #374151;
 }
 
 :root.light-theme .cal-form-group input,
@@ -19673,10 +19711,22 @@ tr.expanded-row td {
   color: #1f2937;
 }
 
+:root.light-theme .cal-event-card {
+  color: #1f2937;
+}
+
+:root.light-theme .cal-team-row {
+  color: #1f2937;
+}
+
 :root.light-theme .cal-team-event-pip {
   background: rgba(59, 130, 246, 0.06);
   border-color: rgba(59, 130, 246, 0.15);
   color: #2563EB;
+}
+
+:root.light-theme .cal-events-toolbar {
+  color: #374151;
 }
 
 /* ===== ADMIN MOBILE RESPONSIVE ===== */
