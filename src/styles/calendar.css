@@ -513,64 +513,166 @@
 /* ── Responsive ── */
 
 @media (max-width: 768px) {
+  /* Toolbar: stack vertically */
   .cv-toolbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 10px;
   }
-
+  .cv-toolbar-left {
+    justify-content: space-between;
+    width: 100%;
+  }
   .cv-toolbar-right {
     width: 100%;
     justify-content: space-between;
   }
-
-  .cv-month-cell {
-    min-height: 60px;
-    padding: 2px 3px;
+  .cv-title {
+    font-size: 0.95rem;
   }
 
+  /* Month view: compact cells */
+  .cv-month-cell {
+    min-height: 54px;
+    padding: 2px;
+  }
+  .cv-month-day-name {
+    padding: 6px 2px;
+    font-size: 0.65rem;
+  }
   .cv-month-date {
     font-size: 0.72rem;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
   }
-
   .cv-month-event {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
+    padding: 1px 3px;
   }
-
   .cv-month-event-time {
     display: none;
   }
 
-  .cv-timegrid {
-    height: calc(100vh - 300px);
-    min-height: 400px;
+  /* Day toggle pills: smaller on mobile */
+  .cv-day-toggle {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .cv-month-date-row {
+    gap: 2px;
   }
 
-  .cv-title {
-    font-size: 0.95rem;
+  /* Event dots instead of bars */
+  .cv-month-events {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .cv-month-event {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    border-radius: 50%;
+    padding: 0;
+    overflow: hidden;
+  }
+  .cv-month-event-title,
+  .cv-month-event-time {
+    display: none;
+  }
+  .cv-month-more {
+    font-size: 0.58rem;
+    padding: 0;
+  }
+
+  /* TimeGrid: scrollable */
+  .cv-timegrid {
+    height: calc(100vh - 280px);
+    min-height: 400px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cv-tg-body {
+    min-width: 500px;
+  }
+  .cv-tg-header {
+    min-width: 500px;
+  }
+
+  /* Sub-tabs */
+  .cal-sub-tabs {
+    width: 100%;
+  }
+  .cal-sub-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Day override modal */
+  .cv-day-modal {
+    width: 95vw;
+    max-width: 95vw;
+  }
+  .cv-day-modal-actions-row {
+    flex-direction: column;
+    gap: 6px;
   }
 }
 
 @media (max-width: 480px) {
-  .cv-month-event {
-    display: none;
-  }
-
+  /* Month cells: minimal */
   .cv-month-cell {
-    min-height: 40px;
+    min-height: 38px;
+    padding: 1px;
+  }
+  .cv-month-date {
+    font-size: 0.65rem;
+    width: 18px;
+    height: 18px;
   }
 
-  /* Show dots instead of event bars on small screens */
-  .cv-month-events {
-    flex-direction: row;
-    gap: 2px;
-    flex-wrap: wrap;
+  /* Hide toggle text, show icon only */
+  .cv-day-toggle {
+    font-size: 0;
+    padding: 2px;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
   }
 
-  .cv-month-cell .cv-month-events::after {
-    content: '';
+  /* Toolbar: even more compact */
+  .cv-nav-btn {
+    width: 28px;
+    height: 28px;
+  }
+  .cv-today-btn {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+  .cv-title {
+    font-size: 0.85rem;
+    padding-left: 4px;
+  }
+  .cv-view-switcher button {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  /* Sub-tabs: smaller */
+  .cal-sub-tab {
+    font-size: 0.75rem;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+  .cal-sub-tab svg {
+    width: 13px;
+    height: 13px;
   }
 }
 

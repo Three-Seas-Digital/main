@@ -19792,6 +19792,35 @@ tr.expanded-row td {
     position: static;
   }
 
+  /* Calendar: mobile-friendly sizing */
+  .admin-page .calendar {
+    padding: 14px;
+  }
+  .admin-page .calendar-header {
+    margin-bottom: 12px;
+  }
+  .admin-page .calendar-header h3 {
+    font-size: 1rem;
+  }
+  .admin-page .calendar-grid {
+    gap: 2px;
+  }
+  .admin-page .calendar-day {
+    aspect-ratio: auto;
+    padding: 8px 4px;
+    font-size: 0.82rem;
+    border-radius: 6px;
+  }
+  .admin-page .calendar-day-label {
+    font-size: 0.68rem;
+    padding: 6px 0;
+  }
+  .admin-page .calendar-dot {
+    bottom: 2px;
+    width: 3px;
+    height: 3px;
+  }
+
   /* Appointment cards: tighter */
   .appointment-card {
     padding: 14px;
@@ -19842,6 +19871,90 @@ tr.expanded-row td {
   /* New appointment form: stack grids */
   .appt-form-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* New appointment form panel: mobile padding */
+  .new-appt-form-panel {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* Calendar export btn: icon only on mobile */
+  .calendar-export-btn span,
+  .calendar-export-btn .btn-text {
+    display: none;
+  }
+
+  /* Filter controls: full width buttons on mobile */
+  .filter-controls .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Appt checkbox: relative flow on mobile */
+  .appt-checkbox {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    margin-bottom: 6px;
+  }
+  .appointment-card {
+    padding-left: 14px !important;
+  }
+
+  /* CalendarTab - My Hours: stack rows */
+  .cal-hours-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+  }
+  .cal-hours-day {
+    min-width: auto;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .cal-hours-times {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cal-hours-select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* CalendarTab - Google bar */
+  .cv-google-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .cv-google-actions {
+    justify-content: flex-start;
+  }
+
+  /* CalendarTab - Event modal */
+  .cal-modal {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+  }
+  .cal-form-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  /* CalendarTab - AI panel */
+  .cv-ai-panel {
+    width: 100%;
+    right: 0;
+    bottom: 0;
+    max-height: 70vh;
+    border-radius: 12px 12px 0 0;
   }
 
   /* Layout gap */
@@ -19900,6 +20013,25 @@ tr.expanded-row td {
     font-size: 1rem;
   }
 
+  /* Calendar: extra compact on small phones */
+  .admin-page .calendar {
+    padding: 10px;
+  }
+  .admin-page .calendar-day {
+    padding: 6px 2px;
+    font-size: 0.78rem;
+  }
+  .admin-page .calendar-day-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+  }
+  .admin-page .calendar-nav {
+    padding: 4px;
+  }
+  .admin-page .calendar-header h3 {
+    font-size: 0.9rem;
+  }
+
   /* Appointment cards: minimal padding */
   .appointment-card {
     padding: 12px;
@@ -19911,6 +20043,43 @@ tr.expanded-row td {
   .appt-actions .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  /* View toggles: compact */
+  .view-btn {
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+  .view-btn svg {
+    display: none;
+  }
+
+  /* Filter controls: stack fully */
+  .filter-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-controls .btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.78rem;
+  }
+  .filter-select {
+    width: 100%;
+  }
+
+  /* Appt date/time: stack */
+  .appt-datetime {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* New appt form */
+  .new-appt-form-panel {
+    padding: 10px !important;
+  }
+  .new-appt-form-panel h3 {
+    font-size: 0.9rem !important;
   }
 
   /* Quick actions: single column */
