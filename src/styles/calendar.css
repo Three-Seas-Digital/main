@@ -1304,8 +1304,8 @@
     -45deg,
     transparent,
     transparent 8px,
-    rgba(239, 68, 68, 0.06) 8px,
-    rgba(239, 68, 68, 0.06) 16px
+    rgba(239, 68, 68, 0.12) 8px,
+    rgba(239, 68, 68, 0.12) 16px
   );
 }
 
@@ -1317,13 +1317,14 @@
 }
 
 .cv-day-toggle {
-  background: rgba(62, 207, 142, 0.1);
-  border: 1px solid rgba(62, 207, 142, 0.2);
+  background: rgba(62, 207, 142, 0.15);
+  border: 1px solid rgba(62, 207, 142, 0.35);
   cursor: pointer;
   padding: 2px 5px;
   border-radius: 4px;
-  color: rgba(62, 207, 142, 0.7);
+  color: #3ECF8E;
   font-size: 9px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1332,18 +1333,18 @@
 }
 
 .cv-day-toggle:hover {
-  background: rgba(62, 207, 142, 0.2);
-  color: #3ECF8E;
+  background: rgba(62, 207, 142, 0.25);
+  color: #34d399;
 }
 
 .cv-day-toggle--closed {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-  color: rgba(239, 68, 68, 0.7);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #F87171;
 }
 
 .cv-day-toggle--closed:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.25);
   color: #EF4444;
 }
 
@@ -1361,7 +1362,7 @@
 /* ── TimeGrid: off-hours shading ── */
 
 .cv-tg-hour-cell--off {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .cv-tg-col--closed .cv-tg-hour-cell {
@@ -1369,8 +1370,8 @@
     -45deg,
     transparent,
     transparent 10px,
-    rgba(239, 68, 68, 0.03) 10px,
-    rgba(239, 68, 68, 0.03) 20px
+    rgba(239, 68, 68, 0.08) 10px,
+    rgba(239, 68, 68, 0.08) 20px
   );
 }
 
@@ -1452,25 +1453,35 @@
     -45deg,
     transparent,
     transparent 8px,
-    rgba(239, 68, 68, 0.06) 8px,
-    rgba(239, 68, 68, 0.06) 16px
+    rgba(239, 68, 68, 0.1) 8px,
+    rgba(239, 68, 68, 0.1) 16px
   );
 }
 
 :root.light-theme .cv-day-toggle {
-  background: rgba(62, 207, 142, 0.08);
-  border-color: rgba(62, 207, 142, 0.15);
-  color: rgba(62, 207, 142, 0.6);
+  background: rgba(5, 150, 105, 0.1);
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #059669;
+}
+
+:root.light-theme .cv-day-toggle:hover {
+  background: rgba(5, 150, 105, 0.18);
+  color: #047857;
 }
 
 :root.light-theme .cv-day-toggle--closed {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.15);
-  color: rgba(239, 68, 68, 0.6);
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+
+:root.light-theme .cv-day-toggle--closed:hover {
+  background: rgba(220, 38, 38, 0.18);
+  color: #b91c1c;
 }
 
 :root.light-theme .cv-tg-hour-cell--off {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 :root.light-theme .cv-tg-col--closed .cv-tg-hour-cell {
@@ -1478,8 +1489,8 @@
     -45deg,
     transparent,
     transparent 10px,
-    rgba(239, 68, 68, 0.04) 10px,
-    rgba(239, 68, 68, 0.04) 20px
+    rgba(239, 68, 68, 0.08) 10px,
+    rgba(239, 68, 68, 0.08) 20px
   );
 }
 
