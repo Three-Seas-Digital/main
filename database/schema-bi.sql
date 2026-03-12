@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS recommendation_templates (
     priority ENUM('critical', 'high', 'medium', 'low') DEFAULT 'medium',
     impact ENUM('high', 'medium', 'low') DEFAULT 'medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES audit_categories(id) ON DELETE SET NULL
 );
 
@@ -259,7 +260,8 @@ CREATE TABLE IF NOT EXISTS growth_snapshots (
     FOREIGN KEY (target_id) REFERENCES growth_targets(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     INDEX idx_target_date (target_id, recorded_at),
-    CONSTRAINT chk_progress CHECK (progress_percent >= 0 AND progress_percent <= 100)
+    INDEX idx_client (client_id),
+    CONSTRAINT chk_progress CHECK (progress_percent >= 0)
 );
 
 -- 12. data_source_connections (depends on clients)
@@ -295,7 +297,10 @@ CREATE TABLE IF NOT EXISTS data_sync_log (
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL,
     FOREIGN KEY (connection_id) REFERENCES data_source_connections(id) ON DELETE CASCADE,
-    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    INDEX idx_client (client_id),
+    INDEX idx_status (status),
+    INDEX idx_started (started_at)
 );
 
 
@@ -568,7 +573,9 @@ CREATE TABLE IF NOT EXISTS saved_filters (
     is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    INDEX idx_user_section (user_id, section),
+    INDEX idx_client_section (client_id, section)
 );
 
 -- 26. scheduled_reports (depends on clients)
@@ -638,7 +645,7 @@ CREATE TABLE IF NOT EXISTS ai_recommendations (
     client_id VARCHAR(36) NOT NULL,
     snapshot_id VARCHAR(36) NOT NULL,
 
-    ai_provider ENUM('gemini', 'external', 'webhook') NOT NULL DEFAULT 'gemini',
+    ai_provider ENUM('gemini', 'claude', 'anthropic', 'ollama', 'external', 'webhook') NOT NULL DEFAULT 'gemini',
     model_used VARCHAR(100),
     analysis_type VARCHAR(50),
     generation_status ENUM('pending', 'generating', 'completed', 'failed') DEFAULT 'pending',

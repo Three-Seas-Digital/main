@@ -132,4 +132,4 @@ LEFT JOIN (
   FROM business_audits
   GROUP BY client_id
 ) audit_counts ON audit_counts.client_id = c.id
-WHERE c.status IN ('active', 'approved');
+WHERE c.status IN ('active');

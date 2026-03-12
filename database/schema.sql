@@ -41,14 +41,26 @@ CREATE TABLE IF NOT EXISTS clients (
   phone VARCHAR(50) DEFAULT '',
   password_hash VARCHAR(255),
   service VARCHAR(255) DEFAULT '',
-  tier ENUM('free', 'basic', 'premium', 'enterprise') DEFAULT 'free',
+  tier ENUM('free', 'basic', 'starter', 'business', 'premium', 'enterprise') DEFAULT 'free',
   status ENUM('active', 'pending', 'archived', 'rejected') DEFAULT 'active',
   source ENUM('manual', 'appointment', 'signup', 'prospect', 'pipeline') DEFAULT 'manual',
   source_prospect_id VARCHAR(36),
   source_appointment_id VARCHAR(36),
   business_name VARCHAR(255) DEFAULT '',
   business_address TEXT,
+  street VARCHAR(255) DEFAULT NULL,
+  city VARCHAR(100) DEFAULT NULL,
+  state VARCHAR(50) DEFAULT NULL,
+  zip VARCHAR(20) DEFAULT NULL,
   date_of_birth DATE,
+  profile_complete BOOLEAN DEFAULT FALSE,
+  onboarding JSON,
+  must_change_password BOOLEAN DEFAULT FALSE,
+  email_verified BOOLEAN DEFAULT FALSE,
+  email_verification_token VARCHAR(255),
+  email_verification_sent_at TIMESTAMP NULL,
+  refresh_token TEXT,
+  last_login TIMESTAMP NULL,
   approved_at TIMESTAMP NULL,
   approved_by VARCHAR(255),
   archived_at TIMESTAMP NULL,
@@ -60,7 +72,8 @@ CREATE TABLE IF NOT EXISTS clients (
   INDEX idx_status (status),
   INDEX idx_tier (tier),
   INDEX idx_status_tier (status, tier),
-  INDEX idx_created_at (created_at)
+  INDEX idx_created_at (created_at),
+  INDEX idx_clients_verification_token (email_verification_token)
 );
 
 -- ---------------------------------------------------------
@@ -80,7 +93,7 @@ CREATE TABLE IF NOT EXISTS client_notes (
 -- 4. client_tags (FK -> clients)
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS client_tags (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id VARCHAR(36) PRIMARY KEY,
   client_id VARCHAR(36) NOT NULL,
   tag VARCHAR(100) NOT NULL,
   FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
@@ -89,26 +102,7 @@ CREATE TABLE IF NOT EXISTS client_tags (
 );
 
 -- ---------------------------------------------------------
--- 5. documents (polymorphic: client or prospect)
--- ---------------------------------------------------------
-CREATE TABLE IF NOT EXISTS documents (
-  id VARCHAR(36) PRIMARY KEY,
-  owner_type ENUM('client', 'prospect') NOT NULL,
-  owner_id VARCHAR(36) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  type ENUM('proposal', 'contract', 'agreement', 'invoice', 'receipt', 'report', 'intake', 'welcome_packet', 'bi_discovery', 'other') DEFAULT 'other',
-  description TEXT,
-  file_path VARCHAR(500),
-  file_type VARCHAR(100),
-  file_size INT,
-  uploaded_by VARCHAR(255) DEFAULT 'System',
-  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_owner (owner_type, owner_id)
-);
-
--- ---------------------------------------------------------
--- 5a. client_documents (FK -> clients)
+-- 5. client_documents (FK -> clients)
 --     Dedicated table referenced by server/routes/clients.js
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS client_documents (
@@ -128,7 +122,7 @@ CREATE TABLE IF NOT EXISTS client_documents (
 );
 
 -- ---------------------------------------------------------
--- 5b. prospect_documents (FK -> prospects)
+-- 6. prospect_documents (FK -> prospects)
 --     Dedicated table referenced by server/routes/prospects.js
 --     Note: prospects table created at #14 below; FK-safe due
 --     to SET FOREIGN_KEY_CHECKS = 0 at top.
@@ -243,7 +237,6 @@ CREATE TABLE IF NOT EXISTS project_tasks (
   description TEXT,
   status ENUM('todo', 'in-progress', 'review', 'done') DEFAULT 'todo',
   goal TEXT,
-  assignee VARCHAR(36),
   assigned_to VARCHAR(36),
   due_date DATE,
   priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal',
@@ -289,6 +282,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
   assigned_to VARCHAR(36),
   converted_to_client VARCHAR(36),
+  FOREIGN KEY (converted_to_client) REFERENCES clients(id) ON DELETE SET NULL,
   follow_up_status VARCHAR(50),
   follow_up_date DATE,
   follow_up_priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
@@ -299,7 +293,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   INDEX idx_status (status),
   INDEX idx_assigned (assigned_to),
   INDEX idx_assigned_date (assigned_to, date),
-  INDEX idx_status_date (status, date)
+  INDEX idx_status_date (status, date),
+  INDEX idx_converted (converted_to_client)
 );
 
 -- ---------------------------------------------------------
@@ -323,7 +318,7 @@ CREATE OR REPLACE VIEW appointment_notes AS SELECT * FROM follow_up_notes;
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS prospects (
   id VARCHAR(36) PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
+  name VARCHAR(255) DEFAULT '',
   business_name VARCHAR(255),
   contact_name VARCHAR(255),
   email VARCHAR(255),
@@ -340,6 +335,7 @@ CREATE TABLE IF NOT EXISTS prospects (
   revisit_date DATE,
   source VARCHAR(50) DEFAULT 'manual',
   appointment_id VARCHAR(36),
+  lead_id VARCHAR(36),
   closed_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -409,9 +405,10 @@ CREATE TABLE IF NOT EXISTS expenses (
   receipt_name VARCHAR(255),
   vendor VARCHAR(255),
   notes TEXT,
-  created_by VARCHAR(255) DEFAULT 'Unknown',
+  created_by VARCHAR(36),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_category (category),
   INDEX idx_date (date),
   INDEX idx_category_date (category, date),
@@ -438,6 +435,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_client (client_id),
   INDEX idx_project (project_id),
   INDEX idx_date (date),
@@ -490,7 +488,8 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_action (action),
-  INDEX idx_created (created_at)
+  INDEX idx_created (created_at),
+  INDEX idx_user_created (user_id, created_at)
 );
 
 -- ---------------------------------------------------------
@@ -529,23 +528,6 @@ CREATE TABLE IF NOT EXISTS market_research (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_key (lookup_key)
-);
-
--- ---------------------------------------------------------
--- 25. sessions (FK -> users, clients)
--- ---------------------------------------------------------
-CREATE TABLE IF NOT EXISTS sessions (
-  id VARCHAR(36) PRIMARY KEY,
-  user_id VARCHAR(36),
-  client_id VARCHAR(36),
-  token_hash VARCHAR(255) NOT NULL,
-  user_type ENUM('admin', 'client') NOT NULL,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-  INDEX idx_token (token_hash),
-  INDEX idx_expires (expires_at)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

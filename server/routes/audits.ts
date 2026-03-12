@@ -39,7 +39,7 @@ router.post('/client/:clientId', authenticateToken, requireRole('owner', 'admin'
     await pool.query(
       `INSERT INTO business_audits (id, client_id, version, status, audit_date, notes, created_by, created_at)
        VALUES (?, ?, ?, 'draft', ?, ?, ?, NOW())`,
-      [id, clientId, nextVersion, audit_date || new Date().toISOString().slice(0, 10), notes || null, req.user?.userId]
+      [id, clientId, nextVersion, audit_date || new Date().toISOString().slice(0, 10), notes || null, req.user?.id]
     );
     res.status(201).json({ success: true, data: { id, version: nextVersion, message: 'Audit created' } });
   } catch (err) {
@@ -241,7 +241,7 @@ router.post('/:auditId/recommendations', authenticateToken, requireRole('owner',
        estimated_cost_min, estimated_cost_max, estimated_timeline, status, created_by, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())`,
       [id, auditId, clientId, category_id || null, title, description || null, priority || 'medium',
-       estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.user?.userId]
+       estimated_cost_min || null, estimated_cost_max || null, estimated_timeline || null, req.user?.id]
     );
     res.status(201).json({ success: true, data: { id, message: 'Recommendation added' } });
   } catch (err) {

@@ -1049,20 +1049,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const invoice = client?.invoices?.find((i: any) => i.id === invoiceId);
 
     if (invoice && invoice.status !== 'paid') {
-      // Create payment record for revenue tracking
-      const payment = {
-        id: generateId(),
-        clientId,
-        clientName: client.name,
-        service: client.service || 'general',
-        serviceTier: client.tier || 'basic',
-        amount: invoice.amount,
-        method: 'invoice',
-        status: 'completed',
-        invoiceId: invoiceId,
-        createdAt: new Date().toISOString(),
-      };
-      addPaymentRecord(payment);
+      // Payment record is created server-side by invoicesApi.markPaid()
+      // Do NOT call addPaymentRecord here to avoid duplicate payment records
 
       // Update invoice status
       setClients((prev) =>
