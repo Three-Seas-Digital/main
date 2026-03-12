@@ -137,7 +137,7 @@ router.put('/:id/mark-paid', authenticateToken, requireRole('owner', 'admin', 'm
 router.put('/:id/unmark-paid', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), async (req: any, res: Response): Promise<void> => {
   try {
     await pool.query(
-      "UPDATE invoices SET status = 'pending', paid_at = NULL, updated_at = NOW() WHERE id = ?",
+      "UPDATE invoices SET status = 'unpaid', paid_at = NULL, updated_at = NOW() WHERE id = ?",
       [req.params.id]
     );
     // Remove associated payment

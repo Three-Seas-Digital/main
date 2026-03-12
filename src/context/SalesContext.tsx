@@ -403,6 +403,42 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     syncToApi(() => prospectsApi.update(id, { stage: 'closed', outcome, lossReason: details.lossReason || '', revisitDate: details.revisitDate || '' }), 'closeProspect');
   };
 
+  const convertLeadToProspect = (leadId: string, extraData: Record<string, any> = {}) => {
+    const lead = leads.find((l: any) => l.id === leadId);
+    if (!lead) return { success: false, error: 'Lead not found' };
+
+    const prospect = {
+      id: generateId(),
+      name: lead.businessName || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      service: extraData.service || lead.type || '',
+      stage: extraData.stage || 'inquiry',
+      dealValue: extraData.dealValue || 0,
+      probability: extraData.probability || 25,
+      expectedCloseDate: extraData.expectedCloseDate || '',
+      notes: (lead.notes || []).map((n: any) => ({ ...n })),
+      documents: [],
+      outcome: null,
+      lossReason: '',
+      revisitDate: '',
+      source: 'lead',
+      leadId: lead.id,
+      appointmentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setProspects((prev) => [prospect, ...prev]);
+    syncToApi(() => prospectsApi.create(prospect), 'convertLeadToProspect');
+
+    // Remove lead after conversion
+    setLeads((prev) => prev.filter((l: any) => l.id !== leadId));
+    syncToApi(() => leadsApi.delete(leadId), 'convertLeadToProspect_deleteLead');
+
+    return { success: true, prospect };
+  };
+
   const reopenProspect = (id: string, stage: string = 'negotiating') => {
     setProspects((prev) =>
       prev.map((p: any) =>
@@ -419,7 +455,7 @@ export function SalesProvider({ children }: { children: React.ReactNode }) {
     businessDatabase, saveToBusinessDb, getFromBusinessDb, updateBusinessDb, deleteFromBusinessDb,
     marketResearch, saveResearch, updateResearch, deleteResearch,
     prospects, addProspect, updateProspect, deleteProspect, addProspectNote, deleteProspectNote,
-    addProspectDocument, deleteProspectDocument, closeProspect, reopenProspect,
+    addProspectDocument, deleteProspectDocument, closeProspect, reopenProspect, convertLeadToProspect,
     PROSPECT_STAGES, LOSS_REASONS,
   }), [leads, businessDatabase, marketResearch, prospects]); // eslint-disable-line react-hooks/exhaustive-deps
 

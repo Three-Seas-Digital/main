@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { upload, setUploadType } from '../middleware/upload.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -35,15 +36,16 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 // POST /api/expenses — Create expense (with optional receipt upload)
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'accountant'), setUploadType('receipt'), upload.single('receipt'), async (req: any, res: Response) => {
   try {
-    const { description, amount, category, date, vendor, notes } = req.body;
+    const { id: bodyId, description, amount, category, date, vendor, notes } = req.body;
+    const id = bodyId || generateId();
     const receiptPath = req.file ? req.file.path : null;
 
-    const [result] = await pool.query(
-      `INSERT INTO expenses (description, amount, category, date, vendor, notes, receipt_path, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [description, amount, category, date || new Date().toISOString().split('T')[0], vendor || null, notes || null, receiptPath, req.user?.username]
+    await pool.query(
+      `INSERT INTO expenses (id, description, amount, category, date, vendor, notes, receipt_path, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, description, amount, category, date || new Date().toISOString().split('T')[0], vendor || null, notes || null, receiptPath, req.user?.id]
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Expense created' });
+    res.status(201).json({ id, message: 'Expense created' });
   } catch (err) {
     console.error('[expenses] Error:', err);
     res.status(500).json({ error: 'Server error' });
