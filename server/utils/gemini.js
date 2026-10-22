@@ -1,3 +1,17 @@
+/**
+ * Gemini-only text/JSON helpers. Used by routes/ai.js and routes/aiRecommendations.js.
+ * NOTE: these two routes read GEMINI_API_KEY directly and do NOT honor AI_PROVIDER
+ * — the provider switch (Claude/Ollama) lives in utils/ai.js, used by calendarAgent.js.
+ *
+ * ── HOW TO RE-ENABLE AI (disabled since the Oct 2026 key rotation) ──────────────
+ * Set GEMINI_API_KEY in the environment (Railway → `main` service → Variables) and
+ * redeploy. No code change needed. (This re-enables AI Advisor / SWOT / recommendations.)
+ *
+ * ── WHY THE CLIENT IS LAZY (fix in commit 25d1806) ─────────────────────────────
+ * new GoogleGenAI(...) THROWS when GEMINI_API_KEY is absent. It used to run at import
+ * time, crash-looping the server on boot. It is now constructed on first use in
+ * getClient(), which throws a clear error only when an endpoint is actually called.
+ */
 import { GoogleGenAI } from '@google/genai';
 
 // Lazily initialize the Gemini client. Constructing it at import time throws

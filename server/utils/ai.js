@@ -1,3 +1,23 @@
+/**
+ * Multi-provider AI abstraction (Gemini / Claude / Ollama), selected by AI_PROVIDER.
+ * Used by routes/calendarAgent.js (and the .ts routes). Routes import the same
+ * generateContent/generateChat/generateJSON regardless of provider.
+ *
+ * ── HOW TO RE-ENABLE AI (disabled since the Oct 2026 key rotation) ──────────────
+ * No code change needed — set env vars (Railway → `main` service → Variables), redeploy:
+ *   • Gemini (default):  AI_PROVIDER=gemini  + GEMINI_API_KEY=...
+ *   • Claude:            AI_PROVIDER=claude  + ANTHROPIC_API_KEY=...  (+ optional CLAUDE_MODEL)
+ *   • Ollama (local):    AI_PROVIDER=ollama  + OLLAMA_BASE_URL + OLLAMA_MODEL
+ * Full var list / examples: .env.example (AI section).
+ *
+ * ── WHY THE CLIENTS ARE LAZY (fix in commit 25d1806) ───────────────────────────
+ * The SDK constructors (new Anthropic / new GoogleGenAI) THROW when their key is
+ * missing. They originally ran at module top level, so an absent key crash-looped
+ * the whole Express server on boot (this module loads at startup via the routes).
+ * They are now built on first use inside getClaudeClient() / getGeminiClient(),
+ * which throw a clear "KEY not set" error only when an AI endpoint is actually
+ * called. KEEP THIS PATTERN for any new provider client you add here.
+ */
 import axios from 'axios';
 import { GoogleGenAI } from '@google/genai';
 import Anthropic from '@anthropic-ai/sdk';
