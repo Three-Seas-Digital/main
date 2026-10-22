@@ -1,7 +1,19 @@
 import { GoogleGenAI } from '@google/genai';
 
-// Initialize the Gemini client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Lazily initialize the Gemini client. Constructing it at import time throws
+// when GEMINI_API_KEY is absent, which would crash the whole server on boot.
+// Deferring construction keeps the API up; AI calls fail only when invoked
+// without a configured key.
+let _ai = null;
+function getClient() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set — Gemini AI features are disabled.');
+  }
+  if (!_ai) {
+    _ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return _ai;
+}
 
 /**
  * Generate text content using Gemini
@@ -16,7 +28,7 @@ export async function generateContent(prompt, systemInstruction = '', model = 'g
     config.systemInstruction = systemInstruction;
   }
 
-  const response = await ai.models.generateContent({
+  const response = await getClient().models.generateContent({
     model,
     contents: prompt,
     config,
@@ -43,7 +55,7 @@ export async function generateChat(messages, systemInstruction = '', model = 'ge
     config.systemInstruction = systemInstruction;
   }
 
-  const response = await ai.models.generateContent({
+  const response = await getClient().models.generateContent({
     model,
     contents,
     config,
@@ -60,7 +72,7 @@ export async function generateChat(messages, systemInstruction = '', model = 'ge
  * @returns {Promise<object>} Parsed JSON response
  */
 export async function generateJSON(prompt, systemInstruction, model = 'gemini-2.5-flash') {
-  const response = await ai.models.generateContent({
+  const response = await getClient().models.generateContent({
     model,
     contents: prompt,
     config: {
@@ -72,4 +84,4 @@ export async function generateJSON(prompt, systemInstruction, model = 'gemini-2.
   return JSON.parse(response.text);
 }
 
-export default ai;
+export default { generateContent, generateChat, generateJSON };

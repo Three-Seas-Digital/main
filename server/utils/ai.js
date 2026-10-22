@@ -6,10 +6,21 @@ const AI_PROVIDER = process.env.AI_PROVIDER || 'gemini';
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-4-6';
 
 // ─── Claude Client ───────────────────────────────────────────────
-const claudeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Lazily constructed — building the SDK client at import time throws when the
+// key is missing, which would crash the server on boot. Defer until first use.
+let _claudeClient = null;
+function getClaudeClient() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is not set — Claude AI features are disabled.');
+  }
+  if (!_claudeClient) {
+    _claudeClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _claudeClient;
+}
 
 async function claudeGenerateContent(prompt, systemInstruction = '', model = CLAUDE_MODEL) {
-  const response = await claudeClient.messages.create({
+  const response = await getClaudeClient().messages.create({
     model,
     max_tokens: 4096,
     system: systemInstruction || undefined,
@@ -28,7 +39,7 @@ async function claudeGenerateChat(messages, systemInstruction = '', model = CLAU
     content: msg.text,
   }));
 
-  const response = await claudeClient.messages.create({
+  const response = await getClaudeClient().messages.create({
     model,
     max_tokens: 4096,
     system: systemInstruction || undefined,
@@ -41,7 +52,7 @@ async function claudeGenerateChat(messages, systemInstruction = '', model = CLAU
 async function claudeGenerateJSON(prompt, systemInstruction, model = CLAUDE_MODEL) {
   const jsonInstruction = `${systemInstruction}\n\nYou must respond with ONLY valid JSON, no markdown formatting, no extra text.`;
 
-  const response = await claudeClient.messages.create({
+  const response = await getClaudeClient().messages.create({
     model,
     max_tokens: 4096,
     system: jsonInstruction,
@@ -142,7 +153,17 @@ async function ollamaGenerateJSON(prompt, systemInstruction, model = OLLAMA_MODE
 }
 
 // ─── Gemini Client ───────────────────────────────────────────────
-const geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Lazily constructed for the same reason as the Claude client above.
+let _geminiClient = null;
+function getGeminiClient() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set — Gemini AI features are disabled.');
+  }
+  if (!_geminiClient) {
+    _geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return _geminiClient;
+}
 
 async function geminiGenerateContent(prompt, systemInstruction = '', model = 'gemini-2.5-flash') {
   const config = {};
@@ -150,7 +171,7 @@ async function geminiGenerateContent(prompt, systemInstruction = '', model = 'ge
     config.systemInstruction = systemInstruction;
   }
 
-  const response = await geminiClient.models.generateContent({
+  const response = await getGeminiClient().models.generateContent({
     model,
     contents: prompt,
     config,
@@ -170,7 +191,7 @@ async function geminiGenerateChat(messages, systemInstruction = '', model = 'gem
     config.systemInstruction = systemInstruction;
   }
 
-  const response = await geminiClient.models.generateContent({
+  const response = await getGeminiClient().models.generateContent({
     model,
     contents,
     config,
@@ -180,7 +201,7 @@ async function geminiGenerateChat(messages, systemInstruction = '', model = 'gem
 }
 
 async function geminiGenerateJSON(prompt, systemInstruction, model = 'gemini-2.5-flash') {
-  const response = await geminiClient.models.generateContent({
+  const response = await getGeminiClient().models.generateContent({
     model,
     contents: prompt,
     config: {
