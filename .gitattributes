@@ -15,6 +15,11 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 
+# Generated build output — Windows build tools (Vite) emit CRLF; force LF
+# so dist files never flip-flop under core.autocrlf=true.
+dist/index.html text eol=lf
+dist/assets/*.js text eol=lf
+
 # Binary files
 *.jpg binary
 *.jpeg binary
