@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -34,15 +35,16 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 // POST /api/research — Save research data
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'it', 'analyst'), async (req: any, res: Response) => {
   try {
-    const { location, data } = req.body;
+    const { id: bodyId, location, data } = req.body;
+    const id = bodyId || generateId();
     const lookupKey = `${location}`;
-    const [result] = await pool.query(
-      `INSERT INTO market_research (lookup_key, location, data, created_at)
-       VALUES (?, ?, ?, NOW())
+    await pool.query(
+      `INSERT INTO market_research (id, lookup_key, location, data, created_at)
+       VALUES (?, ?, ?, ?, NOW())
        ON DUPLICATE KEY UPDATE data = ?, updated_at = NOW()`,
-      [lookupKey, location, data ? JSON.stringify(data) : null, data ? JSON.stringify(data) : null]
+      [id, lookupKey, location, data ? JSON.stringify(data) : null, data ? JSON.stringify(data) : null]
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Research saved' });
+    res.status(201).json({ id, message: 'Research saved' });
   } catch (err) {
     console.error('[research] Error:', err);
     res.status(500).json({ error: 'Server error' });

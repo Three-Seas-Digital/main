@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -46,13 +47,14 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 // POST /api/time-entries — Create time entry
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'developer'), async (req: any, res: Response) => {
   try {
-    const { projectId, date, hours, description, billable } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO time_entries (project_id, user_id, date, hours, description, billable, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [projectId, req.user?.id, date || new Date().toISOString().split('T')[0], hours, description || null, billable !== false]
+    const { id: bodyId, projectId, date, hours, description, billable } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO time_entries (id, project_id, user_id, date, hours, description, billable, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, projectId, req.user?.id, date || new Date().toISOString().split('T')[0], hours, description || null, billable !== false]
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Time entry created' });
+    res.status(201).json({ id, message: 'Time entry created' });
   } catch (err) {
     console.error('[timeEntries] Error:', err);
     res.status(500).json({ error: 'Server error' });

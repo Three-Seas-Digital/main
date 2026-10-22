@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -33,13 +34,14 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 // POST /api/activity-log — Create activity log entry
 router.post('/', authenticateToken, async (req: any, res: Response) => {
   try {
-    const { action, details } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO activity_log (action, details, user_id, user_name, created_at)
-       VALUES (?, ?, ?, ?, NOW())`,
-      [action, details ? JSON.stringify(details) : null, req.user?.id, req.user?.username]
+    const { id: bodyId, action, details } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO activity_log (id, action, details, user_id, user_name, created_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [id, action, details ? JSON.stringify(details) : null, req.user?.id, req.user?.username]
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Activity logged' });
+    res.status(201).json({ id, message: 'Activity logged' });
   } catch (err) {
     console.error('[activityLog] Error:', err);
     res.status(500).json({ error: 'Server error' });

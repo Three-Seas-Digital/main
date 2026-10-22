@@ -273,3 +273,13 @@ cd server && node index.js        # Start API server
 - **Light theme:** WebGL shaders use `u_lightMode` uniform (0.0 or 1.0). CSS uses `:root.light-theme` selector.
 - **Template storage:** Uses R2 → IndexedDB cascade. Functions: `getTemplateZip()`, `getTemplateImage()`, `storeTemplateImage()`.
 - **The existing `CLAUDE_CODE_INSTRUCTIONS.md` is outdated** — it describes a Supabase-only / TypeScript / Stripe architecture that was never implemented. THIS file (`CLAUDE.md`) is the authoritative reference.
+
+## Deployment & Infrastructure (as of Oct 2026)
+
+- **Frontend:** Cloudflare Pages (`main-bn8.pages.dev` → `threeseasdigital.com`) — behind Cloudflare.
+- **Backend API:** Railway (`main-production-350f.up.railway.app`, service `main`). ⚠️ **NOT behind Cloudflare** — directly exposed. Frontend→API is cross-origin, so `CORS_ORIGIN` must list the frontend domain(s).
+- **Database:** Neon Postgres (project `flat-sound-46716727`). Read via env var **`SUPABASE_DB_URL`** — misleading name, it's **Neon**, not Supabase. **Never delete this var**; rotate value only.
+- **DNS:** Cloudflare (domain is proxied → can't use the domain name for mail clients; use `premium48.web-hosting.com`).
+- **Email:** Namecheap cPanel. App sends as `welcome@threeseasdigital.com` over SMTP (`EMAIL_PROVIDER=smtp`, server `premium48.web-hosting.com`, 465 SSL / 587 STARTTLS).
+- **AI status:** currently **DISABLED** — `GEMINI_API_KEY` was removed in the Oct 2026 Railway security incident and no `AI_PROVIDER` is set. Re-add a key to restore AI features (AI Advisor, SWOT, recommendations, Calendar agent).
+- **Security:** see `SECURITY-ROTATION-CHECKLIST.md` (repo root). Oct 2026 Railway breach — all creds rotated; a Railway **redeploy is pending** (builds were paused) to activate the new values.
