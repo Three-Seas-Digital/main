@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { sendWelcomeEmail } from '../services/emailService.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -73,12 +74,13 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 // POST /api/email-templates — Create template
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager'), async (req: any, res: Response) => {
   try {
-    const { name, subject, body, category } = req.body;
-    const [result] = await pool.query(
-      'INSERT INTO email_templates (name, subject, body, category, created_at) VALUES (?, ?, ?, ?, NOW())',
-      [name, subject, body, category || 'general']
+    const { id: bodyId, name, subject, body, category } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      'INSERT INTO email_templates (id, name, subject, body, category, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+      [id, name, subject, body, category || 'general']
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Template created' });
+    res.status(201).json({ id, message: 'Template created' });
   } catch (err) {
     console.error('[emailTemplates] Error:', err);
     res.status(500).json({ error: 'Server error' });

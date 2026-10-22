@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS leads (
   type VARCHAR(100),
   category VARCHAR(100),
   website VARCHAR(500),
-  status VARCHAR(50) DEFAULT 'new',
+  status ENUM('new', 'contacted', 'followup', 'interested', 'not-interested', 'converted') DEFAULT 'new',
   source VARCHAR(50) DEFAULT 'manual',
   coordinates JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

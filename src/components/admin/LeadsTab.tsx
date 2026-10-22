@@ -43,7 +43,7 @@ function getBusinessType(tags: Record<string, any>): string {
 }
 
 export default function LeadsTab() {
-  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb, addNotification, getBookedTimesForDate } = useAppContext();
+  const { leads, addLead, updateLead, deleteLead, addLeadNote, deleteLeadNote, addAppointment, addProspect, convertLeadToProspect, saveToBusinessDb, getFromBusinessDb, deleteFromBusinessDb, addNotification, getBookedTimesForDate } = useAppContext();
 
   const [searchAddress, setSearchAddress] = useState('');
   const [searchRadius, setSearchRadius] = useState(1000);
@@ -148,24 +148,11 @@ export default function LeadsTab() {
         },
         source: lead.source || 'manual',
       });
-      // Send to pipeline
-      const leadNotesFormatted = (lead.notes || []).map((n) => ({
-        id: n.id,
-        text: n.text,
-        author: n.author || 'From Lead',
-        createdAt: n.createdAt,
-      }));
-      const result = addProspect({
-        name: lead.businessName,
-        email: lead.email || '',
-        phone: lead.phone || '',
-        service: lead.type || '',
+      // Send to pipeline using convertLeadToProspect (tracks leadId)
+      const result = convertLeadToProspect(lead.id, {
         stage: 'negotiating',
-        source: 'lead',
-        notes: leadNotesFormatted,
       });
       if (result.success) {
-        deleteLead(lead.id);
         setToastMsg('Lead converted & sent to Pipeline!');
         addNotification({
           type: 'info',
@@ -250,23 +237,11 @@ export default function LeadsTab() {
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  // Send to Pipeline (creates prospect)
+  // Send to Pipeline (creates prospect via convertLeadToProspect which tracks leadId)
   const handleSendToPipeline = (lead: any) => {
-    // Convert lead notes to prospect notes format
-    const leadNotesFormatted = (lead.notes || []).map((n) => ({
-      id: n.id,
-      text: n.text,
-      author: n.author || 'From Lead',
-      createdAt: n.createdAt,
-    }));
-    const result = addProspect({
-      name: lead.businessName,
-      email: lead.email || '',
-      phone: lead.phone || '',
-      service: lead.type || '',
+    const result = convertLeadToProspect(lead.id, {
       stage: lead.status === 'converted' ? 'negotiating' : 'inquiry',
-      source: 'lead',
-      notes: leadNotesFormatted, // Pass lead notes
+      service: lead.type || '',
     });
     if (result.success) {
       // Auto-populate business database
@@ -286,10 +261,9 @@ export default function LeadsTab() {
           contactEmail: lead.email || '',
           contactPhone: lead.phone || '',
           industry: lead.category || lead.type || '',
-          notes: leadNotesFormatted.map((n) => n.text).join(' | '),
+          notes: (lead.notes || []).map((n: any) => n.text).join(' | '),
         },
       });
-      deleteLead(lead.id);
       setToastMsg('Lead sent to Pipeline!');
     } else {
       setToastMsg('Failed to send to Pipeline');

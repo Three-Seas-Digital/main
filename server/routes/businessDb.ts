@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/db.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { generateId } from '../utils/generateId.js';
 import { AuthRequest } from '../types/index.js';
 
 const router = Router();
@@ -34,13 +35,14 @@ router.get('/:id', authenticateToken, async (req: any, res: Response) => {
 // POST /api/business-db — Create entry
 router.post('/', authenticateToken, requireRole('owner', 'admin', 'manager', 'sales'), async (req: any, res: Response) => {
   try {
-    const { businessName, address, phone, website, category, owner, email, notes, source, intel } = req.body;
-    const [result] = await pool.query(
-      `INSERT INTO business_database (business_name, address, phone, website, category, owner, email, notes, source, intel, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [businessName, address || null, phone || null, website || null, category || null, owner || null, email || null, notes || null, source || 'manual', intel ? JSON.stringify(intel) : null]
+    const { id: bodyId, businessName, address, phone, website, category, owner, email, notes, source, intel } = req.body;
+    const id = bodyId || generateId();
+    await pool.query(
+      `INSERT INTO business_database (id, business_name, address, phone, website, category, owner, email, notes, source, intel, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, businessName, address || null, phone || null, website || null, category || null, owner || null, email || null, notes || null, source || 'manual', intel ? JSON.stringify(intel) : null]
     );
-    res.status(201).json({ id: (result as any).insertId, message: 'Business entry created' });
+    res.status(201).json({ id, message: 'Business entry created' });
   } catch (err) {
     console.error('[businessDb] Error:', err);
     res.status(500).json({ error: 'Server error' });

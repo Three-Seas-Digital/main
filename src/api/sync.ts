@@ -58,6 +58,7 @@ const SYNC_MAP: Record<string, SyncEntry> = {
   threeseas_leads: { api: leadsApi, label: 'leads' },
   threeseas_prospects: { api: prospectsApi, label: 'prospects' },
   threeseas_time_entries: { api: timeEntriesApi, label: 'time entries' },
+  threeseas_invoices: { api: invoicesApi, label: 'invoices' },
   threeseas_email_templates: { api: emailTemplatesApi, label: 'email templates' },
   threeseas_notifications: { api: notificationsApi, label: 'notifications' },
 };
